@@ -7,7 +7,7 @@
   <title>FitTogether</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <style>.hidden{display:none!important}</style>
-  <link rel="stylesheet" href="styles.css?v=0.5.0" />
+  <link rel="stylesheet" href="styles.css?v=0.8.0" />
 </head>
 <body>
   <section id="authScreen" class="auth-screen" role="dialog" aria-modal="true" aria-labelledby="authTitle">
@@ -44,6 +44,7 @@
         <h1>FitTogether</h1>
       </div>
       <div class="top-actions">
+        <select id="activeGroupSelect" class="group-select" aria-label="Aktive Gruppe"></select>
         <span id="onlineBadge" class="online-badge">● Online</span>
         <button id="notifyBtn" class="ghost-btn" type="button">🔔 Erinnerungen</button>
         <button id="logoutBtn" class="ghost-btn" type="button">Abmelden</button>
@@ -59,6 +60,12 @@
     </nav>
 
     <main>
+      <section id="noGroupBanner" class="card group-empty hidden">
+        <h2>Noch keine Gruppe</h2>
+        <p>Erstelle eine Gruppe oder tritt mit einem Einladungscode bei. Danach wird der Kalender automatisch mit allen Gruppenmitgliedern synchronisiert.</p>
+        <button id="openGroupsBtn" class="primary-btn" type="button">Gruppe einrichten</button>
+      </section>
+
       <section id="home" class="panel active">
         <section class="card hero-card">
           <div class="section-heading">
@@ -120,7 +127,7 @@
             <label>Datum<input id="eventDate" type="date" /></label>
             <label>Von<input id="eventStart" type="time" value="18:00" /></label>
             <label>Bis<input id="eventEnd" type="time" value="19:30" /></label>
-            <label>Teilnehmer<select id="eventOwner"><option value="both">Beide</option><option value="a">Ich</option><option value="b">Partner</option></select></label>
+            <label>Teilnehmer<select id="eventOwner"><option value="all">Alle Gruppenmitglieder</option><option value="self">Nur ich</option></select></label>
             <label>Farbe<select id="eventColor"><option value="violet">Lila</option><option value="blue">Blau</option><option value="green">Grün</option><option value="orange">Orange</option><option value="pink">Pink</option></select></label>
             <label>Strafe bei Verpassen (€)<input id="eventPenalty" type="number" min="0" step="0.5" value="2" /></label>
             <label>Wiederholung<select id="eventRepeat"><option value="none">Keine</option><option value="weekly">Wöchentlich</option></select></label>
@@ -163,12 +170,43 @@
           </div>
           <label>Bild<input id="photoInput" type="file" accept="image/*" /></label>
           <button id="addPhotoBtn" class="primary-btn full" type="button">Bild hinzufügen</button>
-          <p class="helper">Standardmäßig privat. In dieser lokalen V0.1 bleiben Bilder nur auf diesem Gerät gespeichert.</p>
+          <p class="helper">Bilder werden nicht mehr im Browser gespeichert. Der sichere Online-Bildspeicher kommt als nächster Schritt.</p>
         </section>
         <section class="photo-grid" id="photoGrid"></section>
       </section>
 
       <section id="profiles" class="panel">
+        <section class="card group-card">
+          <div class="section-heading">
+            <div><p class="eyebrow">Gemeinsam trainieren</p><h2>Gruppen</h2></div>
+            <span id="groupMemberCount" class="badge">0 Mitglieder</span>
+          </div>
+          <div id="currentGroupBox" class="current-group hidden">
+            <div>
+              <span class="helper">Aktive Gruppe</span>
+              <strong id="currentGroupName">–</strong>
+            </div>
+            <div class="invite-row">
+              <span id="inviteCodeLabel" class="invite-code">–</span>
+              <button id="copyInviteBtn" class="ghost-btn" type="button">Einladungslink kopieren</button>
+            </div>
+          </div>
+          <div id="groupMemberList" class="member-list"></div>
+          <div class="group-actions-grid">
+            <div class="group-action-box">
+              <h3>Neue Gruppe</h3>
+              <label>Gruppenname<input id="newGroupName" type="text" maxlength="40" placeholder="z. B. Janek & Estelle" /></label>
+              <button id="createGroupBtn" class="primary-btn full" type="button">Gruppe erstellen</button>
+            </div>
+            <div class="group-action-box">
+              <h3>Gruppe beitreten</h3>
+              <label>Einladungscode<input id="joinGroupCode" type="text" maxlength="20" autocomplete="off" placeholder="z. B. A1B2C3D4" /></label>
+              <button id="joinGroupBtn" class="primary-btn full" type="button">Beitreten</button>
+            </div>
+          </div>
+          <p id="groupMessage" class="helper" aria-live="polite"></p>
+        </section>
+
         <section class="profile-grid">
           <article class="card profile-card">
             <div class="avatar avatar-red" id="ownAvatar">J</div>
@@ -212,6 +250,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="app.js?v=0.6.0"></script>
+  <script type="module" src="app.js?v=0.8.0"></script>
 </body>
 </html>
