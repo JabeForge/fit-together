@@ -36,6 +36,24 @@ function uid(){ return `${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 
+
+async function removeLegacyCache(){
+  // V0.5: Alte Service Worker haben bei GitHub Pages verschiedene Versionen gemischt.
+  // Bis das PWA-Caching neu aufgebaut ist, entfernen wir sie bewusst.
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(reg => reg.unregister()));
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter(k => k.startsWith('fit-together-')).map(k => caches.delete(k)));
+    }
+  } catch (err) {
+    console.warn('Alter Cache konnte nicht vollständig entfernt werden.', err);
+  }
+}
+
 async function init(){
   // Alte Platzhalter nicht als echte Personennamen behandeln.
   if(state.users?.b?.name === 'Freundin') state.users.b.name = 'Partner';
@@ -43,7 +61,7 @@ async function init(){
   $('#weightDate').value = todayISO();
   $('#photoDate').value = todayISO();
   bindTabs(); bindActions(); bindAuth();
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  await removeLegacyCache();
   setInterval(checkDueReminders, 30000);
 
   const { data: { session } } = await supabase.auth.getSession();
@@ -398,14 +416,19 @@ async function signUp(){
   const password=$('#registerPassword').value;
   if(!name || !email || password.length<6) return setAuthMessage('Bitte Name, E-Mail und ein Passwort mit mindestens 6 Zeichen eingeben.',true);
   setAuthMessage('Account wird erstellt …');
-  const { data, error } = await supabase.auth.signUp({ email, password, options:{ data:{ display_name:name } } });
-  if(error) return setAuthMessage(error.message,true);
-  if(data.session){
-    setAuthMessage('Account erstellt. Du bist angemeldet.');
-  } else {
-    setAuthMessage('Account erstellt. Prüfe jetzt deine E-Mails und bestätige die Registrierung. Danach kannst du dich anmelden.');
-    showAuthMode('login');
-    $('#loginEmail').value=email;
+  try {
+    const { data, error } = await supabase.auth.signUp({ email, password, options:{ data:{ display_name:name } } });
+    if(error) return setAuthMessage(error.message,true);
+    if(data.session){
+      setAuthMessage('Account erstellt. Du bist angemeldet.');
+    } else {
+      showAuthMode('login');
+      $('#loginEmail').value=email;
+      setAuthMessage('Account erstellt. Bitte bestätige zuerst die E-Mail und melde dich danach an.');
+    }
+  } catch (err) {
+    console.error(err);
+    setAuthMessage('Verbindung zu Supabase fehlgeschlagen. Bitte Internetverbindung prüfen und erneut versuchen.',true);
   }
 }
 async function signIn(){
@@ -413,9 +436,14 @@ async function signIn(){
   const password=$('#loginPassword').value;
   if(!email || !password) return setAuthMessage('Bitte E-Mail und Passwort eingeben.',true);
   setAuthMessage('Anmeldung läuft …');
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if(error) return setAuthMessage(error.message,true);
-  setAuthMessage('Angemeldet.');
+  try {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if(error) return setAuthMessage(error.message,true);
+    setAuthMessage('Angemeldet.');
+  } catch (err) {
+    console.error(err);
+    setAuthMessage('Verbindung zu Supabase fehlgeschlagen. Bitte erneut versuchen.',true);
+  }
 }
 async function signOut(){
   await supabase.auth.signOut();
@@ -425,11 +453,13 @@ async function applySession(session){
   if(!currentUser){
     currentProfile=null;
     $('#authScreen').classList.remove('hidden');
-    $('#appShell').classList.add('hidden');
+    $('#appShell').classList.remove('hidden');
+    document.body.classList.add('auth-open');
     return;
   }
   $('#authScreen').classList.add('hidden');
   $('#appShell').classList.remove('hidden');
+  document.body.classList.remove('auth-open');
   await loadOnlineProfile();
   renderAll();
 }

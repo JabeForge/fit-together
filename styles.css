@@ -64,3 +64,36 @@
 .auth-form{display:grid;gap:12px}.auth-message{min-height:22px;margin:14px 0 0;color:#93c5fd;font-size:13px}.auth-message.error{color:#fca5a5}
 .top-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}.online-badge{font-size:12px;font-weight:800;color:#86efac;background:#0f2b20;border:1px solid #23553d;padding:8px 10px;border-radius:999px}
 @media(max-width:760px){.topbar{gap:10px}.top-actions{max-width:58%;gap:5px}.online-badge{display:none}.top-actions .ghost-btn{font-size:11px;padding:8px}.auth-screen{padding:14px}.auth-card{padding:20px}}
+
+
+/* V0.5 Auth-Modal */
+.auth-screen{
+  position:fixed;
+  inset:0;
+  z-index:1000;
+  display:grid;
+  place-items:center;
+  padding:18px;
+  background:rgba(3,7,18,.78);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.auth-card{
+  width:min(440px,100%);
+  max-height:calc(100dvh - 36px);
+  overflow:auto;
+  background:#111a2e;
+  border:1px solid var(--border);
+  border-radius:22px;
+  padding:22px;
+  box-shadow:0 24px 80px rgba(0,0,0,.45);
+}
+.auth-card h1{margin:6px 0 8px;font-size:26px}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:18px 0 14px}
+.auth-tab{border:1px solid var(--border);background:#182238;color:var(--muted);border-radius:12px;padding:11px 12px;font-weight:800;cursor:pointer}
+.auth-tab.active{background:#263554;color:var(--text)}
+.auth-form{display:grid;gap:12px}
+.auth-message{min-height:20px;margin:12px 0 0;color:#a7f3d0;font-size:13px}
+.auth-message.error{color:#fecaca}
+body.auth-open .app-shell{filter:blur(3px);pointer-events:none;user-select:none}
+@media(max-width:520px){.auth-screen{padding:12px}.auth-card{padding:18px;border-radius:18px}.auth-card h1{font-size:23px}}

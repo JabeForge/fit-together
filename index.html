@@ -6,14 +6,15 @@
   <meta name="theme-color" content="#111827" />
   <title>FitTogether</title>
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css" />
+  <style>.hidden{display:none!important}</style>
+  <link rel="stylesheet" href="styles.css?v=0.5.0" />
 </head>
 <body>
-  <section id="authScreen" class="auth-screen">
+  <section id="authScreen" class="auth-screen" role="dialog" aria-modal="true" aria-labelledby="authTitle">
     <div class="auth-card">
       <p class="eyebrow">FitTogether Online</p>
-      <h1>Gemeinsam durchziehen</h1>
-      <p class="helper">Melde dich an oder erstelle deinen eigenen Account. Danach wird dein Profil online in Supabase gespeichert.</p>
+      <h1 id="authTitle">Willkommen bei FitTogether</h1>
+      <p class="helper">Melde dich an oder erstelle einmalig deinen Account.</p>
 
       <div class="auth-tabs">
         <button id="showLoginBtn" class="auth-tab active" type="button">Anmelden</button>
@@ -69,8 +70,8 @@
           </div>
 
           <div class="tug-labels">
-            <div><span class="dot red"></span><strong id="userANameLabel">Janek</strong><span id="debtA">0 €</span></div>
-            <div><span id="debtB">0 €</span><strong id="userBNameLabel">Freundin</strong><span class="dot blue"></span></div>
+            <div><span class="dot red"></span><strong id="userANameLabel">Ich</strong><span id="debtA">0 €</span></div>
+            <div><span id="debtB">0 €</span><strong id="userBNameLabel">Partner</strong><span class="dot blue"></span></div>
           </div>
           <div class="tug-track" aria-label="Vergleich des Strafgelds">
             <div id="redSide" class="tug-side red-side"></div>
@@ -119,7 +120,7 @@
             <label>Datum<input id="eventDate" type="date" /></label>
             <label>Von<input id="eventStart" type="time" value="18:00" /></label>
             <label>Bis<input id="eventEnd" type="time" value="19:30" /></label>
-            <label>Teilnehmer<select id="eventOwner"><option value="both">Beide</option><option value="a">Janek</option><option value="b">Partner</option></select></label>
+            <label>Teilnehmer<select id="eventOwner"><option value="both">Beide</option><option value="a">Ich</option><option value="b">Partner</option></select></label>
             <label>Farbe<select id="eventColor"><option value="violet">Lila</option><option value="blue">Blau</option><option value="green">Grün</option><option value="orange">Orange</option><option value="pink">Pink</option></select></label>
             <label>Strafe bei Verpassen (€)<input id="eventPenalty" type="number" min="0" step="0.5" value="2" /></label>
             <label>Wiederholung<select id="eventRepeat"><option value="none">Keine</option><option value="weekly">Wöchentlich</option></select></label>
@@ -172,7 +173,7 @@
           <article class="card profile-card">
             <div class="avatar avatar-red" id="ownAvatar">J</div>
             <p class="eyebrow">Dein Profil</p>
-            <h2 id="ownProfileName">Janek</h2>
+            <h2 id="ownProfileName">Ich</h2>
             <p class="helper">Dieses Profil kannst nur du bearbeiten.</p>
             <label>Anzeigename<input id="ownNameInput" type="text" maxlength="30" /></label>
             <button id="saveOwnProfileBtn" class="primary-btn full" type="button">Profil speichern</button>
@@ -211,6 +212,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=0.5.0"></script>
 </body>
 </html>
