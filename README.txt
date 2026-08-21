@@ -1,34 +1,13 @@
-FitTogether V0.1
+FitTogether V0.3
 ================
 
-Starten auf Windows:
-1. ZIP entpacken.
-2. Im entpackten Ordner eine Eingabeaufforderung / PowerShell öffnen.
-3. Ausführen:
-      python -m http.server 8000
-4. Im Browser öffnen:
-      http://localhost:8000
+Neu:
+- Monatskalender komplett fuer Handy ueberarbeitet: echte 7-Spalten-Monatsansicht wie eine Kalender-App.
+- Termine stehen direkt lesbar in den Tagesfeldern.
+- Heutiger/ausgewaehlter Tag klar markiert.
+- Klick waehlt einen Tag, "+ Termin hinzufuegen" springt zum Formular.
+- Partnername ist nicht mehr als "Estelle" hardgecoded. Bis zur Supabase-Synchronisation ist "Partner" nur ein neutraler Platzhalter.
+- Service-Worker-Cache auf V0.3 aktualisiert und alte Caches werden geloescht, damit GitHub Pages keine alten JS/CSS-Dateien festhaelt.
 
-Warum nicht einfach index.html doppelklicken?
-Für Installation als PWA und Service Worker sollte die App über localhost oder HTTPS laufen.
-
-Bereits enthalten:
-- Offener Kalender: freie Titel, keine fest codierten Sportarten
-- Datum, Start/Ende, Teilnehmer, Strafe, Notiz, wöchentliche Wiederholung
-- Automatische Verpasst-Wertung nach Terminende
-- Strafgeld-Tauziehen rot/blau
-- Gemeinsamer Topf und Führungsanzeige
-- Streaks und erledigte Termine
-- Gewichtseinträge + Verlauf + 7-Tage-Trend
-- Fortschrittsbilder privat/geteilt (lokal auf dem Gerät)
-- Browser-Benachrichtigungen, solange die App aktiv ist
-- Installierbare PWA-Grundlage
-
-Noch NICHT in V0.1:
-- Synchronisierung zwischen zwei Handys / Accounts
-- Server-Datenbank / QR-Einladung
-- zuverlässige Push-Benachrichtigungen bei komplett geschlossener App
-- Trainingsfoto direkt als Nachweis eines Kalendereintrags
-- monatliche automatische Fortschritts-Abfrage
-
-Diese Punkte sind für die nächste Ausbaustufe vorgesehen.
+GitHub Pages Update:
+Alle sechs Dateien in dein bestehendes fit-together Repository hochladen und die gleichnamigen Dateien ersetzen. Der GitHub-Pages-Link bleibt gleich.

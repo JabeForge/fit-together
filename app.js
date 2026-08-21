@@ -1,6 +1,6 @@
-const STORE_KEY = 'fitTogether_v02';
+const STORE_KEY = 'fitTogether_v03';
 const defaultState = {
-  users: { a: { name: 'Janek', debt: 0 }, b: { name: 'Estelle', debt: 0 } },
+  users: { a: { name: 'Ich', debt: 0 }, b: { name: 'Partner', debt: 0 } },
   events: [],
   weights: [],
   photos: [],
@@ -14,7 +14,7 @@ calendarCursor.setDate(1);
 
 function loadState(){
   try {
-    const raw = localStorage.getItem(STORE_KEY) || localStorage.getItem('fitTogether_v01') || '{}';
+    const raw = localStorage.getItem(STORE_KEY) || localStorage.getItem('fitTogether_v02') || localStorage.getItem('fitTogether_v01') || '{}';
     return { ...defaultState, ...JSON.parse(raw) };
   }
   catch { return structuredClone(defaultState); }
@@ -29,8 +29,8 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 
 function init(){
-  // migrate old placeholder name
-  if(state.users?.b?.name === 'Freundin') state.users.b.name = 'Estelle';
+  // Alte Platzhalter nicht als echte Personennamen behandeln.
+  if(state.users?.b?.name === 'Freundin') state.users.b.name = 'Partner';
   $('#eventDate').value = todayISO();
   $('#weightDate').value = todayISO();
   $('#photoDate').value = todayISO();
@@ -54,6 +54,8 @@ function bindActions(){
   $('#notifyBtn').addEventListener('click', requestNotifications);
   $('#prevMonthBtn').addEventListener('click',()=>{ calendarCursor.setMonth(calendarCursor.getMonth()-1); renderMonthCalendar(); });
   $('#nextMonthBtn').addEventListener('click',()=>{ calendarCursor.setMonth(calendarCursor.getMonth()+1); renderMonthCalendar(); });
+  $('#todayBtn').addEventListener('click',()=>{ calendarCursor = new Date(); calendarCursor.setDate(1); renderMonthCalendar(); });
+  $('#addSelectedDayBtn').addEventListener('click',()=>{ showEventForm($('#eventDate').value || todayISO()); });
   $('#saveOwnProfileBtn').addEventListener('click', saveOwnProfile);
   $('#statusDialog').addEventListener('close',()=>{
     if(!selectedEventId || $('#statusDialog').returnValue==='cancel') return;
@@ -194,35 +196,67 @@ function renderMonthCalendar(){
   const grid = $('#monthGrid');
   if(!grid) return;
   const y = calendarCursor.getFullYear(), m = calendarCursor.getMonth();
-  $('#calendarMonthTitle').textContent = new Intl.DateTimeFormat('de-DE',{month:'long',year:'numeric'}).format(calendarCursor);
+  const monthLabel = new Intl.DateTimeFormat('de-DE',{month:'long',year:'numeric'}).format(calendarCursor);
+  $('#calendarMonthTitle').textContent = monthLabel.charAt(0).toUpperCase()+monthLabel.slice(1);
   grid.innerHTML='';
+
   const first = new Date(y,m,1,12);
   const mondayOffset = (first.getDay()+6)%7;
   const start = new Date(y,m,1-mondayOffset,12);
+  let selectedIso = $('#eventDate').value || todayISO();
+
   for(let i=0;i<42;i++){
     const d = new Date(start); d.setDate(start.getDate()+i);
     const iso = localISO(d);
     const cell = document.createElement('button');
-    cell.type='button'; cell.className='calendar-day';
+    cell.type='button';
+    cell.className='calendar-day';
+    cell.dataset.date=iso;
     if(d.getMonth()!==m) cell.classList.add('other-month');
     if(iso===todayISO()) cell.classList.add('today');
-    cell.innerHTML=`<span class="day-number">${d.getDate()}</span><span class="calendar-events"></span>`;
-    const holder=cell.querySelector('.calendar-events');
+    if(iso===selectedIso) cell.classList.add('selected');
+
+    const dayNo=document.createElement('span');
+    dayNo.className='day-number';
+    dayNo.textContent=d.getDate();
+    cell.appendChild(dayNo);
+
+    const holder=document.createElement('span');
+    holder.className='calendar-events';
     const dayEvents=state.events.filter(e=>e.date===iso).sort((a,b)=>(a.start||'').localeCompare(b.start||''));
-    dayEvents.slice(0,4).forEach(ev=>{
+    dayEvents.slice(0,3).forEach(ev=>{
       const chip=document.createElement('span');
       chip.className=`calendar-event ${ev.color||'violet'} ${calendarEventStatus(ev)}`;
-      chip.textContent=`${ev.start ? ev.start+' ' : ''}${ev.title}`;
+      const time=document.createElement('span');
+      time.className='calendar-event-time';
+      time.textContent=ev.start || '';
+      const title=document.createElement('span');
+      title.className='calendar-event-title';
+      title.textContent=ev.title;
+      chip.append(time,title);
       holder.appendChild(chip);
     });
-    if(dayEvents.length>4){ const more=document.createElement('span'); more.className='helper'; more.textContent=`+${dayEvents.length-4}`; holder.appendChild(more); }
+    if(dayEvents.length>3){
+      const more=document.createElement('span');
+      more.className='calendar-more';
+      more.textContent=`+${dayEvents.length-3} mehr`;
+      holder.appendChild(more);
+    }
+    cell.appendChild(holder);
+
     cell.addEventListener('click',()=>{
       $('#eventDate').value=iso;
-      $('#eventFormCard').scrollIntoView({behavior:'smooth',block:'start'});
-      $('#eventTitle').focus();
+      grid.querySelectorAll('.calendar-day.selected').forEach(x=>x.classList.remove('selected'));
+      cell.classList.add('selected');
     });
+    cell.addEventListener('dblclick',()=>showEventForm(iso));
     grid.appendChild(cell);
   }
+}
+function showEventForm(iso){
+  $('#eventDate').value=iso;
+  $('#eventFormCard').scrollIntoView({behavior:'smooth',block:'start'});
+  setTimeout(()=>$('#eventTitle').focus(),250);
 }
 function localISO(d){
   const yy=d.getFullYear(), mm=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');

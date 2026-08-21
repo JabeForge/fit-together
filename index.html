@@ -66,20 +66,19 @@
       </section>
 
       <section id="calendar" class="panel">
-        <section class="card calendar-card">
-          <div class="calendar-toolbar">
-            <button id="prevMonthBtn" class="ghost-btn" type="button">‹</button>
-            <div class="calendar-title-wrap">
-              <p class="eyebrow">Gemeinsamer Kalender</p>
-              <h2 id="calendarMonthTitle">Monat</h2>
-            </div>
-            <button id="nextMonthBtn" class="ghost-btn" type="button">›</button>
+        <section class="calendar-board">
+          <div class="calendar-appbar">
+            <button id="prevMonthBtn" class="calendar-arrow" type="button" aria-label="Vorheriger Monat">‹</button>
+            <button id="todayBtn" class="calendar-month-button" type="button" title="Zum heutigen Monat">
+              <span id="calendarMonthTitle">August 2026</span>
+            </button>
+            <button id="nextMonthBtn" class="calendar-arrow" type="button" aria-label="Nächster Monat">›</button>
           </div>
           <div class="calendar-weekdays" aria-hidden="true">
-            <span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span>
+            <span>MO.</span><span>DI.</span><span>MI.</span><span>DO.</span><span>FR.</span><span>SA.</span><span>SO.</span>
           </div>
-          <div id="monthGrid" class="month-grid"></div>
-          <p class="helper">Tippe auf einen Tag, um direkt einen Termin für dieses Datum anzulegen.</p>
+          <div id="monthGrid" class="month-grid" aria-label="Monatskalender"></div>
+          <button id="addSelectedDayBtn" class="calendar-fab" type="button">+ Termin hinzufügen</button>
         </section>
 
         <section class="card" id="eventFormCard">
@@ -89,7 +88,7 @@
             <label>Datum<input id="eventDate" type="date" /></label>
             <label>Von<input id="eventStart" type="time" value="18:00" /></label>
             <label>Bis<input id="eventEnd" type="time" value="19:30" /></label>
-            <label>Teilnehmer<select id="eventOwner"><option value="both">Beide</option><option value="a">Janek</option><option value="b">Estelle</option></select></label>
+            <label>Teilnehmer<select id="eventOwner"><option value="both">Beide</option><option value="a">Janek</option><option value="b">Partner</option></select></label>
             <label>Farbe<select id="eventColor"><option value="violet">Lila</option><option value="blue">Blau</option><option value="green">Grün</option><option value="orange">Orange</option><option value="pink">Pink</option></select></label>
             <label>Strafe bei Verpassen (€)<input id="eventPenalty" type="number" min="0" step="0.5" value="2" /></label>
             <label>Wiederholung<select id="eventRepeat"><option value="none">Keine</option><option value="weekly">Wöchentlich</option></select></label>
@@ -153,9 +152,9 @@
           </article>
 
           <article class="card profile-card partner-profile">
-            <div class="avatar avatar-blue" id="partnerAvatar">E</div>
+            <div class="avatar avatar-blue" id="partnerAvatar">P</div>
             <p class="eyebrow">Partnerprofil</p>
-            <h2 id="partnerProfileName">Estelle</h2>
+            <h2 id="partnerProfileName">Partner</h2>
             <p class="helper">Hier siehst du später alles, was sie für dich freigibt.</p>
             <div class="profile-stats">
               <div><span>Schulden</span><strong id="partnerProfileDebt">0 €</strong></div>
