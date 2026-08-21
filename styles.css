@@ -53,3 +53,14 @@
   .calendar-event{font-size:10px;height:auto;min-height:24px}
   .calendar-event-title{font-size:10px}
 }
+
+
+/* V0.4 Auth + online profile */
+.hidden{display:none!important}
+.auth-screen{min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at top,#17213a 0,#080c15 55%)}
+.auth-card{width:min(460px,100%);background:rgba(18,26,45,.96);border:1px solid var(--border);border-radius:24px;padding:24px;box-shadow:0 24px 70px rgba(0,0,0,.35)}
+.auth-card h1{margin:5px 0 8px;font-size:30px}.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:22px 0 16px;background:#0e1526;border:1px solid var(--border);padding:5px;border-radius:14px}
+.auth-tab{border:0;border-radius:10px;background:transparent;color:var(--muted);padding:11px;font-weight:800;cursor:pointer}.auth-tab.active{background:var(--panel2);color:var(--text)}
+.auth-form{display:grid;gap:12px}.auth-message{min-height:22px;margin:14px 0 0;color:#93c5fd;font-size:13px}.auth-message.error{color:#fca5a5}
+.top-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}.online-badge{font-size:12px;font-weight:800;color:#86efac;background:#0f2b20;border:1px solid #23553d;padding:8px 10px;border-radius:999px}
+@media(max-width:760px){.topbar{gap:10px}.top-actions{max-width:58%;gap:5px}.online-badge{display:none}.top-actions .ghost-btn{font-size:11px;padding:8px}.auth-screen{padding:14px}.auth-card{padding:20px}}

@@ -1,3 +1,11 @@
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm";
+
+const SUPABASE_URL = "https://iixnjrxvdpqvkjoizify.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_AlrqVCyUGwfClbmSJEnKZg_ytg6XyOe";
+const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+let currentUser = null;
+let currentProfile = null;
+
 const STORE_KEY = 'fitTogether_v03';
 const defaultState = {
   users: { a: { name: 'Ich', debt: 0 }, b: { name: 'Partner', debt: 0 } },
@@ -28,15 +36,21 @@ function uid(){ return `${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 
-function init(){
+async function init(){
   // Alte Platzhalter nicht als echte Personennamen behandeln.
   if(state.users?.b?.name === 'Freundin') state.users.b.name = 'Partner';
   $('#eventDate').value = todayISO();
   $('#weightDate').value = todayISO();
   $('#photoDate').value = todayISO();
-  bindTabs(); bindActions(); renderAll();
+  bindTabs(); bindActions(); bindAuth();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
   setInterval(checkDueReminders, 30000);
+
+  const { data: { session } } = await supabase.auth.getSession();
+  await applySession(session);
+  supabase.auth.onAuthStateChange(async (_event, session) => {
+    await applySession(session);
+  });
 }
 
 function bindTabs(){
@@ -57,6 +71,7 @@ function bindActions(){
   $('#todayBtn').addEventListener('click',()=>{ calendarCursor = new Date(); calendarCursor.setDate(1); renderMonthCalendar(); });
   $('#addSelectedDayBtn').addEventListener('click',()=>{ showEventForm($('#eventDate').value || todayISO()); });
   $('#saveOwnProfileBtn').addEventListener('click', saveOwnProfile);
+  $('#logoutBtn').addEventListener('click', signOut);
   $('#statusDialog').addEventListener('close',()=>{
     if(!selectedEventId || $('#statusDialog').returnValue==='cancel') return;
     setEventStatus(selectedEventId, $('#statusDialog').returnValue);
@@ -269,9 +284,13 @@ function calendarEventStatus(ev){
   return '';
 }
 
-function saveOwnProfile(){
+async function saveOwnProfile(){
   const name=$('#ownNameInput').value.trim();
   if(!name) return alert('Bitte einen Namen eintragen.');
+  if(!currentUser) return alert('Bitte zuerst anmelden.');
+  const { error } = await supabase.from('profiles').update({ name }).eq('id', currentUser.id);
+  if(error) return alert(`Profil konnte nicht gespeichert werden: ${error.message}`);
+  currentProfile = { ...(currentProfile || {}), id: currentUser.id, name };
   state.users.a.name=name;
   saveState(); renderAll();
 }
@@ -354,4 +373,76 @@ function checkDueReminders(){
 }
 function escapeHtml(s){ return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 window.addEventListener('resize',()=>drawWeightChart(state.weights));
+function bindAuth(){
+  $('#showLoginBtn').addEventListener('click',()=>showAuthMode('login'));
+  $('#showRegisterBtn').addEventListener('click',()=>showAuthMode('register'));
+  $('#loginBtn').addEventListener('click', signIn);
+  $('#registerBtn').addEventListener('click', signUp);
+  $('#loginPassword').addEventListener('keydown',e=>{ if(e.key==='Enter') signIn(); });
+  $('#registerPassword').addEventListener('keydown',e=>{ if(e.key==='Enter') signUp(); });
+}
+function showAuthMode(mode){
+  const login=mode==='login';
+  $('#loginForm').classList.toggle('hidden',!login);
+  $('#registerForm').classList.toggle('hidden',login);
+  $('#showLoginBtn').classList.toggle('active',login);
+  $('#showRegisterBtn').classList.toggle('active',!login);
+  $('#authMessage').textContent='';
+}
+function setAuthMessage(text,isError=false){
+  const el=$('#authMessage'); el.textContent=text; el.classList.toggle('error',isError);
+}
+async function signUp(){
+  const name=$('#registerName').value.trim();
+  const email=$('#registerEmail').value.trim();
+  const password=$('#registerPassword').value;
+  if(!name || !email || password.length<6) return setAuthMessage('Bitte Name, E-Mail und ein Passwort mit mindestens 6 Zeichen eingeben.',true);
+  setAuthMessage('Account wird erstellt …');
+  const { data, error } = await supabase.auth.signUp({ email, password, options:{ data:{ display_name:name } } });
+  if(error) return setAuthMessage(error.message,true);
+  if(data.session){
+    setAuthMessage('Account erstellt. Du bist angemeldet.');
+  } else {
+    setAuthMessage('Account erstellt. Prüfe jetzt deine E-Mails und bestätige die Registrierung. Danach kannst du dich anmelden.');
+    showAuthMode('login');
+    $('#loginEmail').value=email;
+  }
+}
+async function signIn(){
+  const email=$('#loginEmail').value.trim();
+  const password=$('#loginPassword').value;
+  if(!email || !password) return setAuthMessage('Bitte E-Mail und Passwort eingeben.',true);
+  setAuthMessage('Anmeldung läuft …');
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if(error) return setAuthMessage(error.message,true);
+  setAuthMessage('Angemeldet.');
+}
+async function signOut(){
+  await supabase.auth.signOut();
+}
+async function applySession(session){
+  currentUser=session?.user || null;
+  if(!currentUser){
+    currentProfile=null;
+    $('#authScreen').classList.remove('hidden');
+    $('#appShell').classList.add('hidden');
+    return;
+  }
+  $('#authScreen').classList.add('hidden');
+  $('#appShell').classList.remove('hidden');
+  await loadOnlineProfile();
+  renderAll();
+}
+async function loadOnlineProfile(){
+  const { data, error } = await supabase.from('profiles').select('id,name,avatar_url,created_at').eq('id',currentUser.id).single();
+  if(error){
+    console.error('Profil laden fehlgeschlagen', error);
+    state.users.a.name=currentUser.email?.split('@')[0] || 'Ich';
+    return;
+  }
+  currentProfile=data;
+  state.users.a.name=data.name || 'Ich';
+  saveState();
+}
+
 init();

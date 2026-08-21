@@ -9,13 +9,44 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="app-shell">
+  <section id="authScreen" class="auth-screen">
+    <div class="auth-card">
+      <p class="eyebrow">FitTogether Online</p>
+      <h1>Gemeinsam durchziehen</h1>
+      <p class="helper">Melde dich an oder erstelle deinen eigenen Account. Danach wird dein Profil online in Supabase gespeichert.</p>
+
+      <div class="auth-tabs">
+        <button id="showLoginBtn" class="auth-tab active" type="button">Anmelden</button>
+        <button id="showRegisterBtn" class="auth-tab" type="button">Registrieren</button>
+      </div>
+
+      <div id="loginForm" class="auth-form">
+        <label>E-Mail<input id="loginEmail" type="email" autocomplete="email" placeholder="name@beispiel.de" /></label>
+        <label>Passwort<input id="loginPassword" type="password" autocomplete="current-password" placeholder="Passwort" /></label>
+        <button id="loginBtn" class="primary-btn full" type="button">Anmelden</button>
+      </div>
+
+      <div id="registerForm" class="auth-form hidden">
+        <label>Anzeigename<input id="registerName" type="text" maxlength="30" autocomplete="nickname" placeholder="Dein Name" /></label>
+        <label>E-Mail<input id="registerEmail" type="email" autocomplete="email" placeholder="name@beispiel.de" /></label>
+        <label>Passwort<input id="registerPassword" type="password" autocomplete="new-password" minlength="6" placeholder="Mindestens 6 Zeichen" /></label>
+        <button id="registerBtn" class="primary-btn full" type="button">Account erstellen</button>
+      </div>
+      <p id="authMessage" class="auth-message" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <div id="appShell" class="app-shell hidden">
     <header class="topbar">
       <div>
         <p class="eyebrow">Gemeinsam durchziehen</p>
         <h1>FitTogether</h1>
       </div>
-      <button id="notifyBtn" class="ghost-btn" type="button">🔔 Erinnerungen</button>
+      <div class="top-actions">
+        <span id="onlineBadge" class="online-badge">● Online</span>
+        <button id="notifyBtn" class="ghost-btn" type="button">🔔 Erinnerungen</button>
+        <button id="logoutBtn" class="ghost-btn" type="button">Abmelden</button>
+      </div>
     </header>
 
     <nav class="tabs" aria-label="Hauptnavigation">
@@ -180,6 +211,6 @@
     </form>
   </dialog>
 
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
