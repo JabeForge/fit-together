@@ -2,7 +2,13 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const SUPABASE_URL = "https://iixnjrxvdpqvkjoizify.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_AlrqVCyUGwfClbmSJEnKZg_ytg6XyOe";
-const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+});
 let currentUser = null;
 let currentProfile = null;
 
@@ -64,10 +70,19 @@ async function init(){
   await removeLegacyCache();
   setInterval(checkDueReminders, 30000);
 
-  const { data: { session } } = await supabase.auth.getSession();
-  await applySession(session);
-  supabase.auth.onAuthStateChange(async (_event, session) => {
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) console.error('Session laden fehlgeschlagen', error);
     await applySession(session);
+  } catch (err) {
+    console.error('Initiale Session fehlgeschlagen', err);
+    await applySession(null);
+  }
+
+  // Keine Supabase-Abfragen direkt im Auth-Callback ausführen.
+  // Das kann je nach Browser einen Lock blockieren.
+  supabase.auth.onAuthStateChange((_event, session) => {
+    setTimeout(() => { applySession(session).catch(console.error); }, 0);
   });
 }
 
@@ -417,7 +432,15 @@ async function signUp(){
   if(!name || !email || password.length<6) return setAuthMessage('Bitte Name, E-Mail und ein Passwort mit mindestens 6 Zeichen eingeben.',true);
   setAuthMessage('Account wird erstellt …');
   try {
-    const { data, error } = await supabase.auth.signUp({ email, password, options:{ data:{ display_name:name } } });
+    const redirectTo = `${window.location.origin}${window.location.pathname}`;
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options:{
+        data:{ display_name:name },
+        emailRedirectTo: redirectTo
+      }
+    });
     if(error) return setAuthMessage(error.message,true);
     if(data.session){
       setAuthMessage('Account erstellt. Du bist angemeldet.');
@@ -428,7 +451,7 @@ async function signUp(){
     }
   } catch (err) {
     console.error(err);
-    setAuthMessage('Verbindung zu Supabase fehlgeschlagen. Bitte Internetverbindung prüfen und erneut versuchen.',true);
+    setAuthMessage(`Technischer Fehler: ${err?.message || String(err)}`,true);
   }
 }
 async function signIn(){
@@ -437,12 +460,14 @@ async function signIn(){
   if(!email || !password) return setAuthMessage('Bitte E-Mail und Passwort eingeben.',true);
   setAuthMessage('Anmeldung läuft …');
   try {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if(error) return setAuthMessage(error.message,true);
+    if(!data?.session) return setAuthMessage('Supabase hat keine Sitzung zurückgegeben. Bitte erneut versuchen.', true);
     setAuthMessage('Angemeldet.');
+    await applySession(data.session);
   } catch (err) {
     console.error(err);
-    setAuthMessage('Verbindung zu Supabase fehlgeschlagen. Bitte erneut versuchen.',true);
+    setAuthMessage(`Technischer Fehler: ${err?.message || String(err)}`,true);
   }
 }
 async function signOut(){
@@ -453,7 +478,7 @@ async function applySession(session){
   if(!currentUser){
     currentProfile=null;
     $('#authScreen').classList.remove('hidden');
-    $('#appShell').classList.remove('hidden');
+    $('#appShell').classList.add('hidden');
     document.body.classList.add('auth-open');
     return;
   }

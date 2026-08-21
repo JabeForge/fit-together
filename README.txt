@@ -1,8 +1,6 @@
-FitTogether V0.5
+FitTogether V0.6
 
-- Login/Registrierung als Modal
-- alter Service-Worker-Cache wird entfernt
-- Supabase Auth + Online-Profil
-- Monatskalender
-
-GitHub Pages: alle Dateien im Repository ersetzen und committen.
+- robuster Supabase Login
+- echter Fehlertext statt pauschaler Verbindungsfehler
+- E-Mail-Bestaetigung leitet zur GitHub-Pages-App zurueck
+- App bleibt vor Login komplett verborgen
