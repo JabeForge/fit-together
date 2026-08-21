@@ -1,6 +1,6 @@
-const STORE_KEY = 'fitTogether_v01';
+const STORE_KEY = 'fitTogether_v02';
 const defaultState = {
-  users: { a: { name: 'Janek', debt: 0 }, b: { name: 'Freundin', debt: 0 } },
+  users: { a: { name: 'Janek', debt: 0 }, b: { name: 'Estelle', debt: 0 } },
   events: [],
   weights: [],
   photos: [],
@@ -9,9 +9,14 @@ const defaultState = {
 };
 let state = loadState();
 let selectedEventId = null;
+let calendarCursor = new Date();
+calendarCursor.setDate(1);
 
 function loadState(){
-  try { return { ...defaultState, ...JSON.parse(localStorage.getItem(STORE_KEY) || '{}') }; }
+  try {
+    const raw = localStorage.getItem(STORE_KEY) || localStorage.getItem('fitTogether_v01') || '{}';
+    return { ...defaultState, ...JSON.parse(raw) };
+  }
   catch { return structuredClone(defaultState); }
 }
 function saveState(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
@@ -24,6 +29,8 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 
 function init(){
+  // migrate old placeholder name
+  if(state.users?.b?.name === 'Freundin') state.users.b.name = 'Estelle';
   $('#eventDate').value = todayISO();
   $('#weightDate').value = todayISO();
   $('#photoDate').value = todayISO();
@@ -45,6 +52,9 @@ function bindActions(){
   $('#addWeightBtn').addEventListener('click', addWeight);
   $('#addPhotoBtn').addEventListener('click', addPhoto);
   $('#notifyBtn').addEventListener('click', requestNotifications);
+  $('#prevMonthBtn').addEventListener('click',()=>{ calendarCursor.setMonth(calendarCursor.getMonth()-1); renderMonthCalendar(); });
+  $('#nextMonthBtn').addEventListener('click',()=>{ calendarCursor.setMonth(calendarCursor.getMonth()+1); renderMonthCalendar(); });
+  $('#saveOwnProfileBtn').addEventListener('click', saveOwnProfile);
   $('#statusDialog').addEventListener('close',()=>{
     if(!selectedEventId || $('#statusDialog').returnValue==='cancel') return;
     setEventStatus(selectedEventId, $('#statusDialog').returnValue);
@@ -60,7 +70,7 @@ function addEvent(){
     id:uid(), title, date, start:$('#eventStart').value, end:$('#eventEnd').value,
     owner:$('#eventOwner').value, penalty:Number($('#eventPenalty').value||0),
     repeat:$('#eventRepeat').value, reminder:Number($('#eventReminder').value||0),
-    note:$('#eventNote').value.trim(), statusA:'planned', statusB:'planned', reminderSent:false
+    note:$('#eventNote').value.trim(), color:$('#eventColor').value || 'violet', statusA:'planned', statusB:'planned', reminderSent:false
   };
   state.events.push(ev);
   if(ev.repeat==='weekly'){
@@ -104,7 +114,7 @@ function recalcStreaks(){
   state.bestStreak=Math.max(state.bestStreak||0,best);
 }
 
-function renderAll(){ autoMarkMissed(); renderTug(); renderEvents(); renderStats(); renderWeights(); renderPhotos(); }
+function renderAll(){ autoMarkMissed(); syncNameControls(); renderTug(); renderEvents(); renderMonthCalendar(); renderStats(); renderWeights(); renderPhotos(); renderProfiles(); }
 
 function autoMarkMissed(){
   const now = new Date();
@@ -133,8 +143,8 @@ function renderTug(){
   $('#debtA').textContent=euro(a); $('#debtB').textContent=euro(b); $('#totalPot').textContent=euro(total);
   const diff=Math.abs(a-b);
   if(a===b){ $('#leadBadge').textContent='Gleichstand'; $('#tugText').textContent= total===0?'Noch keine Strafgelder. Perfekter Start.':`Gleichstand bei ${euro(a)}.`; }
-  else if(a<b){ $('#leadBadge').textContent='Janek führt'; $('#tugText').textContent=`Janek liegt um ${euro(diff)} vorne und würde aktuell über den Topf entscheiden.`; }
-  else { $('#leadBadge').textContent='Freundin führt'; $('#tugText').textContent=`Freundin liegt um ${euro(diff)} vorne und würde aktuell über den Topf entscheiden.`; }
+  else if(a<b){ $('#leadBadge').textContent=`${state.users.a.name} führt`; $('#tugText').textContent=`${state.users.a.name} liegt um ${euro(diff)} vorne und würde aktuell über den Topf entscheiden.`; }
+  else { $('#leadBadge').textContent=`${state.users.b.name} führt`; $('#tugText').textContent=`${state.users.b.name} liegt um ${euro(diff)} vorne und würde aktuell über den Topf entscheiden.`; }
 }
 function renderStats(){
   const done=state.events.filter(e=>eventParticipants(e).every(u=>e[statusKey(u)]==='done')).length;
@@ -165,6 +175,83 @@ function deleteEvent(id){
   const ev=state.events.find(e=>e.id===id); if(!ev) return;
   eventParticipants(ev).forEach(u=>{ if(ev[statusKey(u)]==='missed') state.users[u].debt=Math.max(0,state.users[u].debt-ev.penalty); });
   state.events=state.events.filter(e=>e.id!==id); saveState(); renderAll();
+}
+
+
+function syncNameControls(){
+  $('#userANameLabel').textContent = state.users.a.name;
+  $('#userBNameLabel').textContent = state.users.b.name;
+  const owner = $('#eventOwner');
+  if(owner){
+    const aOpt = owner.querySelector('option[value="a"]');
+    const bOpt = owner.querySelector('option[value="b"]');
+    if(aOpt) aOpt.textContent = state.users.a.name;
+    if(bOpt) bOpt.textContent = state.users.b.name;
+  }
+}
+
+function renderMonthCalendar(){
+  const grid = $('#monthGrid');
+  if(!grid) return;
+  const y = calendarCursor.getFullYear(), m = calendarCursor.getMonth();
+  $('#calendarMonthTitle').textContent = new Intl.DateTimeFormat('de-DE',{month:'long',year:'numeric'}).format(calendarCursor);
+  grid.innerHTML='';
+  const first = new Date(y,m,1,12);
+  const mondayOffset = (first.getDay()+6)%7;
+  const start = new Date(y,m,1-mondayOffset,12);
+  for(let i=0;i<42;i++){
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    const iso = localISO(d);
+    const cell = document.createElement('button');
+    cell.type='button'; cell.className='calendar-day';
+    if(d.getMonth()!==m) cell.classList.add('other-month');
+    if(iso===todayISO()) cell.classList.add('today');
+    cell.innerHTML=`<span class="day-number">${d.getDate()}</span><span class="calendar-events"></span>`;
+    const holder=cell.querySelector('.calendar-events');
+    const dayEvents=state.events.filter(e=>e.date===iso).sort((a,b)=>(a.start||'').localeCompare(b.start||''));
+    dayEvents.slice(0,4).forEach(ev=>{
+      const chip=document.createElement('span');
+      chip.className=`calendar-event ${ev.color||'violet'} ${calendarEventStatus(ev)}`;
+      chip.textContent=`${ev.start ? ev.start+' ' : ''}${ev.title}`;
+      holder.appendChild(chip);
+    });
+    if(dayEvents.length>4){ const more=document.createElement('span'); more.className='helper'; more.textContent=`+${dayEvents.length-4}`; holder.appendChild(more); }
+    cell.addEventListener('click',()=>{
+      $('#eventDate').value=iso;
+      $('#eventFormCard').scrollIntoView({behavior:'smooth',block:'start'});
+      $('#eventTitle').focus();
+    });
+    grid.appendChild(cell);
+  }
+}
+function localISO(d){
+  const yy=d.getFullYear(), mm=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+  return `${yy}-${mm}-${dd}`;
+}
+function calendarEventStatus(ev){
+  const p=eventParticipants(ev);
+  if(p.some(u=>ev[statusKey(u)]==='missed')) return 'missed';
+  if(p.every(u=>ev[statusKey(u)]==='done')) return 'done';
+  return '';
+}
+
+function saveOwnProfile(){
+  const name=$('#ownNameInput').value.trim();
+  if(!name) return alert('Bitte einen Namen eintragen.');
+  state.users.a.name=name;
+  saveState(); renderAll();
+}
+function renderProfiles(){
+  if(!$('#ownProfileName')) return;
+  const a=state.users.a,b=state.users.b;
+  $('#ownProfileName').textContent=a.name; $('#ownNameInput').value=a.name;
+  $('#partnerProfileName').textContent=b.name;
+  $('#ownAvatar').textContent=(a.name[0]||'?').toUpperCase(); $('#partnerAvatar').textContent=(b.name[0]||'?').toUpperCase();
+  $('#ownProfileDebt').textContent=euro(a.debt); $('#partnerProfileDebt').textContent=euro(b.debt);
+  $('#ownProfileDone').textContent=countDoneFor('a'); $('#partnerProfileDone').textContent=countDoneFor('b');
+}
+function countDoneFor(user){
+  return state.events.filter(e=>eventParticipants(e).includes(user) && e[statusKey(user)]==='done').length;
 }
 
 function addWeight(){

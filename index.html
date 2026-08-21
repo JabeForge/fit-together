@@ -23,6 +23,7 @@
       <button class="tab" data-tab="calendar">Kalender</button>
       <button class="tab" data-tab="progress">Fortschritt</button>
       <button class="tab" data-tab="photos">Bilder</button>
+      <button class="tab" data-tab="profiles">Profile</button>
     </nav>
 
     <main>
@@ -65,14 +66,31 @@
       </section>
 
       <section id="calendar" class="panel">
-        <section class="card">
-          <div class="section-heading"><div><p class="eyebrow">Offener Kalender</p><h2>Termin eintragen</h2></div></div>
+        <section class="card calendar-card">
+          <div class="calendar-toolbar">
+            <button id="prevMonthBtn" class="ghost-btn" type="button">‹</button>
+            <div class="calendar-title-wrap">
+              <p class="eyebrow">Gemeinsamer Kalender</p>
+              <h2 id="calendarMonthTitle">Monat</h2>
+            </div>
+            <button id="nextMonthBtn" class="ghost-btn" type="button">›</button>
+          </div>
+          <div class="calendar-weekdays" aria-hidden="true">
+            <span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span>
+          </div>
+          <div id="monthGrid" class="month-grid"></div>
+          <p class="helper">Tippe auf einen Tag, um direkt einen Termin für dieses Datum anzulegen.</p>
+        </section>
+
+        <section class="card" id="eventFormCard">
+          <div class="section-heading"><div><p class="eyebrow">Neuer Eintrag</p><h2>Termin eintragen</h2></div></div>
           <div class="form-grid">
             <label>Titel<input id="eventTitle" type="text" placeholder="z. B. Gym, Schwimmen, Spaziergang" /></label>
             <label>Datum<input id="eventDate" type="date" /></label>
             <label>Von<input id="eventStart" type="time" value="18:00" /></label>
             <label>Bis<input id="eventEnd" type="time" value="19:30" /></label>
-            <label>Teilnehmer<select id="eventOwner"><option value="both">Beide</option><option value="a">Janek</option><option value="b">Freundin</option></select></label>
+            <label>Teilnehmer<select id="eventOwner"><option value="both">Beide</option><option value="a">Janek</option><option value="b">Estelle</option></select></label>
+            <label>Farbe<select id="eventColor"><option value="violet">Lila</option><option value="blue">Blau</option><option value="green">Grün</option><option value="orange">Orange</option><option value="pink">Pink</option></select></label>
             <label>Strafe bei Verpassen (€)<input id="eventPenalty" type="number" min="0" step="0.5" value="2" /></label>
             <label>Wiederholung<select id="eventRepeat"><option value="none">Keine</option><option value="weekly">Wöchentlich</option></select></label>
             <label>Erinnerung<select id="eventReminder"><option value="60">1 Stunde vorher</option><option value="15">15 Minuten vorher</option><option value="0">Keine</option></select></label>
@@ -82,7 +100,7 @@
         </section>
 
         <section class="card">
-          <div class="section-heading"><div><p class="eyebrow">Termine</p><h2>Alle Einträge</h2></div></div>
+          <div class="section-heading"><div><p class="eyebrow">Liste</p><h2>Alle Termine</h2></div></div>
           <div id="eventList" class="list"></div>
         </section>
       </section>
@@ -117,6 +135,35 @@
           <p class="helper">Standardmäßig privat. In dieser lokalen V0.1 bleiben Bilder nur auf diesem Gerät gespeichert.</p>
         </section>
         <section class="photo-grid" id="photoGrid"></section>
+      </section>
+
+      <section id="profiles" class="panel">
+        <section class="profile-grid">
+          <article class="card profile-card">
+            <div class="avatar avatar-red" id="ownAvatar">J</div>
+            <p class="eyebrow">Dein Profil</p>
+            <h2 id="ownProfileName">Janek</h2>
+            <p class="helper">Dieses Profil kannst nur du bearbeiten.</p>
+            <label>Anzeigename<input id="ownNameInput" type="text" maxlength="30" /></label>
+            <button id="saveOwnProfileBtn" class="primary-btn full" type="button">Profil speichern</button>
+            <div class="profile-stats">
+              <div><span>Schulden</span><strong id="ownProfileDebt">0 €</strong></div>
+              <div><span>Trainings</span><strong id="ownProfileDone">0</strong></div>
+            </div>
+          </article>
+
+          <article class="card profile-card partner-profile">
+            <div class="avatar avatar-blue" id="partnerAvatar">E</div>
+            <p class="eyebrow">Partnerprofil</p>
+            <h2 id="partnerProfileName">Estelle</h2>
+            <p class="helper">Hier siehst du später alles, was sie für dich freigibt.</p>
+            <div class="profile-stats">
+              <div><span>Schulden</span><strong id="partnerProfileDebt">0 €</strong></div>
+              <div><span>Trainings</span><strong id="partnerProfileDone">0</strong></div>
+            </div>
+            <div class="privacy-note">🔒 Private Gewichte und Bilder bleiben verborgen. Geteilte Fortschritte erscheinen später hier.</div>
+          </article>
+        </section>
       </section>
     </main>
   </div>
