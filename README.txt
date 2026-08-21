@@ -1,4 +1,4 @@
-FitTogether V0.6
+FitTogether V0.7
 
 - robuster Supabase Login
 - echter Fehlertext statt pauschaler Verbindungsfehler

@@ -2,6 +2,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const SUPABASE_URL = "https://iixnjrxvdpqvkjoizify.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_AlrqVCyUGwfClbmSJEnKZg_ytg6XyOe";
+const APP_URL = "https://janek6746345.github.io/fit-together/";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     persistSession: true,
@@ -432,7 +433,7 @@ async function signUp(){
   if(!name || !email || password.length<6) return setAuthMessage('Bitte Name, E-Mail und ein Passwort mit mindestens 6 Zeichen eingeben.',true);
   setAuthMessage('Account wird erstellt …');
   try {
-    const redirectTo = `${window.location.origin}${window.location.pathname}`;
+    const redirectTo = APP_URL;
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
