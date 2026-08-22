@@ -7,7 +7,7 @@
   <title>FitTogether</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <style>.hidden{display:none!important}</style>
-  <link rel="stylesheet" href="styles.css?v=0.10.1" />
+  <link rel="stylesheet" href="styles.css?v=0.11" />
 </head>
 <body>
   <section id="authScreen" class="auth-screen" role="dialog" aria-modal="true" aria-labelledby="authTitle">
@@ -41,7 +41,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Gemeinsam durchziehen</p>
-        <h1>FitTogether <span class="app-version">V0.10.1</span></h1>
+        <h1>FitTogether <span class="app-version">V0.11</span></h1>
       </div>
       <div class="top-actions">
         <select id="activeGroupSelect" class="group-select" aria-label="Aktive Gruppe"></select>
@@ -169,11 +169,11 @@
           <div class="section-heading"><div><p class="eyebrow">Vorher / Nachher</p><h2>Fortschrittsbilder</h2></div></div>
           <div class="form-grid">
             <label>Datum<input id="photoDate" type="date" /></label>
-            <label>Sichtbarkeit<select id="photoVisibility"><option value="private">🔒 Privat</option><option value="shared">👥 Mit Partner teilen</option></select></label>
+            <label>Sichtbarkeit<select id="photoVisibility"><option value="private">🔒 Privat</option><option value="shared">👥 Mit Gruppe teilen</option></select></label>
           </div>
           <label>Bild<input id="photoInput" type="file" accept="image/*" /></label>
           <button id="addPhotoBtn" class="primary-btn full" type="button">Bild hinzufügen</button>
-          <p class="helper">Bilder werden nicht mehr im Browser gespeichert. Der sichere Online-Bildspeicher kommt als nächster Schritt.</p>
+          <p class="helper">Bilder werden sicher in Supabase Storage gespeichert. Private Bilder siehst nur du; geteilte Bilder können Mitglieder deiner Gruppe sehen.</p>
         </section>
         <section class="photo-grid" id="photoGrid"></section>
       </section>
@@ -244,6 +244,13 @@
     <form method="dialog" class="dialog-card">
       <h3>Termin aktualisieren</h3>
       <p id="dialogEventName"></p>
+      <div class="proof-box">
+        <strong>📷 Trainingsnachweis</strong>
+        <p id="proofStatus" class="helper">Noch kein Nachweis hochgeladen.</p>
+        <img id="proofPreview" class="proof-preview hidden" alt="Trainingsnachweis" />
+        <label>Foto<input id="proofInput" type="file" accept="image/*" /></label>
+        <button id="uploadProofBtn" type="button" class="ghost-btn">Nachweis hochladen</button>
+      </div>
       <div class="dialog-actions">
         <button value="done" class="primary-btn">✅ Erledigt</button>
         <button value="missed" class="danger-btn">❌ Verpasst</button>
@@ -253,6 +260,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="app.js?v=0.10.1"></script>
+  <script type="module" src="app.js?v=0.11"></script>
 </body>
 </html>

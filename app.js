@@ -1,4 +1,4 @@
-const APP_VERSION = "0.9.1";
+const APP_VERSION = "0.11";
 console.info(`FitTogether V${APP_VERSION}`);
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm";
 
@@ -25,6 +25,8 @@ let groupMembers = [];
 let events = [];
 let weights = [];
 let occurrenceStatuses = [];
+let progressPhotos = [];
+let trainingProofs = [];
 let selectedEventId = null;
 let selectedOccurrenceDate = null;
 let calendarCursor = new Date();
@@ -77,7 +79,8 @@ function bindActions(){
   $('#quickAddBtn').addEventListener('click',()=>showTab('calendar'));
   $('#addEventBtn').addEventListener('click',addEvent);
   $('#addWeightBtn').addEventListener('click',addWeight);
-  $('#addPhotoBtn').addEventListener('click',()=>alert('Fortschrittsbilder kommen im nächsten Schritt in Supabase Storage. Sie werden bewusst nicht mehr in localStorage gespeichert.'));
+  $('#addPhotoBtn').addEventListener('click',addProgressPhoto);
+  $('#uploadProofBtn').addEventListener('click',uploadTrainingProof);
   $('#notifyBtn').addEventListener('click',requestNotifications);
   $('#prevMonthBtn').addEventListener('click',()=>{calendarCursor.setMonth(calendarCursor.getMonth()-1);renderMonthCalendar();});
   $('#nextMonthBtn').addEventListener('click',()=>{calendarCursor.setMonth(calendarCursor.getMonth()+1);renderMonthCalendar();});
@@ -142,7 +145,7 @@ async function signIn(){
 async function applySession(session){
   currentUser=session?.user||null;
   if(!currentUser){
-    currentProfile=null; groups=[]; activeGroup=null; groupMembers=[]; events=[]; weights=[]; occurrenceStatuses=[];
+    currentProfile=null; groups=[]; activeGroup=null; groupMembers=[]; events=[]; weights=[]; occurrenceStatuses=[]; progressPhotos=[]; trainingProofs=[];
     $('#authScreen').classList.remove('hidden'); $('#appShell').classList.add('hidden'); document.body.classList.add('auth-open');
     return;
   }
@@ -168,8 +171,9 @@ async function loadGroups(){
 }
 async function loadActiveGroupData(){
   if(!activeGroup){groupMembers=[];events=[];renderAll();return;}
-  await Promise.all([loadGroupMembers(),loadEvents(),loadWeights()]);
+  await Promise.all([loadGroupMembers(),loadEvents(),loadWeights(),loadProgressPhotos()]);
   await loadOccurrenceStatuses();
+  await loadTrainingProofs();
   await autoMarkOwnMissed();
   renderAll();
 }
@@ -204,6 +208,81 @@ async function loadWeights(){
   const {data,error}=await supabase.from('weight_entries').select('weight,measured_on').eq('profile_id',currentUser.id).order('measured_on');
   if(error){console.error(error);weights=[];return;}
   weights=(data||[]).map(w=>({date:w.measured_on,weight:Number(w.weight)}));
+}
+
+
+async function signedImageUrl(bucket,path){
+  if(!path)return null;
+  const {data,error}=await supabase.storage.from(bucket).createSignedUrl(path,3600);
+  if(error){console.warn('Signed URL:',error.message);return null;}
+  return data?.signedUrl||null;
+}
+async function loadProgressPhotos(){
+  const {data,error}=await supabase.from('progress_photos')
+    .select('id,profile_id,image_url,visibility,taken_on,created_at,profiles(name)')
+    .order('taken_on',{ascending:false});
+  if(error){console.error(error);progressPhotos=[];return;}
+  progressPhotos=await Promise.all((data||[]).map(async r=>({...r,owner_name:r.profiles?.name||'Mitglied',signed_url:await signedImageUrl('progress-photos',r.image_url)})));
+}
+async function loadTrainingProofs(){
+  if(!events.length){trainingProofs=[];return;}
+  const {data,error}=await supabase.from('training_proofs')
+    .select('id,event_id,occurrence_date,profile_id,storage_path,created_at,profiles(name)')
+    .in('event_id',events.map(e=>e.id));
+  if(error){console.error(error);trainingProofs=[];return;}
+  trainingProofs=await Promise.all((data||[]).map(async r=>({...r,owner_name:r.profiles?.name||'Mitglied',signed_url:await signedImageUrl('training-proofs',r.storage_path)})));
+}
+function safeExt(file){
+  const ext=(file?.name?.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'');
+  return ['jpg','jpeg','png','webp','heic','heif'].includes(ext)?ext:'jpg';
+}
+async function addProgressPhoto(){
+  if(!currentUser)return;
+  const file=$('#photoInput').files?.[0],date=$('#photoDate').value||todayISO(),visibility=$('#photoVisibility').value;
+  if(!file)return alert('Bitte zuerst ein Bild auswählen.');
+  if(file.size>12*1024*1024)return alert('Das Bild ist größer als 12 MB. Bitte ein kleineres Bild verwenden.');
+  const path=`${currentUser.id}/${date}/${crypto.randomUUID()}.${safeExt(file)}`;
+  $('#addPhotoBtn').disabled=true;$('#addPhotoBtn').textContent='Wird hochgeladen …';
+  try{
+    const {error:uploadError}=await supabase.storage.from('progress-photos').upload(path,file,{contentType:file.type||'image/jpeg',upsert:false});
+    if(uploadError)throw uploadError;
+    const {error:dbError}=await supabase.from('progress_photos').insert({profile_id:currentUser.id,image_url:path,visibility,taken_on:date});
+    if(dbError){await supabase.storage.from('progress-photos').remove([path]);throw dbError;}
+    $('#photoInput').value='';await loadProgressPhotos();renderPhotos();
+  }catch(err){alert(`Bild konnte nicht gespeichert werden: ${err.message||err}`);}
+  finally{$('#addPhotoBtn').disabled=false;$('#addPhotoBtn').textContent='Bild hinzufügen';}
+}
+async function deleteProgressPhoto(photo){
+  if(photo.profile_id!==currentUser.id)return;
+  if(!confirm('Dieses Fortschrittsbild wirklich löschen?'))return;
+  const {error}=await supabase.from('progress_photos').delete().eq('id',photo.id);
+  if(error)return alert(error.message);
+  await supabase.storage.from('progress-photos').remove([photo.image_url]);
+  await loadProgressPhotos();renderPhotos();
+}
+async function uploadTrainingProof(){
+  if(!selectedEventId||!selectedOccurrenceDate)return alert('Kein Termin ausgewählt.');
+  const file=$('#proofInput').files?.[0];if(!file)return alert('Bitte zuerst ein Foto auswählen.');
+  if(file.size>12*1024*1024)return alert('Das Bild ist größer als 12 MB.');
+  const path=`${currentUser.id}/${selectedEventId}/${selectedOccurrenceDate}/${crypto.randomUUID()}.${safeExt(file)}`;
+  const btn=$('#uploadProofBtn');btn.disabled=true;btn.textContent='Wird hochgeladen …';
+  try{
+    const {error:uploadError}=await supabase.storage.from('training-proofs').upload(path,file,{contentType:file.type||'image/jpeg',upsert:false});
+    if(uploadError)throw uploadError;
+    const {error:dbError}=await supabase.from('training_proofs').insert({event_id:selectedEventId,occurrence_date:selectedOccurrenceDate,profile_id:currentUser.id,storage_path:path});
+    if(dbError){await supabase.storage.from('training-proofs').remove([path]);throw dbError;}
+    $('#proofInput').value='';await loadTrainingProofs();await renderProofInDialog();
+  }catch(err){alert(`Nachweis konnte nicht gespeichert werden: ${err.message||err}`);}
+  finally{btn.disabled=false;btn.textContent='Nachweis hochladen';}
+}
+async function renderProofInDialog(){
+  const proof=trainingProofs.find(p=>p.event_id===selectedEventId&&p.occurrence_date===selectedOccurrenceDate&&p.profile_id===currentUser.id);
+  const img=$('#proofPreview');
+  if(proof?.signed_url){$('#proofStatus').textContent='Dein Nachweis ist gespeichert.';img.src=proof.signed_url;img.classList.remove('hidden');}
+  else{$('#proofStatus').textContent='Noch kein eigener Nachweis hochgeladen.';img.removeAttribute('src');img.classList.add('hidden');}
+}
+function openStatusDialog(ev,date){
+  selectedEventId=ev.id;selectedOccurrenceDate=date;$('#dialogEventName').textContent=`${ev.title} · ${formatDate(date)}`;$('#proofInput').value='';renderProofInDialog();$('#statusDialog').showModal();
 }
 
 function normalizeColor(c){
@@ -432,7 +511,7 @@ function eventNode(ev,withDelete,occurrenceDateOverride=null){
   const occurrenceDate=occurrenceDateOverride||ev.date;
   const statuses=ev.participants.map(p=>{const st=occurrenceStatus(ev,p.profile_id,occurrenceDate);return `<span class="status ${st}">${escapeHtml(p.name)}: ${statusLabel(st)}</span>`;}).join('');
   wrap.innerHTML=`<div class="event-main"><strong>${escapeHtml(ev.title)} <span class="event-sync-badge">● synchronisiert</span></strong><div class="event-meta">${formatDate(occurrenceDate)}${recurrenceText(ev)} · ${ev.start||'–'}${ev.end?`–${ev.end}`:''} · ${euro(ev.penalty)} Strafe</div><div class="status-row">${statuses}</div></div><div class="event-actions"><button class="small-btn status-btn" type="button">Status</button>${withDelete&&ev.created_by===currentUser.id?'<button class="small-btn delete-btn" type="button">🗑</button>':''}</div>`;
-  wrap.querySelector('.status-btn').addEventListener('click',()=>{selectedEventId=ev.id;selectedOccurrenceDate=occurrenceDate;$('#dialogEventName').textContent=`${ev.title} · ${formatDate(occurrenceDate)}`;$('#statusDialog').showModal();});
+  wrap.querySelector('.status-btn').addEventListener('click',()=>{openStatusDialog(ev,occurrenceDate);});
   const del=wrap.querySelector('.delete-btn');if(del)del.addEventListener('click',async()=>{if(confirm(`„${ev.title}“${ev.recurrence!=='none'?' und die ganze Serie':''} löschen?`)){const {error}=await supabase.from('events').delete().eq('id',ev.id);if(error)alert(error.message);else{await loadEvents();await loadOccurrenceStatuses();renderAll();}}});
   return wrap;
 }
@@ -449,7 +528,7 @@ function renderMonthCalendar(){
       event.stopPropagation();
       const ev=visibleEvents[index];
       if(!ev?.participants.some(p=>p.profile_id===currentUser.id))return alert('Du bist bei diesem Termin nicht als Teilnehmer eingetragen.');
-      selectedEventId=ev.id;selectedOccurrenceDate=iso;$('#dialogEventName').textContent=`${ev.title} · ${formatDate(iso)}`;$('#statusDialog').showModal();
+      openStatusDialog(ev,iso);
     }));
     cell.addEventListener('click',()=>{$('#eventDate').value=iso;renderMonthCalendar();});cell.addEventListener('dblclick',()=>showEventForm(iso));grid.appendChild(cell);
   }
@@ -493,7 +572,16 @@ function drawWeightChart(data){
   ctx.strokeStyle='#60a5fa';ctx.lineWidth=2.5;ctx.beginPath();data.forEach((p,i)=>i?ctx.lineTo(x(i),y(p.weight)):ctx.moveTo(x(i),y(p.weight)));ctx.stroke();ctx.strokeStyle='#f59e0b';ctx.lineWidth=2;ctx.setLineDash([7,6]);ctx.beginPath();avg.forEach((v,i)=>i?ctx.lineTo(x(i),y(v)):ctx.moveTo(x(i),y(v)));ctx.stroke();ctx.setLineDash([]);
   ctx.fillStyle='#9da9bd';ctx.font='12px system-ui';ctx.textAlign='left';ctx.fillText(`${max.toFixed(1)} kg`,4,pad+4);ctx.fillText(`${min.toFixed(1)} kg`,4,cssH-pad+4);ctx.textAlign='center';ctx.fillText(formatDate(data[0].date),x(0),cssH-12);if(data.length>1)ctx.fillText(formatDate(data.at(-1).date),x(data.length-1),cssH-12);
 }
-function renderPhotos(){const grid=$('#photoGrid');grid.innerHTML='<div class="empty">Online-Fortschrittsbilder kommen als nächster Schritt mit Supabase Storage.</div>';}
+function renderPhotos(){
+  const grid=$('#photoGrid');grid.innerHTML='';
+  if(!progressPhotos.length){grid.innerHTML='<div class="empty">Noch keine Fortschrittsbilder. Lade dein erstes Monatsbild hoch.</div>';return;}
+  progressPhotos.forEach(photo=>{
+    const card=document.createElement('article');card.className='photo-card';
+    const visibility=photo.visibility==='shared'?'👥 Gruppe':'🔒 Privat';
+    card.innerHTML=`${photo.signed_url?`<img src="${photo.signed_url}" alt="Fortschrittsbild von ${escapeHtml(photo.owner_name)}" />`:'<div class="empty">Bild konnte nicht geladen werden.</div>'}<div class="photo-info"><span><span class="photo-owner">${escapeHtml(photo.owner_name)}</span><br>${formatDate(photo.taken_on)}</span><span>${visibility}</span></div>${photo.profile_id===currentUser.id?'<div class="photo-actions"><button class="small-btn delete-photo-btn" type="button">🗑 Löschen</button></div>':''}`;
+    card.querySelector('.delete-photo-btn')?.addEventListener('click',()=>deleteProgressPhoto(photo));grid.appendChild(card);
+  });
+}
 async function requestNotifications(){if(!('Notification'in window))return alert('Dieser Browser unterstützt keine Benachrichtigungen.');const r=await Notification.requestPermission();if(r==='granted')new Notification('FitTogether',{body:'Erinnerungen sind aktiviert.'});}
 function checkDueReminders(){/* Push/Background-Erinnerungen folgen später. */}
 window.addEventListener('resize',()=>drawWeightChart(weights));
