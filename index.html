@@ -7,7 +7,7 @@
   <title>FitTogether</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <style>.hidden{display:none!important}</style>
-  <link rel="stylesheet" href="styles.css?v=0.15" />
+  <link rel="stylesheet" href="styles.css?v=0.16" />
 </head>
 <body>
   <section id="authScreen" class="auth-screen" role="dialog" aria-modal="true" aria-labelledby="authTitle">
@@ -41,7 +41,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Gemeinsam durchziehen</p>
-        <h1>FitTogether <span class="app-version">V0.15</span></h1>
+        <h1>FitTogether <span class="app-version">V0.16</span></h1>
       </div>
       <div class="top-actions">
         <select id="activeGroupSelect" class="group-select" aria-label="Aktive Gruppe"></select>
@@ -148,7 +148,17 @@
       </section>
 
       <section id="progress" class="panel">
-        <section class="card">
+        
+        <section class="card" id="yearEndCard">
+          <div class="section-heading">
+            <div><p class="eyebrow">Jahresabschluss</p><h2>Gemeinsamer Geldtopf</h2></div>
+            <select id="yearEndSelect" class="compact-select"></select>
+          </div>
+          <div id="yearEndSummary" class="year-end-summary"></div>
+          <div id="yearEndMembers" class="year-end-members"></div>
+          <div id="yearEndDecision" class="year-end-decision"></div>
+        </section>
+<section class="card">
           <div class="section-heading"><div><p class="eyebrow">Gewicht</p><h2>Verlauf eintragen</h2></div></div>
           <div class="inline-form">
             <label>Datum<input id="weightDate" type="date" /></label>
@@ -328,7 +338,7 @@
     </form>
   </dialog>
 
-  <script type="module" src="app.js?v=0.15"></script>
+  <script type="module" src="app.js?v=0.16"></script>
 
   <dialog id="seriesActionDialog" class="status-dialog">
     <form method="dialog" class="dialog-card">

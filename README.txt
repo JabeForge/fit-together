@@ -1,12 +1,12 @@
-FitTogether V0.15
+FitTogether V0.16
 
-Erinnerungen:
-- Browser-Benachrichtigungen aktivieren
-- Test-Benachrichtigung
-- Standard: 15 min / 1 h / 2 h / 1 Tag vorher
-- Option: nur eigene Termine
-- App prüft offene Termine jede Minute und sendet jeden Reminder nur einmal
-- DE/EN
-- Kein SQL nötig
-
-Wichtig: Diese Version kann erinnern, solange die Web-App geöffnet/aktiv ist. Push bei komplett geschlossener App braucht einen späteren Push-Backend-Schritt.
+Jahresabschluss:
+- Jahresauswahl
+- gemeinsamer Geldtopf des gewählten Jahres
+- erledigte und verpasste Termine
+- Aufschlüsselung pro Gruppenmitglied
+- persönliche Strafschulden pro Jahr
+- Person mit den wenigsten verpassten Terminen entscheidet über den Topf
+- Gleichstand wird erkannt
+- Deutsch / Englisch
+- Kein neues SQL nötig

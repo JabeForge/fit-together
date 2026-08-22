@@ -1,4 +1,4 @@
-const APP_VERSION = "0.15";
+const APP_VERSION = "0.16";
 const I18N={
  de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise'},
  en:{display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof'}
@@ -604,7 +604,7 @@ async function deleteOccurrenceOrSeries(ev,date){
     try{await suppressSeriesOccurrence(ev,date);renderAll();}catch(err){alert(err.message||err);}
   }
 }
-function renderAll(){renderGroupUI();renderTug();renderEvents();renderMonthCalendar();renderStats();renderWeights();renderPhotos();renderTrainingProofs();renderPhotoReminder();renderProfiles();setTimeout(enhanceEventSeriesControls,0);}
+function renderAll(){renderGroupUI();renderTug();renderEvents();renderMonthCalendar();renderStats();renderYearEnd();renderWeights();renderPhotos();renderTrainingProofs();renderPhotoReminder();renderProfiles();setTimeout(enhanceEventSeriesControls,0);}
 function memberDebt(id){return occurrenceStatuses.reduce((sum,r)=>{const ev=events.find(e=>e.id===r.event_id);return sum+(r.profile_id===id&&r.status==='missed'?Number(ev?.penalty||0):0);},0);}
 function renderTug(){
   const hero=$('.hero-card'),ranking=$('#multiRanking');hero.classList.remove('solo','multi');ranking.classList.add('hidden');ranking.innerHTML='';
@@ -709,6 +709,56 @@ async function addWeight(){
   $('#weightValue').value='';await loadWeights();renderWeights();
 }
 function movingAverage(arr,days=7){return arr.map((x,i)=>{const slice=arr.slice(Math.max(0,i-days+1),i+1);return slice.reduce((s,v)=>s+v.weight,0)/slice.length;});}
+
+function availableYearEndYears(){
+  const years=new Set([new Date().getFullYear()]);
+  for(const ev of events){if(ev.event_date)years.add(Number(String(ev.event_date).slice(0,4)));}
+  for(const st of occurrenceStatuses){if(st.occurrence_date)years.add(Number(String(st.occurrence_date).slice(0,4)));}
+  return [...years].filter(Boolean).sort((a,b)=>b-a);
+}
+function yearMemberStats(profileId,year){
+  let missed=0,done=0,excused=0,debt=0;
+  for(const st of occurrenceStatuses){
+    if(st.profile_id!==profileId||Number(String(st.occurrence_date).slice(0,4))!==year)continue;
+    const ev=events.find(e=>e.id===st.event_id);
+    if(st.status==='missed'){missed++;debt+=Number(ev?.penalty||0);}
+    else if(st.status==='completed'||st.status==='done')done++;
+    else if(st.status==='excused')excused++;
+  }
+  return {missed,done,excused,debt};
+}
+function renderYearEnd(){
+  const sel=$('#yearEndSelect'),summary=$('#yearEndSummary'),membersBox=$('#yearEndMembers'),decision=$('#yearEndDecision');
+  if(!sel||!summary||!membersBox||!decision)return;
+  const years=availableYearEndYears(),previous=Number(sel.value)||new Date().getFullYear();
+  sel.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  sel.value=years.includes(previous)?String(previous):String(years[0]);
+  const year=Number(sel.value),members=groupMembers||[];
+  if(!activeGroup||!members.length){
+    summary.innerHTML=`<div class="empty">${appLanguage==='en'?'Join a group to see the annual settlement.':'Tritt einer Gruppe bei, um den Jahresabschluss zu sehen.'}</div>`;
+    membersBox.innerHTML='';decision.innerHTML='';return;
+  }
+  const rows=members.map(m=>({member:m,...yearMemberStats(m.id,year)}));
+  const pot=rows.reduce((n,r)=>n+r.debt,0),misses=rows.reduce((n,r)=>n+r.missed,0),done=rows.reduce((n,r)=>n+r.done,0);
+  summary.innerHTML=`<div class="stat-grid year-stats">
+    <div><span>${appLanguage==='en'?'Shared pot':'Gemeinsamer Topf'}</span><strong>${euro(pot)}</strong></div>
+    <div><span>${appLanguage==='en'?'Missed':'Verpasst'}</span><strong>${misses}</strong></div>
+    <div><span>${appLanguage==='en'?'Completed':'Erledigt'}</span><strong>${done}</strong></div>
+  </div>`;
+  membersBox.innerHTML=rows.map(r=>`<article class="year-member">
+    <div class="avatar small">${escapeHtml((r.member.name||'?')[0].toUpperCase())}</div>
+    <div class="year-member-main"><strong>${escapeHtml(r.member.name||'')}</strong><span>${r.done} ${appLanguage==='en'?'done':'erledigt'} · ${r.missed} ${appLanguage==='en'?'missed':'verpasst'} · ${r.excused} ${appLanguage==='en'?'excused':'entschuldigt'}</span></div>
+    <strong>${euro(r.debt)}</strong>
+  </article>`).join('');
+  const minMiss=Math.min(...rows.map(r=>r.missed)),winners=rows.filter(r=>r.missed===minMiss);
+  if(rows.length<2){
+    decision.innerHTML=`<div class="info-banner">${appLanguage==='en'?'The decision rule becomes relevant once the group has at least two members.':'Die Entscheidungsregel wird relevant, sobald die Gruppe mindestens zwei Mitglieder hat.'}</div>`;
+  }else if(winners.length===1){
+    decision.innerHTML=`<div class="winner-banner">🏆 <strong>${escapeHtml(winners[0].member.name)}</strong> ${appLanguage==='en'?`had the fewest missed events in ${year} and decides how the ${euro(pot)} pot is used.`:`hatte ${year} die wenigsten verpassten Termine und entscheidet, wofür der Topf von ${euro(pot)} verwendet wird.`}</div>`;
+  }else{
+    decision.innerHTML=`<div class="info-banner">🤝 ${appLanguage==='en'?`Tie: ${winners.map(r=>escapeHtml(r.member.name)).join(', ')} share the fewest missed events. Decide together what happens to the ${euro(pot)} pot.`:`Gleichstand: ${winners.map(r=>escapeHtml(r.member.name)).join(', ')} haben gleich wenige Termine verpasst. Ihr entscheidet gemeinsam über den Topf von ${euro(pot)}.`}</div>`;
+  }
+}
 function renderWeights(){
   $('#weightStart').textContent=weights.length?`${weights[0].weight.toFixed(1)} kg`:'–';$('#weightCurrent').textContent=weights.length?`${weights.at(-1).weight.toFixed(1)} kg`:'–';$('#weightDelta').textContent=weights.length>1?`${(weights.at(-1).weight-weights[0].weight).toFixed(1)} kg`:'–';drawWeightChart(weights);
 }
@@ -839,7 +889,7 @@ const EN_TEXT = new Map(Object.entries({
 '📸 Monatsfoto':'📸 Monthly photo','Zeit für ein Fortschrittsbild':'Time for a progress photo','Dein letztes Fortschrittsbild ist mindestens 30 Tage her.':'Your last progress photo is at least 30 days old.','Jetzt aufnehmen':'Take one now','In 7 Tagen erinnern':'Remind me in 7 days','Vorher / Nachher':'Before / after','Fortschrittsbilder':'Progress photos','Sichtbarkeit':'Visibility','🔒 Privat':'🔒 Private','👥 Mit Gruppe teilen':'👥 Share with group','Bild':'Photo','Bild hinzufügen':'Add photo','Bilder werden sicher in Supabase Storage gespeichert. Private Bilder siehst nur du; geteilte Bilder können Mitglieder deiner Gruppe sehen.':'Photos are stored securely in Supabase Storage. Only you can see private photos; shared photos are visible to members of your group.','Veränderung ansehen':'View progress','Fortschritts-Slideshow':'Progress slideshow','Noch nicht genug Bilder für eine Slideshow.':'Not enough photos for a slideshow yet.','‹ Zurück':'‹ Back','▶ Abspielen':'▶ Play','Weiter ›':'Next ›','Galerie':'Gallery','🏋️ Trainingsnachweise':'🏋️ Workout proof','Gym-Bilder':'Gym photos','Diese Bilder gehören zu bestätigten Trainings und sind für Mitglieder der jeweiligen Gruppe sichtbar. Sie bleiben getrennt von deinen Fortschrittsbildern.':'These photos belong to confirmed workouts and are visible to members of the respective group. They stay separate from your progress photos.',
 'Gemeinsam trainieren':'Train together','Gruppen':'Groups','Mitglieder':'Members','Aktive Gruppe':'Active group','Einladungslink kopieren':'Copy invite link','Neue Gruppe':'New group','Gruppenname':'Group name','Gruppe erstellen':'Create group','Gruppe beitreten':'Join group','Einladungscode':'Invite code','Beitreten':'Join','Dein Profil':'Your profile','Dieses Profil kannst nur du bearbeiten.':'Only you can edit this profile.','Profil speichern':'Save profile','Schulden':'Debt','Partnerprofil':'Partner profile','Hier siehst du später alles, was sie für dich freigibt.':'You will see everything they share with you here.','🔒 Private Gewichte und Bilder bleiben verborgen. Geteilte Fortschritte erscheinen später hier.':'🔒 Private weights and photos stay hidden. Shared progress will appear here later.',
 'Anzeige':'Display','Sprache & Format':'Language & format','Sprache':'Language','Datumsformat':'Date format','Zeitformat':'Time format','Gewichtseinheit':'Weight unit','Sprache, Datum, Uhrzeit und Gewichtseinheit können unabhängig voneinander eingestellt werden. Gewichte werden intern weiterhin in kg gespeichert.':'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.','App':'App','Benachrichtigungen':'Notifications','Trainingserinnerungen kannst du über die Glocke oben aktivieren. Weitere Push-Einstellungen bauen wir im nächsten Benachrichtigungs-Schritt aus.':'You can enable workout reminders using the bell at the top. More push notification settings will be added in the next notification update.','🔔 Benachrichtigungen aktivieren':'🔔 Enable notifications','Standard-Erinnerung':'Default reminder','2 Stunden vorher':'2 hours before','1 Tag vorher':'1 day before','Nur eigene Termine':'Only my events','Test senden':'Send test','Benachrichtigungen sind noch nicht aktiviert.':'Notifications are not enabled yet.','Hinweis: Browser-Benachrichtigungen funktionieren zuverlässig, solange die App geöffnet ist. Echte Push-Nachrichten bei komplett geschlossener App benötigen später einen Server/Push-Dienst.':'Note: Browser notifications work reliably while the app is open. True push notifications when the app is completely closed will later require a server/push service.',
-'Trainingsnachweis':'Workout proof','Noch kein Nachweis hochgeladen.':'No proof uploaded yet.','Foto':'Photo','Nachweis hochladen':'Upload proof','✅ Erledigt':'✅ Done','❌ Verpasst':'❌ Missed','🩹 Entschuldigt':'🩹 Excused','Abbrechen':'Cancel','Status':'Status','Geplant':'Planned','Erledigt':'Done','Verpasst':'Missed','Entschuldigt':'Excused','🗑 Löschen':'🗑 Delete','Gruppe':'Group','Privat':'Private','Training':'Workout','Mitglied':'Member','Noch niemand':'No one yet','Optional':'Optional','Nur diesen Termin':'Only this occurrence','Gesamte Serie':'Entire series','Wiederholten Termin löschen':'Delete repeating event','Wiederholten Termin bearbeiten':'Edit repeating event','Möchtest du nur diesen Termin oder die gesamte Serie ändern?':'Do you want to change only this occurrence or the entire series?'
+'Trainingsnachweis':'Workout proof','Noch kein Nachweis hochgeladen.':'No proof uploaded yet.','Foto':'Photo','Nachweis hochladen':'Upload proof','✅ Erledigt':'✅ Done','❌ Verpasst':'❌ Missed','🩹 Entschuldigt':'🩹 Excused','Abbrechen':'Cancel','Status':'Status','Geplant':'Planned','Erledigt':'Done','Verpasst':'Missed','Entschuldigt':'Excused','🗑 Löschen':'🗑 Delete','Gruppe':'Group','Privat':'Private','Training':'Workout','Mitglied':'Member','Noch niemand':'No one yet','Optional':'Optional','Jahresabschluss':'Annual settlement','Gemeinsamer Geldtopf':'Shared money pot','Gemeinsamer Topf':'Shared pot','Nur diesen Termin':'Only this occurrence','Gesamte Serie':'Entire series','Wiederholten Termin löschen':'Delete repeating event','Wiederholten Termin bearbeiten':'Edit repeating event','Möchtest du nur diesen Termin oder die gesamte Serie ändern?':'Do you want to change only this occurrence or the entire series?'
 }));
 const DE_TEXT = new Map([...EN_TEXT].map(([de,en])=>[en,de]));
 function translateExact(text){
@@ -869,7 +919,7 @@ function translateVisibleUI(root=document.body){
  const nodes=[];const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);while(walker.nextNode())nodes.push(walker.currentNode);
  nodes.forEach(n=>{if(!n.parentElement?.closest('script,style'))n.nodeValue=translateDynamic(n.nodeValue);});
  const placeholders={
-  'name@beispiel.de':'name@example.com','Passwort':'Password','Dein Name':'Your name','Mindestens 6 Zeichen':'At least 6 characters','z. B. Gym, Schwimmen, Spaziergang':'e.g. Gym, swimming, walk','z. B. 92.4':'e.g. 92.4','z. B. Janek & Estelle':'e.g. Alex & Sam','z. B. A1B2C3D4':'e.g. A1B2C3D4','Optional':'Optional','Nur diesen Termin':'Only this occurrence','Gesamte Serie':'Entire series','Wiederholten Termin löschen':'Delete repeating event','Wiederholten Termin bearbeiten':'Edit repeating event','Möchtest du nur diesen Termin oder die gesamte Serie ändern?':'Do you want to change only this occurrence or the entire series?'
+  'name@beispiel.de':'name@example.com','Passwort':'Password','Dein Name':'Your name','Mindestens 6 Zeichen':'At least 6 characters','z. B. Gym, Schwimmen, Spaziergang':'e.g. Gym, swimming, walk','z. B. 92.4':'e.g. 92.4','z. B. Janek & Estelle':'e.g. Alex & Sam','z. B. A1B2C3D4':'e.g. A1B2C3D4','Optional':'Optional','Jahresabschluss':'Annual settlement','Gemeinsamer Geldtopf':'Shared money pot','Gemeinsamer Topf':'Shared pot','Nur diesen Termin':'Only this occurrence','Gesamte Serie':'Entire series','Wiederholten Termin löschen':'Delete repeating event','Wiederholten Termin bearbeiten':'Edit repeating event','Möchtest du nur diesen Termin oder die gesamte Serie ändern?':'Do you want to change only this occurrence or the entire series?'
  };
  root.querySelectorAll?.('[placeholder]').forEach(el=>{const v=el.getAttribute('placeholder');if(appLanguage==='en'&&placeholders[v])el.setAttribute('placeholder',placeholders[v]);});
  root.querySelectorAll?.('[aria-label],[title]').forEach(el=>{for(const a of ['aria-label','title']){if(el.hasAttribute(a))el.setAttribute(a,translateDynamic(el.getAttribute(a)));}});
