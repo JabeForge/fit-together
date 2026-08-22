@@ -1,3 +1,5 @@
+const APP_VERSION = "0.9.1";
+console.info(`FitTogether V${APP_VERSION}`);
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm";
 
 const SUPABASE_URL = "https://iixnjrxvdpqvkjoizify.supabase.co";

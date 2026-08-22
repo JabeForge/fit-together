@@ -1,3 +1,7 @@
+FitTogether V0.9.1
+
+Sichtbare Versionsnummer im Header. CSS/JS Cache-Busting auf 0.9.1. Woechentliche Wiederholung aus V0.9 enthalten.
+
 FitTogether V0.9
 
 Neu: echte wöchentliche Darstellung im Monatskalender, optionale Enddatum-Angabe und korrekte nächste Termine für Serien.
