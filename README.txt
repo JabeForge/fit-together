@@ -1,4 +1,4 @@
-FitTogether V0.8
+FitTogether V0.8.1
 
 Neu:
 - Supabase-Accounts
