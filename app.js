@@ -1,4 +1,4 @@
-const APP_VERSION = "0.14.1";
+const APP_VERSION = "0.15";
 const I18N={
  de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise'},
  en:{display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof'}
@@ -62,6 +62,8 @@ let slideIndex = 0;
 let slideTimer = null;
 let pendingSeriesAction = null;
 let editingSeriesId = null;
+let reminderTimer = null;
+const sentReminderKeys = new Set(JSON.parse(localStorage.getItem("fitTogether_sentReminders")||"[]"));
 let calendarCursor = new Date();
 calendarCursor.setDate(1);
 let pendingInvite = new URLSearchParams(location.search).get('join') || '';
@@ -90,7 +92,10 @@ async function init(){
   $('#eventDate').value=todayISO();
   $('#weightDate').value=todayISO();
   $('#photoDate').value=todayISO();
-  bindTabs(); bindActions(); bindAuth(); toggleRepeatUntil();
+  bindTabs(); bindActions();
+  if($('#defaultReminderSelect'))$('#defaultReminderSelect').value=String(localStorage.getItem('fitTogether_defaultReminder')||60);
+  if($('#ownNotificationsOnly'))$('#ownNotificationsOnly').checked=localStorage.getItem('fitTogether_ownNotificationsOnly')!=='false';
+  updateNotificationStatus();scheduleReminderChecks(); bindAuth(); toggleRepeatUntil();
   await removeLegacyCache();
   try {
     const { data:{session}, error } = await supabase.auth.getSession();
@@ -756,7 +761,67 @@ function renderPhotoReminder(){
   if(due)$('#photoReminderText').textContent=last?`Dein letztes Fortschrittsbild ist ${age} Tage her. Zeit für ein neues Monatsfoto.`:'Du hast noch kein Fortschrittsbild. Starte heute deine Vorher-/Nachher-Reihe.';
 }
 function snoozePhotoReminder(){try{localStorage.setItem(`fitTogether_photoSnooze_${currentUser.id}`,String(Date.now()+7*86400000));}catch{}$('#photoReminderCard').classList.add('hidden');}
-async function requestNotifications(){if(!('Notification'in window))return alert('Dieser Browser unterstützt keine Benachrichtigungen.');const r=await Notification.requestPermission();if(r==='granted')new Notification('FitTogether',{body:'Erinnerungen sind aktiviert.'});}
+async function requestNotifications(){
+  if(!('Notification' in window))return alert(appLanguage==='en'?'This browser does not support notifications.':'Dieser Browser unterstützt keine Benachrichtigungen.');
+  const permission=await Notification.requestPermission();
+  updateNotificationStatus();
+  if(permission==='granted'){scheduleReminderChecks();new Notification('FitTogether',{body:appLanguage==='en'?'Notifications enabled.':'Benachrichtigungen aktiviert.'});}
+}
+function updateNotificationStatus(){
+  const el=$('#notificationStatus');if(!el)return;
+  const p=('Notification' in window)?Notification.permission:'unsupported';
+  el.textContent=appLanguage==='en'?(p==='granted'?'Notifications are enabled.':p==='denied'?'Notifications are blocked in the browser.':'Notifications are not enabled yet.'):(p==='granted'?'Benachrichtigungen sind aktiviert.':p==='denied'?'Benachrichtigungen sind im Browser blockiert.':'Benachrichtigungen sind noch nicht aktiviert.');
+}
+function reminderSettings(){
+  return {
+    minutes:Number(localStorage.getItem('fitTogether_defaultReminder')||60),
+    ownOnly:localStorage.getItem('fitTogether_ownNotificationsOnly')!=='false'
+  };
+}
+function saveReminderSettings(){
+  localStorage.setItem('fitTogether_defaultReminder',$('#defaultReminderSelect')?.value||'60');
+  localStorage.setItem('fitTogether_ownNotificationsOnly',String($('#ownNotificationsOnly')?.checked??true));
+  scheduleReminderChecks();
+}
+function occurrenceDateTime(date,time){
+  const t=(time||'09:00').slice(0,5);return new Date(`${date}T${t}:00`);
+}
+function upcomingOccurrencesForReminders(){
+  const now=new Date(), horizon=new Date(now.getTime()+2*86400000), out=[];
+  for(const ev of events){
+    const dates=eventOccurrenceDates(ev,now.toISOString().slice(0,10),horizon.toISOString().slice(0,10));
+    for(const date of dates){
+      const dt=occurrenceDateTime(date,ev.start_time);
+      if(dt>=now&&dt<=horizon)out.push({ev,date,dt});
+    }
+  }
+  return out;
+}
+function checkReminders(){
+  if(!('Notification' in window)||Notification.permission!=='granted')return;
+  const cfg=reminderSettings(),now=Date.now();
+  for(const {ev,date,dt} of upcomingOccurrencesForReminders()){
+    if(cfg.ownOnly && !(ev.participants||[]).some(p=>p.profile_id===currentUser?.id))continue;
+    const mins=(dt.getTime()-now)/60000;
+    const eventMinutes=Number(ev.reminder_minutes||ev.reminder||cfg.minutes);
+    if(mins<=eventMinutes&&mins>-2){
+      const key=`${ev.id}|${date}|${eventMinutes}`;
+      if(sentReminderKeys.has(key))continue;
+      const when=timeLabel((ev.start_time||'09:00').slice(0,5));
+      new Notification(ev.title||'FitTogether',{body:appLanguage==='en'?`Workout today at ${when}.`:`Training heute um ${when}.`});
+      sentReminderKeys.add(key);localStorage.setItem('fitTogether_sentReminders',JSON.stringify([...sentReminderKeys].slice(-300)));
+    }
+  }
+}
+function scheduleReminderChecks(){
+  if(reminderTimer)clearInterval(reminderTimer);
+  checkReminders();reminderTimer=setInterval(checkReminders,60000);
+}
+function testNotification(){
+  if(!('Notification' in window)||Notification.permission!=='granted')return requestNotifications();
+  new Notification('FitTogether',{body:appLanguage==='en'?'Test notification — it works!':'Test-Benachrichtigung – funktioniert!'});
+}
+
 function checkDueReminders(){/* Push/Background-Erinnerungen folgen später. */}
 window.addEventListener('resize',()=>drawWeightChart(weights));
 
@@ -773,7 +838,7 @@ const EN_TEXT = new Map(Object.entries({
 'Gewicht':'Weight','Verlauf eintragen':'Add weight entry','Gewicht (kg)':'Weight','Speichern':'Save','Start':'Start','Aktuell':'Current','Veränderung':'Change','Die Linie zeigt deine Einträge; zusätzlich wird ein 7-Tage-Trend geglättet dargestellt.':'The line shows your entries; a smoothed 7-day trend is shown as well.',
 '📸 Monatsfoto':'📸 Monthly photo','Zeit für ein Fortschrittsbild':'Time for a progress photo','Dein letztes Fortschrittsbild ist mindestens 30 Tage her.':'Your last progress photo is at least 30 days old.','Jetzt aufnehmen':'Take one now','In 7 Tagen erinnern':'Remind me in 7 days','Vorher / Nachher':'Before / after','Fortschrittsbilder':'Progress photos','Sichtbarkeit':'Visibility','🔒 Privat':'🔒 Private','👥 Mit Gruppe teilen':'👥 Share with group','Bild':'Photo','Bild hinzufügen':'Add photo','Bilder werden sicher in Supabase Storage gespeichert. Private Bilder siehst nur du; geteilte Bilder können Mitglieder deiner Gruppe sehen.':'Photos are stored securely in Supabase Storage. Only you can see private photos; shared photos are visible to members of your group.','Veränderung ansehen':'View progress','Fortschritts-Slideshow':'Progress slideshow','Noch nicht genug Bilder für eine Slideshow.':'Not enough photos for a slideshow yet.','‹ Zurück':'‹ Back','▶ Abspielen':'▶ Play','Weiter ›':'Next ›','Galerie':'Gallery','🏋️ Trainingsnachweise':'🏋️ Workout proof','Gym-Bilder':'Gym photos','Diese Bilder gehören zu bestätigten Trainings und sind für Mitglieder der jeweiligen Gruppe sichtbar. Sie bleiben getrennt von deinen Fortschrittsbildern.':'These photos belong to confirmed workouts and are visible to members of the respective group. They stay separate from your progress photos.',
 'Gemeinsam trainieren':'Train together','Gruppen':'Groups','Mitglieder':'Members','Aktive Gruppe':'Active group','Einladungslink kopieren':'Copy invite link','Neue Gruppe':'New group','Gruppenname':'Group name','Gruppe erstellen':'Create group','Gruppe beitreten':'Join group','Einladungscode':'Invite code','Beitreten':'Join','Dein Profil':'Your profile','Dieses Profil kannst nur du bearbeiten.':'Only you can edit this profile.','Profil speichern':'Save profile','Schulden':'Debt','Partnerprofil':'Partner profile','Hier siehst du später alles, was sie für dich freigibt.':'You will see everything they share with you here.','🔒 Private Gewichte und Bilder bleiben verborgen. Geteilte Fortschritte erscheinen später hier.':'🔒 Private weights and photos stay hidden. Shared progress will appear here later.',
-'Anzeige':'Display','Sprache & Format':'Language & format','Sprache':'Language','Datumsformat':'Date format','Zeitformat':'Time format','Gewichtseinheit':'Weight unit','Sprache, Datum, Uhrzeit und Gewichtseinheit können unabhängig voneinander eingestellt werden. Gewichte werden intern weiterhin in kg gespeichert.':'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.','App':'App','Benachrichtigungen':'Notifications','Trainingserinnerungen kannst du über die Glocke oben aktivieren. Weitere Push-Einstellungen bauen wir im nächsten Benachrichtigungs-Schritt aus.':'You can enable workout reminders using the bell at the top. More push notification settings will be added in the next notification update.','🔔 Benachrichtigungen aktivieren':'🔔 Enable notifications',
+'Anzeige':'Display','Sprache & Format':'Language & format','Sprache':'Language','Datumsformat':'Date format','Zeitformat':'Time format','Gewichtseinheit':'Weight unit','Sprache, Datum, Uhrzeit und Gewichtseinheit können unabhängig voneinander eingestellt werden. Gewichte werden intern weiterhin in kg gespeichert.':'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.','App':'App','Benachrichtigungen':'Notifications','Trainingserinnerungen kannst du über die Glocke oben aktivieren. Weitere Push-Einstellungen bauen wir im nächsten Benachrichtigungs-Schritt aus.':'You can enable workout reminders using the bell at the top. More push notification settings will be added in the next notification update.','🔔 Benachrichtigungen aktivieren':'🔔 Enable notifications','Standard-Erinnerung':'Default reminder','2 Stunden vorher':'2 hours before','1 Tag vorher':'1 day before','Nur eigene Termine':'Only my events','Test senden':'Send test','Benachrichtigungen sind noch nicht aktiviert.':'Notifications are not enabled yet.','Hinweis: Browser-Benachrichtigungen funktionieren zuverlässig, solange die App geöffnet ist. Echte Push-Nachrichten bei komplett geschlossener App benötigen später einen Server/Push-Dienst.':'Note: Browser notifications work reliably while the app is open. True push notifications when the app is completely closed will later require a server/push service.',
 'Trainingsnachweis':'Workout proof','Noch kein Nachweis hochgeladen.':'No proof uploaded yet.','Foto':'Photo','Nachweis hochladen':'Upload proof','✅ Erledigt':'✅ Done','❌ Verpasst':'❌ Missed','🩹 Entschuldigt':'🩹 Excused','Abbrechen':'Cancel','Status':'Status','Geplant':'Planned','Erledigt':'Done','Verpasst':'Missed','Entschuldigt':'Excused','🗑 Löschen':'🗑 Delete','Gruppe':'Group','Privat':'Private','Training':'Workout','Mitglied':'Member','Noch niemand':'No one yet','Optional':'Optional','Nur diesen Termin':'Only this occurrence','Gesamte Serie':'Entire series','Wiederholten Termin löschen':'Delete repeating event','Wiederholten Termin bearbeiten':'Edit repeating event','Möchtest du nur diesen Termin oder die gesamte Serie ändern?':'Do you want to change only this occurrence or the entire series?'
 }));
 const DE_TEXT = new Map([...EN_TEXT].map(([de,en])=>[en,de]));

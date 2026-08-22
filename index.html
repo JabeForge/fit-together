@@ -7,7 +7,7 @@
   <title>FitTogether</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <style>.hidden{display:none!important}</style>
-  <link rel="stylesheet" href="styles.css?v=0.14.1" />
+  <link rel="stylesheet" href="styles.css?v=0.15" />
 </head>
 <body>
   <section id="authScreen" class="auth-screen" role="dialog" aria-modal="true" aria-labelledby="authTitle">
@@ -41,7 +41,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Gemeinsam durchziehen</p>
-        <h1>FitTogether <span class="app-version">V0.14.1</span></h1>
+        <h1>FitTogether <span class="app-version">V0.15</span></h1>
       </div>
       <div class="top-actions">
         <select id="activeGroupSelect" class="group-select" aria-label="Aktive Gruppe"></select>
@@ -286,8 +286,23 @@
         </section>
         <section class="card">
           <div class="section-heading"><div><p class="eyebrow">App</p><h2>Benachrichtigungen</h2></div></div>
-          <p class="helper">Trainingserinnerungen kannst du über die Glocke oben aktivieren. Weitere Push-Einstellungen bauen wir im nächsten Benachrichtigungs-Schritt aus.</p>
-          <button id="settingsNotifyBtn" class="ghost-btn" type="button">🔔 Benachrichtigungen aktivieren</button>
+          <p id="notificationStatus" class="helper">Benachrichtigungen sind noch nicht aktiviert.</p>
+          <div class="form-grid two">
+            <label><span>Standard-Erinnerung</span>
+              <select id="defaultReminderSelect">
+                <option value="15">15 Minuten vorher</option>
+                <option value="60" selected>1 Stunde vorher</option>
+                <option value="120">2 Stunden vorher</option>
+                <option value="1440">1 Tag vorher</option>
+              </select>
+            </label>
+            <label class="toggle-label"><span>Nur eigene Termine</span><input id="ownNotificationsOnly" type="checkbox" checked /></label>
+          </div>
+          <div class="dialog-actions">
+            <button id="settingsNotifyBtn" class="primary-btn" type="button">🔔 Benachrichtigungen aktivieren</button>
+            <button id="testNotifyBtn" class="ghost-btn" type="button">Test senden</button>
+          </div>
+          <p class="helper">Hinweis: Browser-Benachrichtigungen funktionieren zuverlässig, solange die App geöffnet ist. Echte Push-Nachrichten bei komplett geschlossener App benötigen später einen Server/Push-Dienst.</p>
         </section>
       </section>
     </main>
@@ -313,7 +328,7 @@
     </form>
   </dialog>
 
-  <script type="module" src="app.js?v=0.14.1"></script>
+  <script type="module" src="app.js?v=0.15"></script>
 
   <dialog id="seriesActionDialog" class="status-dialog">
     <form method="dialog" class="dialog-card">
