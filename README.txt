@@ -1,10 +1,9 @@
-FitTogether V0.10.1
+FitTogether V0.12
 
-Bugfix-Release:
-- echter Cache-Bust auf app.js/styles.css v0.10.1
-- monatliche und jährliche Wiederholungen werden dadurch mit der V0.10-Logik geladen
-- Status wird pro konkreter Wiederholung gesetzt
-- Kalendereintrag antippen öffnet Status genau für diesen Tag
-- Verpasst = X, Entschuldigt = Pflaster-Symbol im Kalender
-- bei 3+ Gruppenmitgliedern erscheint eine echte Strafgeld-Rangliste
-- 2 Personen behalten das rot/blaue Tauziehen
+Neu:
+- Erledigt erfordert jetzt zwingend ein Trainings-Nachweisfoto.
+- Trainingsnachweise und Fortschrittsbilder sind getrennte Galerien.
+- Fortschrittsbilder haben eine Slideshow.
+- Nach 30 Tagen erscheint eine Monatsfoto-Erinnerung; sie kann 7 Tage verschoben werden.
+
+Für V0.12 ist kein neues SQL nötig, wenn V0.11 Storage bereits erfolgreich eingerichtet wurde.

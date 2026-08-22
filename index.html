@@ -7,7 +7,7 @@
   <title>FitTogether</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <style>.hidden{display:none!important}</style>
-  <link rel="stylesheet" href="styles.css?v=0.11" />
+  <link rel="stylesheet" href="styles.css?v=0.12" />
 </head>
 <body>
   <section id="authScreen" class="auth-screen" role="dialog" aria-modal="true" aria-labelledby="authTitle">
@@ -41,7 +41,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Gemeinsam durchziehen</p>
-        <h1>FitTogether <span class="app-version">V0.11</span></h1>
+        <h1>FitTogether <span class="app-version">V0.12</span></h1>
       </div>
       <div class="top-actions">
         <select id="activeGroupSelect" class="group-select" aria-label="Aktive Gruppe"></select>
@@ -165,6 +165,12 @@
       </section>
 
       <section id="photos" class="panel">
+        <section id="photoReminderCard" class="card photo-reminder hidden">
+          <div class="section-heading"><div><p class="eyebrow">📸 Monatsfoto</p><h2>Zeit für ein Fortschrittsbild</h2></div></div>
+          <p id="photoReminderText" class="helper">Dein letztes Fortschrittsbild ist mindestens 30 Tage her.</p>
+          <div class="dialog-actions"><button id="photoReminderNowBtn" class="primary-btn" type="button">Jetzt aufnehmen</button><button id="photoReminderLaterBtn" class="ghost-btn" type="button">In 7 Tagen erinnern</button></div>
+        </section>
+
         <section class="card">
           <div class="section-heading"><div><p class="eyebrow">Vorher / Nachher</p><h2>Fortschrittsbilder</h2></div></div>
           <div class="form-grid">
@@ -175,7 +181,20 @@
           <button id="addPhotoBtn" class="primary-btn full" type="button">Bild hinzufügen</button>
           <p class="helper">Bilder werden sicher in Supabase Storage gespeichert. Private Bilder siehst nur du; geteilte Bilder können Mitglieder deiner Gruppe sehen.</p>
         </section>
-        <section class="photo-grid" id="photoGrid"></section>
+        <section class="card" id="progressSlideshowCard">
+          <div class="section-heading"><div><p class="eyebrow">Veränderung ansehen</p><h2>Fortschritts-Slideshow</h2></div><span id="slideCounter" class="badge">0 / 0</span></div>
+          <div id="progressSlideshow" class="progress-slideshow"><div class="empty">Noch nicht genug Bilder für eine Slideshow.</div></div>
+          <div class="slideshow-controls"><button id="slidePrevBtn" class="ghost-btn" type="button">‹ Zurück</button><button id="slidePlayBtn" class="primary-btn" type="button">▶ Abspielen</button><button id="slideNextBtn" class="ghost-btn" type="button">Weiter ›</button></div>
+        </section>
+        <section class="card">
+          <div class="section-heading"><div><p class="eyebrow">Galerie</p><h2>Fortschrittsbilder</h2></div></div>
+          <section class="photo-grid" id="photoGrid"></section>
+        </section>
+        <section class="card">
+          <div class="section-heading"><div><p class="eyebrow">🏋️ Trainingsnachweise</p><h2>Gym-Bilder</h2></div></div>
+          <p class="helper">Diese Bilder gehören zu bestätigten Trainings und sind für Mitglieder der jeweiligen Gruppe sichtbar. Sie bleiben getrennt von deinen Fortschrittsbildern.</p>
+          <section class="photo-grid" id="proofGrid"></section>
+        </section>
       </section>
 
       <section id="profiles" class="panel">
@@ -252,14 +271,14 @@
         <button id="uploadProofBtn" type="button" class="ghost-btn">Nachweis hochladen</button>
       </div>
       <div class="dialog-actions">
-        <button value="done" class="primary-btn">✅ Erledigt</button>
-        <button value="missed" class="danger-btn">❌ Verpasst</button>
-        <button value="excused" class="ghost-btn">🩹 Entschuldigt</button>
+        <button id="statusDoneBtn" type="button" class="primary-btn">✅ Erledigt</button>
+        <button id="statusMissedBtn" type="button" class="danger-btn">❌ Verpasst</button>
+        <button id="statusExcusedBtn" type="button" class="ghost-btn">🩹 Entschuldigt</button>
         <button value="cancel" class="ghost-btn">Abbrechen</button>
       </div>
     </form>
   </dialog>
 
-  <script type="module" src="app.js?v=0.11"></script>
+  <script type="module" src="app.js?v=0.12"></script>
 </body>
 </html>

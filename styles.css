@@ -120,3 +120,11 @@ body.auth-open .app-shell{filter:blur(3px);pointer-events:none;user-select:none}
 
 /* V0.11 – Supabase Storage */
 .photo-card{position:relative}.photo-card .photo-actions{display:flex;gap:6px;padding:0 10px 10px}.photo-card .photo-actions button{flex:1}.photo-owner{font-weight:700;color:var(--text)}.proof-box{display:grid;gap:10px;margin:12px 0 16px;padding:12px;border:1px solid var(--border);border-radius:14px;background:#0f1728}.proof-preview{width:100%;max-height:240px;object-fit:cover;border-radius:12px;border:1px solid var(--border)}
+
+/* V0.12 */
+.photo-reminder{border-color:#7c3aed;box-shadow:0 18px 55px rgba(124,58,237,.12)}
+.progress-slideshow{min-height:280px;border:1px solid var(--line,#26334e);border-radius:24px;overflow:hidden;background:#0b1220;display:flex;align-items:center;justify-content:center;position:relative}
+.progress-slideshow img{width:100%;max-height:620px;object-fit:contain;display:block}
+.slide-caption{position:absolute;left:12px;right:12px;bottom:12px;padding:10px 14px;border-radius:14px;background:rgba(5,10,20,.78);display:flex;justify-content:space-between;gap:12px}
+.slideshow-controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+@media(max-width:600px){.progress-slideshow{min-height:230px}.slideshow-controls button{flex:1 1 30%}}

@@ -1,4 +1,4 @@
-const APP_VERSION = "0.11";
+const APP_VERSION = "0.12";
 console.info(`FitTogether V${APP_VERSION}`);
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm";
 
@@ -29,6 +29,8 @@ let progressPhotos = [];
 let trainingProofs = [];
 let selectedEventId = null;
 let selectedOccurrenceDate = null;
+let slideIndex = 0;
+let slideTimer = null;
 let calendarCursor = new Date();
 calendarCursor.setDate(1);
 let pendingInvite = new URLSearchParams(location.search).get('join') || '';
@@ -81,6 +83,14 @@ function bindActions(){
   $('#addWeightBtn').addEventListener('click',addWeight);
   $('#addPhotoBtn').addEventListener('click',addProgressPhoto);
   $('#uploadProofBtn').addEventListener('click',uploadTrainingProof);
+  $('#statusDoneBtn').addEventListener('click',()=>finishStatus('done'));
+  $('#statusMissedBtn').addEventListener('click',()=>finishStatus('missed'));
+  $('#statusExcusedBtn').addEventListener('click',()=>finishStatus('excused'));
+  $('#slidePrevBtn').addEventListener('click',()=>changeSlide(-1));
+  $('#slideNextBtn').addEventListener('click',()=>changeSlide(1));
+  $('#slidePlayBtn').addEventListener('click',toggleSlideshow);
+  $('#photoReminderNowBtn').addEventListener('click',()=>{showTab('photos');$('#photoInput').scrollIntoView({behavior:'smooth',block:'center'});});
+  $('#photoReminderLaterBtn').addEventListener('click',snoozePhotoReminder);
   $('#notifyBtn').addEventListener('click',requestNotifications);
   $('#prevMonthBtn').addEventListener('click',()=>{calendarCursor.setMonth(calendarCursor.getMonth()-1);renderMonthCalendar();});
   $('#nextMonthBtn').addEventListener('click',()=>{calendarCursor.setMonth(calendarCursor.getMonth()+1);renderMonthCalendar();});
@@ -97,11 +107,7 @@ function bindActions(){
     const found=groups.find(g=>g.id===e.target.value);
     if(found){ activeGroup=found; try{localStorage.setItem('fitTogether_activeGroup',found.id);}catch{} await loadActiveGroupData(); }
   });
-  $('#statusDialog').addEventListener('close',async()=>{
-    if(!selectedEventId || $('#statusDialog').returnValue==='cancel') return;
-    await setEventStatus(selectedEventId,$('#statusDialog').returnValue,selectedOccurrenceDate);
-    selectedEventId=null;selectedOccurrenceDate=null;
-  });
+  $('#statusDialog').addEventListener('close',()=>{ if($('#statusDialog').returnValue==='cancel'){ selectedEventId=null; selectedOccurrenceDate=null; } });
 }
 
 function bindAuth(){
@@ -429,6 +435,19 @@ async function addEvent(){
   $('#eventTitle').value='';$('#eventNote').value='';$('#eventRepeat').value='none';$('#eventRepeatUntil').value='';toggleRepeatUntil();
   await loadEvents();renderAll();
 }
+async function finishStatus(status){
+  if(!selectedEventId||!selectedOccurrenceDate)return;
+  if(status==='done'){
+    const proof=trainingProofs.find(p=>p.event_id===selectedEventId&&p.occurrence_date===selectedOccurrenceDate&&p.profile_id===currentUser.id);
+    if(!proof){
+      alert('Für „Erledigt“ ist ein Trainingsnachweis erforderlich. Bitte zuerst ein Foto hochladen.');
+      return;
+    }
+  }
+  await setEventStatus(selectedEventId,status,selectedOccurrenceDate);
+  $('#statusDialog').close('saved');
+  selectedEventId=null;selectedOccurrenceDate=null;
+}
 async function setEventStatus(id,statusUi,date){
   const ev=events.find(e=>e.id===id);if(!ev)return;
   const mine=ev.participants.find(p=>p.profile_id===currentUser.id);
@@ -456,7 +475,7 @@ async function autoMarkOwnMissed(){
   }
 }
 
-function renderAll(){renderGroupUI();renderTug();renderEvents();renderMonthCalendar();renderStats();renderWeights();renderPhotos();renderProfiles();}
+function renderAll(){renderGroupUI();renderTug();renderEvents();renderMonthCalendar();renderStats();renderWeights();renderPhotos();renderTrainingProofs();renderPhotoReminder();renderProfiles();}
 function memberDebt(id){return occurrenceStatuses.reduce((sum,r)=>{const ev=events.find(e=>e.id===r.event_id);return sum+(r.profile_id===id&&r.status==='missed'?Number(ev?.penalty||0):0);},0);}
 function renderTug(){
   const hero=$('.hero-card'),ranking=$('#multiRanking');hero.classList.remove('solo','multi');ranking.classList.add('hidden');ranking.innerHTML='';
@@ -573,6 +592,7 @@ function drawWeightChart(data){
   ctx.fillStyle='#9da9bd';ctx.font='12px system-ui';ctx.textAlign='left';ctx.fillText(`${max.toFixed(1)} kg`,4,pad+4);ctx.fillText(`${min.toFixed(1)} kg`,4,cssH-pad+4);ctx.textAlign='center';ctx.fillText(formatDate(data[0].date),x(0),cssH-12);if(data.length>1)ctx.fillText(formatDate(data.at(-1).date),x(data.length-1),cssH-12);
 }
 function renderPhotos(){
+  renderSlideshow();
   const grid=$('#photoGrid');grid.innerHTML='';
   if(!progressPhotos.length){grid.innerHTML='<div class="empty">Noch keine Fortschrittsbilder. Lade dein erstes Monatsbild hoch.</div>';return;}
   progressPhotos.forEach(photo=>{
@@ -582,6 +602,36 @@ function renderPhotos(){
     card.querySelector('.delete-photo-btn')?.addEventListener('click',()=>deleteProgressPhoto(photo));grid.appendChild(card);
   });
 }
+function myProgressPhotos(){return progressPhotos.filter(p=>p.profile_id===currentUser?.id).sort((a,b)=>String(a.taken_on).localeCompare(String(b.taken_on)));}
+function renderSlideshow(){
+  const photos=myProgressPhotos(),box=$('#progressSlideshow'),counter=$('#slideCounter');
+  if(!box||!counter)return;
+  if(!photos.length){box.innerHTML='<div class="empty">Noch keine eigenen Fortschrittsbilder.</div>';counter.textContent='0 / 0';return;}
+  slideIndex=Math.max(0,Math.min(slideIndex,photos.length-1));const p=photos[slideIndex];counter.textContent=`${slideIndex+1} / ${photos.length}`;
+  box.innerHTML=`${p.signed_url?`<img src="${p.signed_url}" alt="Fortschrittsbild ${slideIndex+1}" />`:''}<div class="slide-caption"><strong>${formatDate(p.taken_on)}</strong><span>${p.visibility==='shared'?'👥 Gruppe':'🔒 Privat'}</span></div>`;
+}
+function changeSlide(step){const n=myProgressPhotos().length;if(!n)return;slideIndex=(slideIndex+step+n)%n;renderSlideshow();}
+function toggleSlideshow(){
+  const btn=$('#slidePlayBtn');
+  if(slideTimer){clearInterval(slideTimer);slideTimer=null;btn.textContent='▶ Abspielen';return;}
+  if(myProgressPhotos().length<2)return alert('Für die Slideshow brauchst du mindestens zwei Fortschrittsbilder.');
+  btn.textContent='⏸ Pause';slideTimer=setInterval(()=>changeSlide(1),1800);
+}
+function renderTrainingProofs(){
+  const grid=$('#proofGrid');if(!grid)return;grid.innerHTML='';
+  const sorted=[...trainingProofs].sort((a,b)=>String(b.occurrence_date).localeCompare(String(a.occurrence_date)));
+  if(!sorted.length){grid.innerHTML='<div class="empty">Noch keine Trainingsnachweise vorhanden.</div>';return;}
+  sorted.forEach(proof=>{const ev=events.find(e=>e.id===proof.event_id);const card=document.createElement('article');card.className='photo-card';card.innerHTML=`${proof.signed_url?`<img src="${proof.signed_url}" alt="Trainingsnachweis von ${escapeHtml(proof.owner_name)}" />`:'<div class="empty">Bild konnte nicht geladen werden.</div>'}<div class="photo-info"><span><span class="photo-owner">${escapeHtml(proof.owner_name)}</span><br>${formatDate(proof.occurrence_date)}</span><span>🏋️ ${escapeHtml(ev?.title||'Training')}</span></div>`;grid.appendChild(card);});
+}
+function renderPhotoReminder(){
+  const card=$('#photoReminderCard');if(!card||!currentUser)return;
+  let snooze=0;try{snooze=Number(localStorage.getItem(`fitTogether_photoSnooze_${currentUser.id}`)||0);}catch{}
+  if(Date.now()<snooze){card.classList.add('hidden');return;}
+  const mine=myProgressPhotos();const last=mine.at(-1);const age=last?Math.floor((new Date(`${todayISO()}T12:00:00`)-new Date(`${last.taken_on}T12:00:00`))/86400000):9999;
+  const due=!last||age>=30;card.classList.toggle('hidden',!due);
+  if(due)$('#photoReminderText').textContent=last?`Dein letztes Fortschrittsbild ist ${age} Tage her. Zeit für ein neues Monatsfoto.`:'Du hast noch kein Fortschrittsbild. Starte heute deine Vorher-/Nachher-Reihe.';
+}
+function snoozePhotoReminder(){try{localStorage.setItem(`fitTogether_photoSnooze_${currentUser.id}`,String(Date.now()+7*86400000));}catch{}$('#photoReminderCard').classList.add('hidden');}
 async function requestNotifications(){if(!('Notification'in window))return alert('Dieser Browser unterstützt keine Benachrichtigungen.');const r=await Notification.requestPermission();if(r==='granted')new Notification('FitTogether',{body:'Erinnerungen sind aktiviert.'});}
 function checkDueReminders(){/* Push/Background-Erinnerungen folgen später. */}
 window.addEventListener('resize',()=>drawWeightChart(weights));
