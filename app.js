@@ -1,6 +1,6 @@
-const APP_VERSION = "0.13.3";
+const APP_VERSION = "0.13.4";
 const I18N={
- de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise'},
+ de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise'},
  en:{display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof'}
 };
 let appLanguage=localStorage.getItem('fitTogether_language')||((navigator.language||'').toLowerCase().startsWith('de')?'de':'en');
@@ -606,7 +606,7 @@ function renderProfiles(){
 }
 
 async function addWeight(){
-  const date=$('#weightDate').value,weight=Number($('#weightValue').value);if(!date||!weight)return alert('Bitte Datum und Gewicht eintragen.');
+  const date=$('#weightDate').value,weight=inputWeightToKg($('#weightValue').value);if(!date||!weight)return alert('Bitte Datum und Gewicht eintragen.');
   const {error}=await supabase.from('weight_entries').upsert({profile_id:currentUser.id,weight,measured_on:date},{onConflict:'profile_id,measured_on'});if(error)return alert(`Gewicht konnte nicht gespeichert werden: ${error.message}`);
   $('#weightValue').value='';await loadWeights();renderWeights();
 }
@@ -670,50 +670,55 @@ window.addEventListener('resize',()=>drawWeightChart(weights));
 init();
 
 
-// V0.13.2 complete visible-text translation layer.
+
+// V0.13.4 – unified visible UI translation layer.
 const EN_TEXT = new Map(Object.entries({
- 'Kalender':'Calendar','Statistik':'Statistics','Bilder':'Photos','Profile':'Profiles','Einstellungen':'Settings','Anzeige':'Display','Sprache & Format':'Language & format','Datumsformat':'Date format','Zeitformat':'Time format','Gewichtseinheit':'Weight unit','Sprache':'Language','Format':'Format',
- 'Benachrichtigungen':'Notifications','Erinnerungen':'Reminders','Benachrichtigungen aktivieren':'Enable notifications','App':'App','Heute':'Today','Zurück':'Back','Weiter':'Next','Abspielen':'Play','Pause':'Pause',
- 'Gewicht':'Weight','Gewichtsverlauf':'Weight progress','Fortschrittsbilder':'Progress photos','Fortschritts-Slideshow':'Progress slideshow','Trainingsnachweise':'Training proof','Gym-Bilder':'Gym photos','Galerie':'Gallery','Veränderung ansehen':'View progress','Vorher / Nachher':'Before / after',
- 'Neuer Termin':'New event','Termin erstellen':'Create event','Titel':'Title','Datum':'Date','Uhrzeit':'Time','Wiederholung':'Repeat','Keine':'None','Wöchentlich':'Weekly','Monatlich':'Monthly','Jährlich':'Yearly','Wiederholen bis':'Repeat until','Geplant':'Planned','Erledigt':'Done','Verpasst':'Missed','Entschuldigt':'Excused','Abbrechen':'Cancel','Löschen':'Delete','Speichern':'Save','Bearbeiten':'Edit',
- 'Trainingsnachweis':'Training proof','Foto':'Photo','Nachweis hochladen':'Upload proof','Noch kein Nachweis hochgeladen.':'No proof uploaded yet.','Noch kein eigener Nachweis hochgeladen.':'You have not uploaded a proof yet.','Dein Nachweis ist gespeichert.':'Your proof is saved.',
- 'Fortschritt':'Progress','Fortschrittsbild':'Progress photo','Bild hinzufügen':'Add photo','Wird hochgeladen …':'Uploading …','Privat':'Private','Mit Gruppe teilen':'Share with group','Gruppe':'Group','Mitglieder':'Members','Gruppen':'Groups','Gruppe erstellen':'Create group','Gruppe beitreten':'Join group','Einladungscode':'Invite code','Name':'Name',
- 'Strafgeld':'Penalty money','Tauziehen':'Tug of war','Rangliste':'Ranking','Streak':'Streak','Aktuelle Streak':'Current streak','Beste Streak':'Best streak','Training':'Workout','Trainings':'Workouts','Monat':'Month','Jahr':'Year','Woche':'Week',
- 'Profil':'Profile','Mein Profil':'My profile','Profilname':'Profile name','Name ändern':'Change name','Abmelden':'Sign out','Anmelden':'Sign in','Registrieren':'Sign up','E-Mail':'Email','Passwort':'Password',
- 'Zeit für ein Fortschrittsbild':'Time for a progress photo','Jetzt aufnehmen':'Take one now','In 7 Tagen erinnern':'Remind me in 7 days','Monatsfoto':'Monthly photo',
- 'Noch keine Fortschrittsbilder. Lade dein erstes Monatsbild hoch.':'No progress photos yet. Upload your first monthly photo.','Noch keine eigenen Fortschrittsbilder.':'No personal progress photos yet.','Noch nicht genug Bilder für eine Slideshow.':'Not enough photos for a slideshow yet.','Noch keine Trainingsnachweise vorhanden.':'No training proof yet.','Bild konnte nicht geladen werden.':'Image could not be loaded.',
- 'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.':'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',
- 'Trainingserinnerungen kannst du über die Glocke oben aktivieren. Weitere Push-Einstellungen bauen wir im nächsten Benachrichtigungs-Schritt aus.':'You can enable workout reminders using the bell at the top. More push notification settings will be added in the next notification update.',
- 'Diese Bilder gehören zu bestätigten Trainings und sind für Mitglieder der jeweiligen Gruppe sichtbar. Sie bleiben getrennt von deinen Fortschrittsbildern.':'These photos belong to confirmed workouts and are visible to members of the respective group. They stay separate from your progress photos.',
- 'Bilder werden sicher in Supabase Storage gespeichert. Private Bilder siehst nur du; geteilte Bilder können Mitglieder deiner Gruppe sehen.':'Photos are stored securely in Supabase Storage. Only you can see private photos; shared photos can be seen by members of your group.'
+'FitTogether Online':'FitTogether Online','Willkommen bei FitTogether':'Welcome to FitTogether','Melde dich an oder erstelle einmalig deinen Account.':'Sign in or create your account.','Anmelden':'Sign in','Registrieren':'Sign up','Anzeigename':'Display name','Passwort':'Password','Account erstellen':'Create account','Gemeinsam durchziehen':'Stick with it together','Aktive Gruppe':'Active group','● Online':'● Online','🔔 Erinnerungen':'🔔 Reminders','Abmelden':'Sign out',
+'Übersicht':'Overview','Kalender':'Calendar','Fortschritt':'Progress','Bilder':'Photos','Profile':'Profiles','⚙️ Einstellungen':'⚙️ Settings','Noch keine Gruppe':'No group yet','Erstelle eine Gruppe oder tritt mit einem Einladungscode bei. Danach wird der Kalender automatisch mit allen Gruppenmitgliedern synchronisiert.':'Create a group or join one with an invite code. The calendar will then sync automatically with all group members.','Gruppe einrichten':'Set up group',
+'Strafgeld-Tauziehen':'Penalty tug of war','Wer hält besser durch?':'Who keeps going better?','Gleichstand':'Tie','Ich':'Me','Partner':'Partner','Noch keine Strafgelder. Perfekter Start.':'No penalties yet. Perfect start.','🔥 Aktuelle Streak':'🔥 Current streak','erledigte Termine':'completed events','🏆 Beste Streak':'🏆 Best streak','am Stück':'in a row','✅ Geschafft':'✅ Completed','Trainings':'Workouts','💸 Gemeinsamer Topf':'💸 Shared pot','Jahressumme':'Year total','Als Nächstes':'Up next','Nächste Termine':'Upcoming events','+ Termin':'+ Event',
+'MO.':'MON','DI.':'TUE','MI.':'WED','DO.':'THU','FR.':'FRI','SA.':'SAT','SO.':'SUN','+ Termin hinzufügen':'+ Add event','Neuer Eintrag':'New entry','Termin eintragen':'Add event','Titel':'Title','Datum':'Date','Von':'From','Bis':'To','Teilnehmer':'Participants','Alle Gruppenmitglieder':'All group members','Nur ich':'Only me','Farbe':'Color','Lila':'Purple','Blau':'Blue','Grün':'Green','Orange':'Orange','Pink':'Pink','Strafe bei Verpassen (€)':'Penalty if missed (€)','Wiederholung':'Repeat','Keine':'None','Wöchentlich':'Weekly','Monatlich':'Monthly','Jährlich':'Yearly','Wiederholen bis (optional)':'Repeat until (optional)','Erinnerung':'Reminder','1 Stunde vorher':'1 hour before','15 Minuten vorher':'15 minutes before','Notiz':'Note','Termin speichern':'Save event','Wiederholungen werden automatisch im Kalender angezeigt. Jede einzelne Wiederholung hat ihren eigenen Status und zählt separat für Streaks und Strafgeld.':'Repeating events are shown automatically in the calendar. Each occurrence has its own status and counts separately for streaks and penalties.','Liste':'List','Alle Termine':'All events',
+'Gewicht':'Weight','Verlauf eintragen':'Add weight entry','Gewicht (kg)':'Weight','Speichern':'Save','Start':'Start','Aktuell':'Current','Veränderung':'Change','Die Linie zeigt deine Einträge; zusätzlich wird ein 7-Tage-Trend geglättet dargestellt.':'The line shows your entries; a smoothed 7-day trend is shown as well.',
+'📸 Monatsfoto':'📸 Monthly photo','Zeit für ein Fortschrittsbild':'Time for a progress photo','Dein letztes Fortschrittsbild ist mindestens 30 Tage her.':'Your last progress photo is at least 30 days old.','Jetzt aufnehmen':'Take one now','In 7 Tagen erinnern':'Remind me in 7 days','Vorher / Nachher':'Before / after','Fortschrittsbilder':'Progress photos','Sichtbarkeit':'Visibility','🔒 Privat':'🔒 Private','👥 Mit Gruppe teilen':'👥 Share with group','Bild':'Photo','Bild hinzufügen':'Add photo','Bilder werden sicher in Supabase Storage gespeichert. Private Bilder siehst nur du; geteilte Bilder können Mitglieder deiner Gruppe sehen.':'Photos are stored securely in Supabase Storage. Only you can see private photos; shared photos are visible to members of your group.','Veränderung ansehen':'View progress','Fortschritts-Slideshow':'Progress slideshow','Noch nicht genug Bilder für eine Slideshow.':'Not enough photos for a slideshow yet.','‹ Zurück':'‹ Back','▶ Abspielen':'▶ Play','Weiter ›':'Next ›','Galerie':'Gallery','🏋️ Trainingsnachweise':'🏋️ Workout proof','Gym-Bilder':'Gym photos','Diese Bilder gehören zu bestätigten Trainings und sind für Mitglieder der jeweiligen Gruppe sichtbar. Sie bleiben getrennt von deinen Fortschrittsbildern.':'These photos belong to confirmed workouts and are visible to members of the respective group. They stay separate from your progress photos.',
+'Gemeinsam trainieren':'Train together','Gruppen':'Groups','Mitglieder':'Members','Aktive Gruppe':'Active group','Einladungslink kopieren':'Copy invite link','Neue Gruppe':'New group','Gruppenname':'Group name','Gruppe erstellen':'Create group','Gruppe beitreten':'Join group','Einladungscode':'Invite code','Beitreten':'Join','Dein Profil':'Your profile','Dieses Profil kannst nur du bearbeiten.':'Only you can edit this profile.','Profil speichern':'Save profile','Schulden':'Debt','Partnerprofil':'Partner profile','Hier siehst du später alles, was sie für dich freigibt.':'You will see everything they share with you here.','🔒 Private Gewichte und Bilder bleiben verborgen. Geteilte Fortschritte erscheinen später hier.':'🔒 Private weights and photos stay hidden. Shared progress will appear here later.',
+'Anzeige':'Display','Sprache & Format':'Language & format','Sprache':'Language','Datumsformat':'Date format','Zeitformat':'Time format','Gewichtseinheit':'Weight unit','Sprache, Datum, Uhrzeit und Gewichtseinheit können unabhängig voneinander eingestellt werden. Gewichte werden intern weiterhin in kg gespeichert.':'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.','App':'App','Benachrichtigungen':'Notifications','Trainingserinnerungen kannst du über die Glocke oben aktivieren. Weitere Push-Einstellungen bauen wir im nächsten Benachrichtigungs-Schritt aus.':'You can enable workout reminders using the bell at the top. More push notification settings will be added in the next notification update.','🔔 Benachrichtigungen aktivieren':'🔔 Enable notifications',
+'Trainingsnachweis':'Workout proof','Noch kein Nachweis hochgeladen.':'No proof uploaded yet.','Foto':'Photo','Nachweis hochladen':'Upload proof','✅ Erledigt':'✅ Done','❌ Verpasst':'❌ Missed','🩹 Entschuldigt':'🩹 Excused','Abbrechen':'Cancel','Status':'Status','Geplant':'Planned','Erledigt':'Done','Verpasst':'Missed','Entschuldigt':'Excused','🗑 Löschen':'🗑 Delete','Gruppe':'Group','Privat':'Private','Training':'Workout','Mitglied':'Member','Noch niemand':'No one yet','Optional':'Optional'
 }));
 const DE_TEXT = new Map([...EN_TEXT].map(([de,en])=>[en,de]));
-function translateTextValue(text){
- const trimmed=text.trim(); if(!trimmed)return text;
+function translateExact(text){
+ const trimmed=String(text??'').trim(); if(!trimmed)return text;
  const dict=appLanguage==='en'?EN_TEXT:DE_TEXT;
- if(dict.has(trimmed))return text.replace(trimmed,dict.get(trimmed));
- // Dynamic common phrases
- if(appLanguage==='en'){
-   let x=trimmed;
-   x=x.replace(/^(\d+) Tage$/, '$1 days').replace(/^(\d+) Tag$/, '$1 day').replace(/^(\d+) Wochen$/, '$1 weeks').replace(/^(\d+) Woche$/, '$1 week');
-   x=x.replace(/^Dein letztes Fortschrittsbild ist (\d+) Tage her\. Zeit für ein neues Monatsfoto\.$/,'Your last progress photo was $1 days ago. Time for a new monthly photo.');
-   x=x.replace(/^Du hast noch kein Fortschrittsbild\. Starte heute deine Vorher-\/Nachher-Reihe\.$/,'You do not have a progress photo yet. Start your before/after series today.');
-   return text.replace(trimmed,x);
- }
- return text;
+ return dict.has(trimmed)?String(text).replace(trimmed,dict.get(trimmed)):text;
+}
+function translateDynamic(text){
+ let x=String(text??''); if(appLanguage!=='en')return translateExact(x);
+ const exact=translateExact(x); if(exact!==x)return exact;
+ x=x.replace(/(\d+) Mitglieder\b/g,'$1 members').replace(/(\d+) Mitglied\b/g,'$1 member');
+ x=x.replace(/\bNoch solo\b/g,'Solo for now').replace(/\bKeine Gruppe\b/g,'No group');
+ x=x.replace(/Noch keine aktive Gruppe\./g,'No active group yet.').replace(/Mitglieder werden geladen …/g,'Loading members …');
+ x=x.replace(/Gruppe wird erstellt …/g,'Creating group …').replace(/Gruppe erstellt\./g,'Group created.').replace(/Beitritt läuft …/g,'Joining …').replace(/Gruppe beigetreten\./g,'Joined group.').replace(/Einladungslink kopiert\./g,'Invite link copied.');
+ x=x.replace(/Wähle zuerst eine Gruppe\./g,'Select a group first.').replace(/Noch keine Gruppe\./g,'No group yet.').replace(/Noch keine Termine\. Trag euren ersten Termin ein\./g,'No events yet. Add your first event.').replace(/Keine kommenden Termine\./g,'No upcoming events.');
+ x=x.replace(/● synchronisiert/g,'● synced').replace(/(\d+(?:[.,]\d+)?) € Strafe/g,'€$1 penalty').replace(/ und die ganze Serie/g,' and the entire series');
+ x=x.replace(/Status für (.+) ändern/g,'Change status for $1').replace(/\+(\d+) mehr/g,'+$1 more');
+ x=x.replace(/Noch keine Gewichtseinträge\./g,'No weight entries yet.').replace(/Noch keine Fortschrittsbilder\. Lade dein erstes Monatsbild hoch\./g,'No progress photos yet. Upload your first monthly photo.').replace(/Noch keine eigenen Fortschrittsbilder\./g,'No personal progress photos yet.').replace(/Noch keine Trainingsnachweise vorhanden\./g,'No workout proof yet.').replace(/Bild konnte nicht geladen werden\./g,'Image could not be loaded.');
+ x=x.replace(/Fortschrittsbild von /g,'Progress photo by ').replace(/Trainingsnachweis von /g,'Workout proof by ').replace(/Fortschrittsbild (\d+)/g,'Progress photo $1');
+ x=x.replace(/Dein letztes Fortschrittsbild ist (\d+) Tage her\. Zeit für ein neues Monatsfoto\./g,'Your last progress photo was $1 days ago. Time for a new monthly photo.').replace(/Du hast noch kein Fortschrittsbild\. Starte heute deine Vorher-\/Nachher-Reihe\./g,'You do not have a progress photo yet. Start your before/after series today.');
+ x=x.replace(/Für das Tauziehen braucht die Gruppe zwei Mitglieder\. Schick deinen Einladungslink weiter\./g,'The tug of war needs two group members. Share your invite link.').replace(/Gleichstand – noch ist alles offen\./g,'Tie — everything is still open.').replace(/ hat aktuell die wenigsten Strafschulden\./g,' currently has the lowest penalty debt.').replace(/ führt/g,' leads').replace(/Gleichstand bei /g,'Tie at ').replace(/ liegt um (.+) vorne und würde aktuell über den Topf entscheiden\./g,' is ahead by $1 and would currently decide how to use the pot.');
+ x=x.replace(/wöchentlich/g,'weekly').replace(/monatlich/g,'monthly').replace(/jährlich/g,'yearly');
+ return x;
 }
 function translateVisibleUI(root=document.body){
  if(!root)return;
- const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
- nodes.forEach(n=>{if(n.parentElement?.closest('script,style'))return;n.nodeValue=translateTextValue(n.nodeValue);});
- root.querySelectorAll?.('[placeholder]').forEach(el=>{const p=el.getAttribute('placeholder');const map={
-  'z. B. Gym, Schwimmen …':'e.g. Gym, swimming …','Dein Name':'Your name','E-Mail':'Email','Passwort':'Password','Gruppenname':'Group name','Code':'Code','Gewicht in kg':'Weight in kg'
- }; if(appLanguage==='en'&&map[p])el.setAttribute('placeholder',map[p]);});
- // Status dialog buttons with emoji
- const labels={statusDoneBtn:['✅ Erledigt','✅ Done'],statusMissedBtn:['❌ Verpasst','❌ Missed'],statusExcusedBtn:['🩹 Entschuldigt','🩹 Excused']};
- Object.entries(labels).forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.textContent=appLanguage==='en'?v[1]:v[0];});
+ const nodes=[];const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);while(walker.nextNode())nodes.push(walker.currentNode);
+ nodes.forEach(n=>{if(!n.parentElement?.closest('script,style'))n.nodeValue=translateDynamic(n.nodeValue);});
+ const placeholders={
+  'name@beispiel.de':'name@example.com','Passwort':'Password','Dein Name':'Your name','Mindestens 6 Zeichen':'At least 6 characters','z. B. Gym, Schwimmen, Spaziergang':'e.g. Gym, swimming, walk','z. B. 92.4':'e.g. 92.4','z. B. Janek & Estelle':'e.g. Alex & Sam','z. B. A1B2C3D4':'e.g. A1B2C3D4','Optional':'Optional'
+ };
+ root.querySelectorAll?.('[placeholder]').forEach(el=>{const v=el.getAttribute('placeholder');if(appLanguage==='en'&&placeholders[v])el.setAttribute('placeholder',placeholders[v]);});
+ root.querySelectorAll?.('[aria-label],[title]').forEach(el=>{for(const a of ['aria-label','title']){if(el.hasAttribute(a))el.setAttribute(a,translateDynamic(el.getAttribute(a)));}});
+ // Weight label follows selected unit.
+ const w=document.querySelector('label:has(#weightValue)');if(w){const input=w.querySelector('#weightValue');if(input){for(const n of [...w.childNodes])if(n.nodeType===3&&n.nodeValue.trim())n.nodeValue=(appLanguage==='en'?'Weight':'Gewicht')+` (${weightUnit})`;}}
 }
-const _oldApplyLocale=applyLocale;
-applyLocale=function(){_oldApplyLocale();translateVisibleUI();setTimeout(()=>translateVisibleUI(),0);};
-const uiTranslationObserver=new MutationObserver(muts=>{if(appLanguage!=='en')return;for(const m of muts){for(const n of m.addedNodes){if(n.nodeType===1)translateVisibleUI(n);else if(n.nodeType===3)n.nodeValue=translateTextValue(n.nodeValue);}}});
+const _applyLocaleBase=applyLocale;
+applyLocale=function(){_applyLocaleBase();translateVisibleUI();setTimeout(()=>translateVisibleUI(),0);};
+const uiTranslationObserver=new MutationObserver(muts=>{if(appLanguage!=='en')return;for(const m of muts)for(const n of m.addedNodes){if(n.nodeType===1)translateVisibleUI(n);else if(n.nodeType===3)n.nodeValue=translateDynamic(n.nodeValue);}});
 document.addEventListener('DOMContentLoaded',()=>{uiTranslationObserver.observe(document.body,{childList:true,subtree:true});translateVisibleUI();});
