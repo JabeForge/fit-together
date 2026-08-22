@@ -1,7 +1,10 @@
-FitTogether V0.13.2
+FitTogether V0.13.3
 
-Fix:
-- Vollständiger Übersetzungsdurchgang Deutsch/Englisch für die sichtbare Oberfläche.
-- Dynamisch erzeugte Kalender-, Foto-, Status-, Profil-, Gruppen- und Statistiktexte werden ebenfalls übersetzt.
-- English + US behält US-Datum/Uhrzeit/lb; English + International bleibt möglich.
+Neu:
+- Sprache unabhängig: Deutsch / English
+- Datum unabhängig: DD.MM.YYYY / MM/DD/YYYY
+- Uhrzeit unabhängig: 24h / 12h AM/PM
+- Gewicht unabhängig: kg / lb
+- Gewichte werden intern weiterhin in kg gespeichert.
+- Standard wird nur beim ersten Start aus der Browsersprache abgeleitet.
 - Kein neues Supabase-SQL nötig.

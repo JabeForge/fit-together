@@ -7,7 +7,7 @@
   <title>FitTogether</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <style>.hidden{display:none!important}</style>
-  <link rel="stylesheet" href="styles.css?v=0.13.2" />
+  <link rel="stylesheet" href="styles.css?v=0.13.3" />
 </head>
 <body>
   <section id="authScreen" class="auth-screen" role="dialog" aria-modal="true" aria-labelledby="authTitle">
@@ -41,7 +41,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Gemeinsam durchziehen</p>
-        <h1>FitTogether <span class="app-version">V0.13.2</span></h1>
+        <h1>FitTogether <span class="app-version">V0.13.3</span></h1>
       </div>
       <div class="top-actions">
         <select id="activeGroupSelect" class="group-select" aria-label="Aktive Gruppe"></select>
@@ -263,9 +263,26 @@
           <div class="section-heading"><div><p class="eyebrow" data-i18n="display">Anzeige</p><h2 data-i18n="languageRegion">Sprache & Format</h2></div><span class="badge">🌐</span></div>
           <div class="form-grid two">
             <label><span data-i18n="language">Sprache</span><select id="languageSelect"><option value="de">🇩🇪 Deutsch</option><option value="en">🇬🇧 English</option></select></label>
-            <label><span data-i18n="format">Format</span><select id="regionSelect"><option value="intl">🌍 International · DD.MM.YYYY · 24h · kg</option><option value="us">🇺🇸 US · MM/DD/YYYY · 12h · lb</option></select></label>
+            <label><span data-i18n="dateFormat">Datumsformat</span>
+              <select id="dateFormatSelect">
+                <option value="dmy">DD.MM.YYYY</option>
+                <option value="mdy">MM/DD/YYYY</option>
+              </select>
+            </label>
+            <label><span data-i18n="timeFormat">Zeitformat</span>
+              <select id="timeFormatSelect">
+                <option value="24">24h</option>
+                <option value="12">12h · AM/PM</option>
+              </select>
+            </label>
+            <label><span data-i18n="weightUnit">Gewichtseinheit</span>
+              <select id="weightUnitSelect">
+                <option value="kg">kg</option>
+                <option value="lb">lb</option>
+              </select>
+            </label>
           </div>
-          <p class="helper" data-i18n="formatHint">Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.</p>
+          <p class="helper" data-i18n="formatHint">Sprache, Datum, Uhrzeit und Gewichtseinheit können unabhängig voneinander eingestellt werden. Gewichte werden intern weiterhin in kg gespeichert.</p>
         </section>
         <section class="card">
           <div class="section-heading"><div><p class="eyebrow">App</p><h2>Benachrichtigungen</h2></div></div>
@@ -296,6 +313,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="app.js?v=0.13.2"></script>
+  <script type="module" src="app.js?v=0.13.3"></script>
 </body>
 </html>

@@ -134,3 +134,6 @@ body.auth-open .app-shell{filter:blur(3px);pointer-events:none;user-select:none}
 
 /* V0.13.1 */
 .locale-settings-card{border-color:rgba(124,58,237,.55)}
+
+/* V0.13.3 */
+.locale-settings-card .form-grid{align-items:end}
