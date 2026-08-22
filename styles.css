@@ -128,3 +128,6 @@ body.auth-open .app-shell{filter:blur(3px);pointer-events:none;user-select:none}
 .slide-caption{position:absolute;left:12px;right:12px;bottom:12px;padding:10px 14px;border-radius:14px;background:rgba(5,10,20,.78);display:flex;justify-content:space-between;gap:12px}
 .slideshow-controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
 @media(max-width:600px){.progress-slideshow{min-height:230px}.slideshow-controls button{flex:1 1 30%}}
+
+/* V0.13 */
+#languageSelect,#regionSelect{min-height:46px}

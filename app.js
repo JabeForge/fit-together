@@ -1,4 +1,27 @@
-const APP_VERSION = "0.12";
+const APP_VERSION = "0.13";
+const I18N={
+ de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise'},
+ en:{display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',formatHint:'Language and regional format are independent. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof'}
+};
+let appLanguage=localStorage.getItem('fitTogether_language')||((navigator.language||'').toLowerCase().startsWith('de')?'de':'en');
+let appRegion=localStorage.getItem('fitTogether_region')||(((navigator.language||'').toLowerCase()==='en-us')?'us':'intl');
+function t(key){return I18N[appLanguage]?.[key]||I18N.de[key]||key;}
+function applyLocale(){
+ document.documentElement.lang=appLanguage;
+ document.querySelectorAll('[data-i18n]').forEach(el=>{const v=t(el.dataset.i18n);if(v)el.textContent=v;});
+ const ls=document.querySelector('#languageSelect'),rs=document.querySelector('#regionSelect');if(ls)ls.value=appLanguage;if(rs)rs.value=appRegion;
+ // main navigation
+ const map={calendar:'calendar',stats:'stats',photos:'photos',profiles:'profiles',settings:'settings'};
+ document.querySelectorAll('[data-tab]').forEach(b=>{const k=map[b.dataset.tab];if(k){const icon=(b.textContent.match(/^\s*[^\wÄÖÜäöü]+/)||[''])[0].trim();b.textContent=(icon?icon+' ':'')+t(k);}});
+ renderAll();
+}
+function setLanguage(v){appLanguage=v;localStorage.setItem('fitTogether_language',v);applyLocale();}
+function setRegion(v){appRegion=v;localStorage.setItem('fitTogether_region',v);renderAll();}
+function displayWeight(kg){const n=Number(kg);return appRegion==='us'?`${(n*2.2046226218).toFixed(1)} lb`:`${n.toFixed(1)} kg`;}
+function inputWeightToKg(v){const n=Number(v);return appRegion==='us'?n/2.2046226218:n;}
+function dateLabel(iso){if(!iso)return'';const [y,m,d]=String(iso).slice(0,10).split('-');return appRegion==='us'?`${m}/${d}/${y}`:`${d}.${m}.${y}`;}
+function timeLabel(hm){if(!hm)return'';if(appRegion!=='us')return hm.slice(0,5);let [h,m]=hm.slice(0,5).split(':').map(Number);const ap=h>=12?'PM':'AM';h=h%12||12;return `${h}:${String(m).padStart(2,'0')} ${ap}`;}
+
 console.info(`FitTogether V${APP_VERSION}`);
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm";
 
@@ -78,6 +101,8 @@ function showTab(id){
   $$('.panel').forEach(p=>p.classList.toggle('active',p.id===id));
 }
 function bindActions(){
+  $('#languageSelect')?.addEventListener('change',e=>setLanguage(e.target.value));
+  $('#regionSelect')?.addEventListener('change',e=>setRegion(e.target.value));
   $('#quickAddBtn').addEventListener('click',()=>showTab('calendar'));
   $('#addEventBtn').addEventListener('click',addEvent);
   $('#addWeightBtn').addEventListener('click',addWeight);

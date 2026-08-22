@@ -1,9 +1,11 @@
-FitTogether V0.12
+FitTogether V0.13
 
 Neu:
-- Erledigt erfordert jetzt zwingend ein Trainings-Nachweisfoto.
-- Trainingsnachweise und Fortschrittsbilder sind getrennte Galerien.
-- Fortschrittsbilder haben eine Slideshow.
-- Nach 30 Tagen erscheint eine Monatsfoto-Erinnerung; sie kann 7 Tage verschoben werden.
+- Deutsch / English
+- Format separat: International oder US
+- International: DD.MM.YYYY, 24h, kg
+- US: MM/DD/YYYY, 12h AM/PM, lb
+- Gewichte bleiben intern in kg gespeichert; lb ist nur Eingabe/Anzeige.
+- Auswahl wird auf dem Gerät gespeichert.
 
-Für V0.12 ist kein neues SQL nötig, wenn V0.11 Storage bereits erfolgreich eingerichtet wurde.
+Kein neues Supabase-SQL nötig.
