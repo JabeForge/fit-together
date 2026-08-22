@@ -51,7 +51,7 @@ async function init(){
   $('#eventDate').value=todayISO();
   $('#weightDate').value=todayISO();
   $('#photoDate').value=todayISO();
-  bindTabs(); bindActions(); bindAuth();
+  bindTabs(); bindActions(); bindAuth(); toggleRepeatUntil();
   await removeLegacyCache();
   try {
     const { data:{session}, error } = await supabase.auth.getSession();
@@ -79,6 +79,7 @@ function bindActions(){
   $('#nextMonthBtn').addEventListener('click',()=>{calendarCursor.setMonth(calendarCursor.getMonth()+1);renderMonthCalendar();});
   $('#todayBtn').addEventListener('click',()=>{calendarCursor=new Date();calendarCursor.setDate(1);renderMonthCalendar();});
   $('#addSelectedDayBtn').addEventListener('click',()=>showEventForm($('#eventDate').value||todayISO()));
+  $('#eventRepeat').addEventListener('change',toggleRepeatUntil);
   $('#saveOwnProfileBtn').addEventListener('click',saveOwnProfile);
   $('#logoutBtn').addEventListener('click',()=>supabase.auth.signOut());
   $('#createGroupBtn').addEventListener('click',createGroup);
@@ -175,12 +176,12 @@ async function loadGroupMembers(){
 }
 async function loadEvents(){
   const {data,error}=await supabase.from('events')
-    .select('id,group_id,title,event_date,start_time,end_time,color,penalty,notes,created_by,created_at,event_participants(profile_id,status,completed_at,profiles(id,name))')
+    .select('id,group_id,title,event_date,start_time,end_time,color,penalty,notes,created_by,created_at,recurrence,recurrence_until,event_participants(profile_id,status,completed_at,profiles(id,name))')
     .eq('group_id',activeGroup.id).order('event_date').order('start_time');
   if(error){console.error(error);setGroupMessage(`Kalender konnte nicht geladen werden: ${error.message}`,true);events=[];return;}
   events=(data||[]).map(e=>({
     id:e.id,title:e.title,date:e.event_date,start:(e.start_time||'').slice(0,5),end:(e.end_time||'').slice(0,5),
-    color:normalizeColor(e.color),penalty:Number(e.penalty||0),note:e.notes||'',created_by:e.created_by,
+    color:normalizeColor(e.color),penalty:Number(e.penalty||0),note:e.notes||'',created_by:e.created_by,recurrence:e.recurrence||'none',recurrence_until:e.recurrence_until||null,
     participants:(e.event_participants||[]).map(p=>({profile_id:p.profile_id,status:p.status,name:p.profiles?.name||'Mitglied',completed_at:p.completed_at}))
   }));
 }
@@ -196,6 +197,39 @@ function normalizeColor(c){
   return map[String(c||'').toLowerCase()]||'violet';
 }
 function colorHex(name){return {violet:'#8b5cf6',blue:'#22b7f2',green:'#22c55e',orange:'#f59e0b',pink:'#ec4899'}[name]||'#8b5cf6';}
+function toggleRepeatUntil(){
+  const weekly=$('#eventRepeat').value==='weekly';
+  $('#eventRepeatUntilWrap').classList.toggle('hidden',!weekly);
+  if(!weekly)$('#eventRepeatUntil').value='';
+}
+function eventOccursOn(ev,iso){
+  if(ev.date===iso)return true;
+  if(ev.recurrence!=='weekly')return false;
+  if(iso<ev.date)return false;
+  if(ev.recurrence_until && iso>ev.recurrence_until)return false;
+  const start=new Date(`${ev.date}T12:00:00`);
+  const target=new Date(`${iso}T12:00:00`);
+  const days=Math.round((target-start)/86400000);
+  return days>=0 && days%7===0;
+}
+function recurrenceText(ev){
+  if(ev.recurrence!=='weekly')return '';
+  return ev.recurrence_until?` · wöchentlich bis ${formatDate(ev.recurrence_until)}`:' · wöchentlich';
+}
+function nextOccurrenceDate(ev,from=new Date()){
+  const fromIso=localISO(from);
+  if(ev.recurrence!=='weekly')return ev.date>=fromIso?ev.date:null;
+  let d=new Date(`${ev.date}T12:00:00`);
+  const target=new Date(`${fromIso}T12:00:00`);
+  if(d<target){
+    const diff=Math.floor((target-d)/86400000);
+    d.setDate(d.getDate()+Math.ceil(diff/7)*7);
+  }
+  const iso=localISO(d);
+  if(ev.recurrence_until && iso>ev.recurrence_until)return null;
+  return iso;
+}
+
 
 async function createGroup(){
   const name=$('#newGroupName').value.trim(); if(!name)return setGroupMessage('Bitte einen Gruppennamen eingeben.',true);
@@ -264,14 +298,15 @@ async function addEvent(){
   if(!participantIds.length)return alert('Keine Teilnehmer gefunden.');
   const payload={
     group_id:activeGroup.id,title,event_date:date,start_time:$('#eventStart').value||null,end_time:$('#eventEnd').value||null,
-    color:colorHex($('#eventColor').value),penalty:Number($('#eventPenalty').value||0),notes:$('#eventNote').value.trim()||null,created_by:currentUser.id
+    color:colorHex($('#eventColor').value),penalty:Number($('#eventPenalty').value||0),notes:$('#eventNote').value.trim()||null,created_by:currentUser.id,
+    recurrence:$('#eventRepeat').value||'none',recurrence_until:$('#eventRepeat').value==='weekly'?($('#eventRepeatUntil').value||null):null
   };
   const {data,error}=await supabase.from('events').insert(payload).select('id').single();
   if(error)return alert(`Termin konnte nicht gespeichert werden: ${error.message}`);
   const rows=participantIds.map(profile_id=>({event_id:data.id,profile_id,status:'planned'}));
   const {error:partError}=await supabase.from('event_participants').insert(rows);
   if(partError){await supabase.from('events').delete().eq('id',data.id);return alert(`Teilnehmer konnten nicht gespeichert werden: ${partError.message}`);}
-  $('#eventTitle').value='';$('#eventNote').value='';
+  $('#eventTitle').value='';$('#eventNote').value='';$('#eventRepeat').value='none';$('#eventRepeatUntil').value='';toggleRepeatUntil();
   await loadEvents();renderAll();
 }
 async function setEventStatus(id,statusUi){
@@ -323,14 +358,19 @@ function renderEvents(){
   if(!activeGroup){list.innerHTML='<div class="empty">Wähle zuerst eine Gruppe.</div>';next.innerHTML='<div class="empty">Noch keine Gruppe.</div>';return;}
   if(!sorted.length)list.innerHTML='<div class="empty">Noch keine Termine. Trag euren ersten Termin ein.</div>';
   sorted.forEach(ev=>list.appendChild(eventNode(ev,true)));
-  const upcoming=sorted.filter(e=>new Date(`${e.date}T${e.end||e.start||'23:59'}`)>=new Date()).slice(0,4);
+  const now=new Date();
+  const upcoming=events.map(ev=>{
+    const date=nextOccurrenceDate(ev,now);
+    return date?{...ev,date}:null;
+  }).filter(Boolean).filter(e=>new Date(`${e.date}T${e.end||e.start||'23:59'}`)>=now)
+    .sort((a,b)=>`${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`)).slice(0,4);
   if(!upcoming.length)next.innerHTML='<div class="empty">Keine kommenden Termine.</div>';upcoming.forEach(ev=>next.appendChild(eventNode(ev,false)));
 }
 function statusLabel(s){return {planned:'Geplant',completed:'Erledigt',missed:'Verpasst',excused:'Entschuldigt'}[s]||s;}
 function eventNode(ev,withDelete){
   const wrap=document.createElement('div');wrap.className='event-item';
   const statuses=ev.participants.map(p=>`<span class="status ${p.status}">${escapeHtml(p.name)}: ${statusLabel(p.status)}</span>`).join('');
-  wrap.innerHTML=`<div class="event-main"><strong>${escapeHtml(ev.title)} <span class="event-sync-badge">● synchronisiert</span></strong><div class="event-meta">${formatDate(ev.date)} · ${ev.start||'–'}${ev.end?`–${ev.end}`:''} · ${euro(ev.penalty)} Strafe</div><div class="status-row">${statuses}</div></div><div class="event-actions"><button class="small-btn status-btn" type="button">Status</button>${withDelete&&ev.created_by===currentUser.id?'<button class="small-btn delete-btn" type="button">🗑</button>':''}</div>`;
+  wrap.innerHTML=`<div class="event-main"><strong>${escapeHtml(ev.title)} <span class="event-sync-badge">● synchronisiert</span></strong><div class="event-meta">${formatDate(ev.date)}${recurrenceText(ev)} · ${ev.start||'–'}${ev.end?`–${ev.end}`:''} · ${euro(ev.penalty)} Strafe</div><div class="status-row">${statuses}</div></div><div class="event-actions"><button class="small-btn status-btn" type="button">Status</button>${withDelete&&ev.created_by===currentUser.id?'<button class="small-btn delete-btn" type="button">🗑</button>':''}</div>`;
   wrap.querySelector('.status-btn').addEventListener('click',()=>{selectedEventId=ev.id;$('#dialogEventName').textContent=ev.title;$('#statusDialog').showModal();});
   const del=wrap.querySelector('.delete-btn');if(del)del.addEventListener('click',async()=>{if(confirm(`„${ev.title}“ löschen?`)){const {error}=await supabase.from('events').delete().eq('id',ev.id);if(error)alert(error.message);else{await loadEvents();renderAll();}}});
   return wrap;
@@ -341,7 +381,7 @@ function renderMonthCalendar(){
   for(let i=0;i<42;i++){
     const d=new Date(start);d.setDate(start.getDate()+i);const iso=localISO(d),cell=document.createElement('button');cell.type='button';cell.className='calendar-day';
     if(d.getMonth()!==m)cell.classList.add('other-month');if(iso===today)cell.classList.add('today');if(iso===selected)cell.classList.add('selected');
-    const dayEvents=events.filter(e=>e.date===iso).sort((a,b)=>(a.start||'').localeCompare(b.start||''));
+    const dayEvents=events.filter(e=>eventOccursOn(e,iso)).sort((a,b)=>(a.start||'').localeCompare(b.start||''));
     cell.innerHTML=`<span class="day-number">${d.getDate()}</span><span class="calendar-events">${dayEvents.slice(0,3).map(e=>`<span class="calendar-event ${e.color} ${calendarEventStatus(e)}"><span class="calendar-event-time">${escapeHtml(e.start||'')}</span><span class="calendar-event-title">${escapeHtml(e.title)}</span></span>`).join('')}${dayEvents.length>3?`<span class="calendar-more">+${dayEvents.length-3} mehr</span>`:''}</span>`;
     cell.addEventListener('click',()=>{$('#eventDate').value=iso;renderMonthCalendar();});cell.addEventListener('dblclick',()=>showEventForm(iso));grid.appendChild(cell);
   }

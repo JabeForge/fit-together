@@ -1,3 +1,8 @@
+FitTogether V0.9
+
+Neu: echte wöchentliche Darstellung im Monatskalender, optionale Enddatum-Angabe und korrekte nächste Termine für Serien.
+Hinweis: Status/Strafgeld gelten in dieser Zwischenversion noch für die Serie; einzelne Wiederholungs-Status folgen im nächsten Schritt.
+
 FitTogether V0.8.1
 
 Neu:
