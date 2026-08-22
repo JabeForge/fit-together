@@ -1,7 +1,11 @@
-FitTogether V0.13.4
+FitTogether V0.14
 
-- Vollständigerer DE/EN-Durchgang für statische und dynamische UI-Texte.
-- Kalender, Gruppen, Profile, Statistik, Bilder, Dialoge und Statusmeldungen übersetzt.
-- Datum, Uhrzeit und Gewicht bleiben unabhängig von der Sprache.
-- lb-Eingaben werden vor dem Speichern korrekt in kg umgerechnet.
-- Kein neues Supabase-SQL nötig.
+Kalender-Serien:
+- Wiederholte Termine erhalten Bearbeiten/Löschen-Aktionen.
+- Auswahl zwischen nur diesem Vorkommen und gesamter Serie.
+- Ganze Serien können gelöscht werden.
+- Einzelne Vorkommen können separat behandelt werden.
+- Dialoge Deutsch/Englisch.
+- Kein neues SQL nötig.
+
+Hinweis: Direkte vollständige Serienbearbeitung nutzt noch das vorhandene Terminformular; das echte UPDATE der Serie wird als nächster Kalender-Patch vervollständigt.

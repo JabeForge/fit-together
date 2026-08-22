@@ -1,4 +1,4 @@
-const APP_VERSION = "0.13.4";
+const APP_VERSION = "0.14";
 const I18N={
  de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise'},
  en:{display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof'}
@@ -60,6 +60,7 @@ let selectedEventId = null;
 let selectedOccurrenceDate = null;
 let slideIndex = 0;
 let slideTimer = null;
+let pendingSeriesAction = null;
 let calendarCursor = new Date();
 calendarCursor.setDate(1);
 let pendingInvite = new URLSearchParams(location.search).get('join') || '';
@@ -479,6 +480,46 @@ async function finishStatus(status){
   $('#statusDialog').close('saved');
   selectedEventId=null;selectedOccurrenceDate=null;
 }
+
+function askSeriesChoice(ev,date,action='edit'){
+  if(!ev?.repeat || ev.repeat==='none') return Promise.resolve('all');
+  return new Promise(resolve=>{
+    pendingSeriesAction={resolve};
+    const dlg=$('#seriesActionDialog');
+    $('#seriesActionTitle').textContent=action==='delete'?(appLanguage==='en'?'Delete repeating event':'Wiederholten Termin löschen'):(appLanguage==='en'?'Edit repeating event':'Wiederholten Termin bearbeiten');
+    $('#seriesActionText').textContent=appLanguage==='en'?'Do you want to change only this occurrence or the entire series?':'Möchtest du nur diesen Termin oder die gesamte Serie ändern?';
+    $('#seriesOnlyBtn').textContent=appLanguage==='en'?'Only this occurrence':'Nur diesen Termin';
+    $('#seriesAllBtn').textContent=appLanguage==='en'?'Entire series':'Gesamte Serie';
+    dlg.showModal();
+    dlg.addEventListener('close',()=>{if(pendingSeriesAction){pendingSeriesAction.resolve(null);pendingSeriesAction=null;}},{once:true});
+  });
+}
+function resolveSeriesChoice(choice){
+  if(!pendingSeriesAction)return;
+  const r=pendingSeriesAction.resolve;pendingSeriesAction=null;$('#seriesActionDialog').close('chosen');r(choice);
+}
+async function createOccurrenceOverride(ev,date,patch={}){
+  // A one-off copy detaches this occurrence from the repeating series.
+  const payload={
+    group_id:ev.group_id,created_by:currentUser.id,title:patch.title??ev.title,
+    event_date:date,start_time:patch.start_time??ev.start_time,end_time:patch.end_time??ev.end_time,
+    participant_mode:patch.participant_mode??ev.participant_mode,color:patch.color??ev.color,
+    penalty:patch.penalty??ev.penalty,repeat:'none',repeat_until:null,reminder:patch.reminder??ev.reminder,
+    note:patch.note??ev.note
+  };
+  const {data,error}=await supabase.from('events').insert(payload).select().single();
+  if(error)throw error;
+  return data;
+}
+async function suppressSeriesOccurrence(ev,date){
+  // Store an excused occurrence marker so the original generated occurrence no longer counts.
+  // The UI hides it when an override exists or when explicitly removed below.
+  const existing=occurrenceStatuses.find(x=>x.event_id===ev.id&&x.occurrence_date===date&&x.profile_id===currentUser.id);
+  const payload={event_id:ev.id,occurrence_date:date,profile_id:currentUser.id,status:'excused'};
+  if(existing) await supabase.from('event_occurrence_status').update({status:'excused'}).eq('id',existing.id);
+  else await supabase.from('event_occurrence_status').insert(payload);
+  await loadOccurrenceStatuses();
+}
 async function setEventStatus(id,statusUi,date){
   const ev=events.find(e=>e.id===id);if(!ev)return;
   const mine=ev.participants.find(p=>p.profile_id===currentUser.id);
@@ -506,7 +547,43 @@ async function autoMarkOwnMissed(){
   }
 }
 
-function renderAll(){renderGroupUI();renderTug();renderEvents();renderMonthCalendar();renderStats();renderWeights();renderPhotos();renderTrainingProofs();renderPhotoReminder();renderProfiles();}
+
+function enhanceEventSeriesControls(){
+  document.querySelectorAll('[data-event-id]').forEach(card=>{
+    if(card.querySelector('.series-edit-btn'))return;
+    const id=card.dataset.eventId,ev=events.find(e=>e.id===id);if(!ev)return;
+    const date=card.dataset.occurrenceDate||ev.event_date;
+    const box=document.createElement('div');box.className='series-card-actions';
+    box.innerHTML=`<button type="button" class="small-btn series-edit-btn">${appLanguage==='en'?'✏️ Edit':'✏️ Bearbeiten'}</button><button type="button" class="small-btn series-delete-btn">${appLanguage==='en'?'🗑 Delete':'🗑 Löschen'}</button>`;
+    box.querySelector('.series-edit-btn').addEventListener('click',async e=>{e.stopPropagation();await editOccurrenceOrSeries(ev,date);});
+    box.querySelector('.series-delete-btn').addEventListener('click',async e=>{e.stopPropagation();await deleteOccurrenceOrSeries(ev,date);});
+    card.appendChild(box);
+  });
+}
+async function editOccurrenceOrSeries(ev,date){
+  const choice=await askSeriesChoice(ev,date,'edit');if(!choice)return;
+  if(choice==='all'){
+    // Reuse existing event form with series values.
+    showTab('calendar');$('#eventTitle').value=ev.title||'';$('#eventDate').value=ev.event_date||date;
+    if($('#eventStart'))$('#eventStart').value=ev.start_time||'';if($('#eventEnd'))$('#eventEnd').value=ev.end_time||'';
+    if($('#eventRepeat'))$('#eventRepeat').value=ev.repeat||'none';if($('#eventRepeatUntil'))$('#eventRepeatUntil').value=ev.repeat_until||'';
+    alert(appLanguage==='en'?'The series is loaded into the form. Saving will update support in the next patch if your current form only creates new events.':'Die Serie wurde ins Formular geladen. Falls dein aktuelles Formular nur neue Termine erstellt, kommt das direkte Überschreiben im nächsten Patch.');
+  }else{
+    try{await suppressSeriesOccurrence(ev,date);const copy=await createOccurrenceOverride(ev,date);events.push(copy);renderAll();}
+    catch(err){alert(err.message||err);}
+  }
+}
+async function deleteOccurrenceOrSeries(ev,date){
+  const choice=await askSeriesChoice(ev,date,'delete');if(!choice)return;
+  if(choice==='all'){
+    if(!confirm(appLanguage==='en'?'Delete the entire series?':'Die gesamte Serie wirklich löschen?'))return;
+    const {error}=await supabase.from('events').delete().eq('id',ev.id);if(error)return alert(error.message);
+    await loadEvents();await loadOccurrenceStatuses();renderAll();
+  }else{
+    try{await suppressSeriesOccurrence(ev,date);renderAll();}catch(err){alert(err.message||err);}
+  }
+}
+function renderAll(){renderGroupUI();renderTug();renderEvents();renderMonthCalendar();renderStats();renderWeights();renderPhotos();renderTrainingProofs();renderPhotoReminder();renderProfiles();setTimeout(enhanceEventSeriesControls,0);}
 function memberDebt(id){return occurrenceStatuses.reduce((sum,r)=>{const ev=events.find(e=>e.id===r.event_id);return sum+(r.profile_id===id&&r.status==='missed'?Number(ev?.penalty||0):0);},0);}
 function renderTug(){
   const hero=$('.hero-card'),ranking=$('#multiRanking');hero.classList.remove('solo','multi');ranking.classList.add('hidden');ranking.innerHTML='';
@@ -681,7 +758,7 @@ const EN_TEXT = new Map(Object.entries({
 '📸 Monatsfoto':'📸 Monthly photo','Zeit für ein Fortschrittsbild':'Time for a progress photo','Dein letztes Fortschrittsbild ist mindestens 30 Tage her.':'Your last progress photo is at least 30 days old.','Jetzt aufnehmen':'Take one now','In 7 Tagen erinnern':'Remind me in 7 days','Vorher / Nachher':'Before / after','Fortschrittsbilder':'Progress photos','Sichtbarkeit':'Visibility','🔒 Privat':'🔒 Private','👥 Mit Gruppe teilen':'👥 Share with group','Bild':'Photo','Bild hinzufügen':'Add photo','Bilder werden sicher in Supabase Storage gespeichert. Private Bilder siehst nur du; geteilte Bilder können Mitglieder deiner Gruppe sehen.':'Photos are stored securely in Supabase Storage. Only you can see private photos; shared photos are visible to members of your group.','Veränderung ansehen':'View progress','Fortschritts-Slideshow':'Progress slideshow','Noch nicht genug Bilder für eine Slideshow.':'Not enough photos for a slideshow yet.','‹ Zurück':'‹ Back','▶ Abspielen':'▶ Play','Weiter ›':'Next ›','Galerie':'Gallery','🏋️ Trainingsnachweise':'🏋️ Workout proof','Gym-Bilder':'Gym photos','Diese Bilder gehören zu bestätigten Trainings und sind für Mitglieder der jeweiligen Gruppe sichtbar. Sie bleiben getrennt von deinen Fortschrittsbildern.':'These photos belong to confirmed workouts and are visible to members of the respective group. They stay separate from your progress photos.',
 'Gemeinsam trainieren':'Train together','Gruppen':'Groups','Mitglieder':'Members','Aktive Gruppe':'Active group','Einladungslink kopieren':'Copy invite link','Neue Gruppe':'New group','Gruppenname':'Group name','Gruppe erstellen':'Create group','Gruppe beitreten':'Join group','Einladungscode':'Invite code','Beitreten':'Join','Dein Profil':'Your profile','Dieses Profil kannst nur du bearbeiten.':'Only you can edit this profile.','Profil speichern':'Save profile','Schulden':'Debt','Partnerprofil':'Partner profile','Hier siehst du später alles, was sie für dich freigibt.':'You will see everything they share with you here.','🔒 Private Gewichte und Bilder bleiben verborgen. Geteilte Fortschritte erscheinen später hier.':'🔒 Private weights and photos stay hidden. Shared progress will appear here later.',
 'Anzeige':'Display','Sprache & Format':'Language & format','Sprache':'Language','Datumsformat':'Date format','Zeitformat':'Time format','Gewichtseinheit':'Weight unit','Sprache, Datum, Uhrzeit und Gewichtseinheit können unabhängig voneinander eingestellt werden. Gewichte werden intern weiterhin in kg gespeichert.':'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.','App':'App','Benachrichtigungen':'Notifications','Trainingserinnerungen kannst du über die Glocke oben aktivieren. Weitere Push-Einstellungen bauen wir im nächsten Benachrichtigungs-Schritt aus.':'You can enable workout reminders using the bell at the top. More push notification settings will be added in the next notification update.','🔔 Benachrichtigungen aktivieren':'🔔 Enable notifications',
-'Trainingsnachweis':'Workout proof','Noch kein Nachweis hochgeladen.':'No proof uploaded yet.','Foto':'Photo','Nachweis hochladen':'Upload proof','✅ Erledigt':'✅ Done','❌ Verpasst':'❌ Missed','🩹 Entschuldigt':'🩹 Excused','Abbrechen':'Cancel','Status':'Status','Geplant':'Planned','Erledigt':'Done','Verpasst':'Missed','Entschuldigt':'Excused','🗑 Löschen':'🗑 Delete','Gruppe':'Group','Privat':'Private','Training':'Workout','Mitglied':'Member','Noch niemand':'No one yet','Optional':'Optional'
+'Trainingsnachweis':'Workout proof','Noch kein Nachweis hochgeladen.':'No proof uploaded yet.','Foto':'Photo','Nachweis hochladen':'Upload proof','✅ Erledigt':'✅ Done','❌ Verpasst':'❌ Missed','🩹 Entschuldigt':'🩹 Excused','Abbrechen':'Cancel','Status':'Status','Geplant':'Planned','Erledigt':'Done','Verpasst':'Missed','Entschuldigt':'Excused','🗑 Löschen':'🗑 Delete','Gruppe':'Group','Privat':'Private','Training':'Workout','Mitglied':'Member','Noch niemand':'No one yet','Optional':'Optional','Nur diesen Termin':'Only this occurrence','Gesamte Serie':'Entire series','Wiederholten Termin löschen':'Delete repeating event','Wiederholten Termin bearbeiten':'Edit repeating event','Möchtest du nur diesen Termin oder die gesamte Serie ändern?':'Do you want to change only this occurrence or the entire series?'
 }));
 const DE_TEXT = new Map([...EN_TEXT].map(([de,en])=>[en,de]));
 function translateExact(text){
@@ -711,7 +788,7 @@ function translateVisibleUI(root=document.body){
  const nodes=[];const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);while(walker.nextNode())nodes.push(walker.currentNode);
  nodes.forEach(n=>{if(!n.parentElement?.closest('script,style'))n.nodeValue=translateDynamic(n.nodeValue);});
  const placeholders={
-  'name@beispiel.de':'name@example.com','Passwort':'Password','Dein Name':'Your name','Mindestens 6 Zeichen':'At least 6 characters','z. B. Gym, Schwimmen, Spaziergang':'e.g. Gym, swimming, walk','z. B. 92.4':'e.g. 92.4','z. B. Janek & Estelle':'e.g. Alex & Sam','z. B. A1B2C3D4':'e.g. A1B2C3D4','Optional':'Optional'
+  'name@beispiel.de':'name@example.com','Passwort':'Password','Dein Name':'Your name','Mindestens 6 Zeichen':'At least 6 characters','z. B. Gym, Schwimmen, Spaziergang':'e.g. Gym, swimming, walk','z. B. 92.4':'e.g. 92.4','z. B. Janek & Estelle':'e.g. Alex & Sam','z. B. A1B2C3D4':'e.g. A1B2C3D4','Optional':'Optional','Nur diesen Termin':'Only this occurrence','Gesamte Serie':'Entire series','Wiederholten Termin löschen':'Delete repeating event','Wiederholten Termin bearbeiten':'Edit repeating event','Möchtest du nur diesen Termin oder die gesamte Serie ändern?':'Do you want to change only this occurrence or the entire series?'
  };
  root.querySelectorAll?.('[placeholder]').forEach(el=>{const v=el.getAttribute('placeholder');if(appLanguage==='en'&&placeholders[v])el.setAttribute('placeholder',placeholders[v]);});
  root.querySelectorAll?.('[aria-label],[title]').forEach(el=>{for(const a of ['aria-label','title']){if(el.hasAttribute(a))el.setAttribute(a,translateDynamic(el.getAttribute(a)));}});

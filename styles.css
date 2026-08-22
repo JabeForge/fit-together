@@ -137,3 +137,9 @@ body.auth-open .app-shell{filter:blur(3px);pointer-events:none;user-select:none}
 
 /* V0.13.3 */
 .locale-settings-card .form-grid{align-items:end}
+
+/* V0.14 */
+.stacked-actions{flex-direction:column}
+.stacked-actions button{width:100%}
+.series-card-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.series-card-actions .small-btn{flex:1}
