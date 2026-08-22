@@ -1,4 +1,4 @@
-const APP_VERSION = "0.14";
+const APP_VERSION = "0.14.1";
 const I18N={
  de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise'},
  en:{display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof'}
@@ -61,6 +61,7 @@ let selectedOccurrenceDate = null;
 let slideIndex = 0;
 let slideTimer = null;
 let pendingSeriesAction = null;
+let editingSeriesId = null;
 let calendarCursor = new Date();
 calendarCursor.setDate(1);
 let pendingInvite = new URLSearchParams(location.search).get('join') || '';
@@ -447,25 +448,36 @@ function populateParticipantSelect(){
 }
 
 async function addEvent(){
-  if(!activeGroup)return alert('Erstelle oder wähle zuerst eine Gruppe.');
+  if(!activeGroup)return alert(appLanguage==='en'?'Create or select a group first.':'Erstelle oder wähle zuerst eine Gruppe.');
   const title=$('#eventTitle').value.trim(),date=$('#eventDate').value;
-  if(!title||!date)return alert('Bitte Titel und Datum eintragen.');
+  if(!title||!date)return alert(appLanguage==='en'?'Please enter a title and date.':'Bitte Titel und Datum eintragen.');
   const selected=$('#eventOwner').value;
   let participantIds=selected==='all'?groupMembers.map(m=>m.id):[selected.replace('profile:','')];
   participantIds=[...new Set(participantIds.filter(Boolean))];
-  if(!participantIds.length)return alert('Keine Teilnehmer gefunden.');
+  if(!participantIds.length)return alert(appLanguage==='en'?'No participants found.':'Keine Teilnehmer gefunden.');
   const payload={
     group_id:activeGroup.id,title,event_date:date,start_time:$('#eventStart').value||null,end_time:$('#eventEnd').value||null,
     color:colorHex($('#eventColor').value),penalty:Number($('#eventPenalty').value||0),notes:$('#eventNote').value.trim()||null,created_by:currentUser.id,
     recurrence:$('#eventRepeat').value||'none',recurrence_until:$('#eventRepeat').value!=='none'?($('#eventRepeatUntil').value||null):null
   };
-  const {data,error}=await supabase.from('events').insert(payload).select('id').single();
-  if(error)return alert(`Termin konnte nicht gespeichert werden: ${error.message}`);
-  const rows=participantIds.map(profile_id=>({event_id:data.id,profile_id,status:'planned'}));
+  let eventId=editingSeriesId;
+  if(editingSeriesId){
+    const {error}=await supabase.from('events').update(payload).eq('id',editingSeriesId);
+    if(error)return alert(`${appLanguage==='en'?'Event could not be updated':'Termin konnte nicht aktualisiert werden'}: ${error.message}`);
+    const {error:delPart}=await supabase.from('event_participants').delete().eq('event_id',editingSeriesId);
+    if(delPart)return alert(delPart.message);
+  }else{
+    const {data,error}=await supabase.from('events').insert(payload).select('id').single();
+    if(error)return alert(`${appLanguage==='en'?'Event could not be saved':'Termin konnte nicht gespeichert werden'}: ${error.message}`);
+    eventId=data.id;
+  }
+  const rows=participantIds.map(profile_id=>({event_id:eventId,profile_id,status:'planned'}));
   const {error:partError}=await supabase.from('event_participants').insert(rows);
-  if(partError){await supabase.from('events').delete().eq('id',data.id);return alert(`Teilnehmer konnten nicht gespeichert werden: ${partError.message}`);}
+  if(partError)return alert(`${appLanguage==='en'?'Participants could not be saved':'Teilnehmer konnten nicht gespeichert werden'}: ${partError.message}`);
+  editingSeriesId=null;
+  const saveBtn=document.querySelector('#addEventForm button[type="submit"]');if(saveBtn)saveBtn.textContent=appLanguage==='en'?'Save event':'Termin speichern';
   $('#eventTitle').value='';$('#eventNote').value='';$('#eventRepeat').value='none';$('#eventRepeatUntil').value='';toggleRepeatUntil();
-  await loadEvents();renderAll();
+  await loadEvents();await loadOccurrenceStatuses();renderAll();
 }
 async function finishStatus(status){
   if(!selectedEventId||!selectedOccurrenceDate)return;
@@ -563,11 +575,15 @@ function enhanceEventSeriesControls(){
 async function editOccurrenceOrSeries(ev,date){
   const choice=await askSeriesChoice(ev,date,'edit');if(!choice)return;
   if(choice==='all'){
-    // Reuse existing event form with series values.
+    editingSeriesId=ev.id;
     showTab('calendar');$('#eventTitle').value=ev.title||'';$('#eventDate').value=ev.event_date||date;
     if($('#eventStart'))$('#eventStart').value=ev.start_time||'';if($('#eventEnd'))$('#eventEnd').value=ev.end_time||'';
-    if($('#eventRepeat'))$('#eventRepeat').value=ev.repeat||'none';if($('#eventRepeatUntil'))$('#eventRepeatUntil').value=ev.repeat_until||'';
-    alert(appLanguage==='en'?'The series is loaded into the form. Saving will update support in the next patch if your current form only creates new events.':'Die Serie wurde ins Formular geladen. Falls dein aktuelles Formular nur neue Termine erstellt, kommt das direkte Überschreiben im nächsten Patch.');
+    if($('#eventRepeat'))$('#eventRepeat').value=ev.recurrence||'none';if($('#eventRepeatUntil'))$('#eventRepeatUntil').value=ev.recurrence_until||'';
+    if($('#eventPenalty'))$('#eventPenalty').value=ev.penalty??0;if($('#eventNote'))$('#eventNote').value=ev.notes||'';
+    if($('#eventColor')){const cmap={'#8b5cf6':'purple','#3b82f6':'blue','#22c55e':'green','#f59e0b':'orange','#ec4899':'pink'};$('#eventColor').value=cmap[String(ev.color||'').toLowerCase()]||'purple';}
+    if($('#eventOwner')){const ids=(ev.participants||[]).map(p=>p.profile_id);$('#eventOwner').value=ids.length===groupMembers.length?'all':`profile:${ids[0]||currentUser.id}`;}
+    toggleRepeatUntil();showEventForm(ev.event_date||date);
+    const saveBtn=document.querySelector('#addEventForm button[type="submit"]');if(saveBtn)saveBtn.textContent=appLanguage==='en'?'Update series':'Serie aktualisieren';
   }else{
     try{await suppressSeriesOccurrence(ev,date);const copy=await createOccurrenceOverride(ev,date);events.push(copy);renderAll();}
     catch(err){alert(err.message||err);}
