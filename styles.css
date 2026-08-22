@@ -131,3 +131,6 @@ body.auth-open .app-shell{filter:blur(3px);pointer-events:none;user-select:none}
 
 /* V0.13 */
 #languageSelect,#regionSelect{min-height:46px}
+
+/* V0.13.1 */
+.locale-settings-card{border-color:rgba(124,58,237,.55)}
