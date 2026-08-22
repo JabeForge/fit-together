@@ -1,4 +1,4 @@
-const APP_VERSION = "0.13.1";
+const APP_VERSION = "0.13.2";
 const I18N={
  de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise'},
  en:{display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',formatHint:'Language and regional format are independent. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof'}
@@ -662,3 +662,52 @@ function checkDueReminders(){/* Push/Background-Erinnerungen folgen später. */}
 window.addEventListener('resize',()=>drawWeightChart(weights));
 
 init();
+
+
+// V0.13.2 complete visible-text translation layer.
+const EN_TEXT = new Map(Object.entries({
+ 'Kalender':'Calendar','Statistik':'Statistics','Bilder':'Photos','Profile':'Profiles','Einstellungen':'Settings','Anzeige':'Display','Sprache & Format':'Language & format','Sprache':'Language','Format':'Format',
+ 'Benachrichtigungen':'Notifications','Erinnerungen':'Reminders','Benachrichtigungen aktivieren':'Enable notifications','App':'App','Heute':'Today','Zurück':'Back','Weiter':'Next','Abspielen':'Play','Pause':'Pause',
+ 'Gewicht':'Weight','Gewichtsverlauf':'Weight progress','Fortschrittsbilder':'Progress photos','Fortschritts-Slideshow':'Progress slideshow','Trainingsnachweise':'Training proof','Gym-Bilder':'Gym photos','Galerie':'Gallery','Veränderung ansehen':'View progress','Vorher / Nachher':'Before / after',
+ 'Neuer Termin':'New event','Termin erstellen':'Create event','Titel':'Title','Datum':'Date','Uhrzeit':'Time','Wiederholung':'Repeat','Keine':'None','Wöchentlich':'Weekly','Monatlich':'Monthly','Jährlich':'Yearly','Wiederholen bis':'Repeat until','Geplant':'Planned','Erledigt':'Done','Verpasst':'Missed','Entschuldigt':'Excused','Abbrechen':'Cancel','Löschen':'Delete','Speichern':'Save','Bearbeiten':'Edit',
+ 'Trainingsnachweis':'Training proof','Foto':'Photo','Nachweis hochladen':'Upload proof','Noch kein Nachweis hochgeladen.':'No proof uploaded yet.','Noch kein eigener Nachweis hochgeladen.':'You have not uploaded a proof yet.','Dein Nachweis ist gespeichert.':'Your proof is saved.',
+ 'Fortschritt':'Progress','Fortschrittsbild':'Progress photo','Bild hinzufügen':'Add photo','Wird hochgeladen …':'Uploading …','Privat':'Private','Mit Gruppe teilen':'Share with group','Gruppe':'Group','Mitglieder':'Members','Gruppen':'Groups','Gruppe erstellen':'Create group','Gruppe beitreten':'Join group','Einladungscode':'Invite code','Name':'Name',
+ 'Strafgeld':'Penalty money','Tauziehen':'Tug of war','Rangliste':'Ranking','Streak':'Streak','Aktuelle Streak':'Current streak','Beste Streak':'Best streak','Training':'Workout','Trainings':'Workouts','Monat':'Month','Jahr':'Year','Woche':'Week',
+ 'Profil':'Profile','Mein Profil':'My profile','Profilname':'Profile name','Name ändern':'Change name','Abmelden':'Sign out','Anmelden':'Sign in','Registrieren':'Sign up','E-Mail':'Email','Passwort':'Password',
+ 'Zeit für ein Fortschrittsbild':'Time for a progress photo','Jetzt aufnehmen':'Take one now','In 7 Tagen erinnern':'Remind me in 7 days','Monatsfoto':'Monthly photo',
+ 'Noch keine Fortschrittsbilder. Lade dein erstes Monatsbild hoch.':'No progress photos yet. Upload your first monthly photo.','Noch keine eigenen Fortschrittsbilder.':'No personal progress photos yet.','Noch nicht genug Bilder für eine Slideshow.':'Not enough photos for a slideshow yet.','Noch keine Trainingsnachweise vorhanden.':'No training proof yet.','Bild konnte nicht geladen werden.':'Image could not be loaded.',
+ 'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.':'Language and regional format are independent. Weights are still stored internally in kilograms.',
+ 'Trainingserinnerungen kannst du über die Glocke oben aktivieren. Weitere Push-Einstellungen bauen wir im nächsten Benachrichtigungs-Schritt aus.':'You can enable workout reminders using the bell at the top. More push notification settings will be added in the next notification update.',
+ 'Diese Bilder gehören zu bestätigten Trainings und sind für Mitglieder der jeweiligen Gruppe sichtbar. Sie bleiben getrennt von deinen Fortschrittsbildern.':'These photos belong to confirmed workouts and are visible to members of the respective group. They stay separate from your progress photos.',
+ 'Bilder werden sicher in Supabase Storage gespeichert. Private Bilder siehst nur du; geteilte Bilder können Mitglieder deiner Gruppe sehen.':'Photos are stored securely in Supabase Storage. Only you can see private photos; shared photos can be seen by members of your group.'
+}));
+const DE_TEXT = new Map([...EN_TEXT].map(([de,en])=>[en,de]));
+function translateTextValue(text){
+ const trimmed=text.trim(); if(!trimmed)return text;
+ const dict=appLanguage==='en'?EN_TEXT:DE_TEXT;
+ if(dict.has(trimmed))return text.replace(trimmed,dict.get(trimmed));
+ // Dynamic common phrases
+ if(appLanguage==='en'){
+   let x=trimmed;
+   x=x.replace(/^(\d+) Tage$/, '$1 days').replace(/^(\d+) Tag$/, '$1 day').replace(/^(\d+) Wochen$/, '$1 weeks').replace(/^(\d+) Woche$/, '$1 week');
+   x=x.replace(/^Dein letztes Fortschrittsbild ist (\d+) Tage her\. Zeit für ein neues Monatsfoto\.$/,'Your last progress photo was $1 days ago. Time for a new monthly photo.');
+   x=x.replace(/^Du hast noch kein Fortschrittsbild\. Starte heute deine Vorher-\/Nachher-Reihe\.$/,'You do not have a progress photo yet. Start your before/after series today.');
+   return text.replace(trimmed,x);
+ }
+ return text;
+}
+function translateVisibleUI(root=document.body){
+ if(!root)return;
+ const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+ nodes.forEach(n=>{if(n.parentElement?.closest('script,style'))return;n.nodeValue=translateTextValue(n.nodeValue);});
+ root.querySelectorAll?.('[placeholder]').forEach(el=>{const p=el.getAttribute('placeholder');const map={
+  'z. B. Gym, Schwimmen …':'e.g. Gym, swimming …','Dein Name':'Your name','E-Mail':'Email','Passwort':'Password','Gruppenname':'Group name','Code':'Code','Gewicht in kg':'Weight in kg'
+ }; if(appLanguage==='en'&&map[p])el.setAttribute('placeholder',map[p]);});
+ // Status dialog buttons with emoji
+ const labels={statusDoneBtn:['✅ Erledigt','✅ Done'],statusMissedBtn:['❌ Verpasst','❌ Missed'],statusExcusedBtn:['🩹 Entschuldigt','🩹 Excused']};
+ Object.entries(labels).forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.textContent=appLanguage==='en'?v[1]:v[0];});
+}
+const _oldApplyLocale=applyLocale;
+applyLocale=function(){_oldApplyLocale();translateVisibleUI();setTimeout(()=>translateVisibleUI(),0);};
+const uiTranslationObserver=new MutationObserver(muts=>{if(appLanguage!=='en')return;for(const m of muts){for(const n of m.addedNodes){if(n.nodeType===1)translateVisibleUI(n);else if(n.nodeType===3)n.nodeValue=translateTextValue(n.nodeValue);}}});
+document.addEventListener('DOMContentLoaded',()=>{uiTranslationObserver.observe(document.body,{childList:true,subtree:true});translateVisibleUI();});
