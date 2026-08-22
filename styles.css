@@ -106,3 +106,14 @@ body.auth-open .app-shell{filter:blur(3px);pointer-events:none;user-select:none}
 @media(max-width:760px){.group-select{max-width:130px;font-size:11px;padding:7px 9px}.group-actions-grid{grid-template-columns:1fr}.current-group{align-items:flex-start;flex-direction:column}.invite-row{justify-content:flex-start;width:100%}.invite-code{font-size:12px}.top-actions{max-width:70%}}
 
 .app-version{font-size:.72rem;font-weight:700;opacity:.6;vertical-align:middle;margin-left:.35rem;white-space:nowrap}
+
+/* V0.10.1 */
+.calendar-event.excused{background:rgba(245,158,11,.14);opacity:.75}
+.multi-ranking{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.multi-ranking.hidden{display:none}
+.rank-row{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:9px;background:#0f1728;border:1px solid var(--border);border-radius:12px;padding:9px 11px}
+.rank-place{font-weight:900;text-align:center}
+.rank-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+.rank-debt{font-variant-numeric:tabular-nums;color:#dbeafe;font-weight:800}
+.rank-row.me{border-color:#4f668e;background:#121d32}
+.calendar-event{cursor:pointer}

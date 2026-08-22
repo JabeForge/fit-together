@@ -380,13 +380,19 @@ async function autoMarkOwnMissed(){
 function renderAll(){renderGroupUI();renderTug();renderEvents();renderMonthCalendar();renderStats();renderWeights();renderPhotos();renderProfiles();}
 function memberDebt(id){return occurrenceStatuses.reduce((sum,r)=>{const ev=events.find(e=>e.id===r.event_id);return sum+(r.profile_id===id&&r.status==='missed'?Number(ev?.penalty||0):0);},0);}
 function renderTug(){
-  const hero=$('.hero-card');hero.classList.remove('solo','multi');
+  const hero=$('.hero-card'),ranking=$('#multiRanking');hero.classList.remove('solo','multi');ranking.classList.add('hidden');ranking.innerHTML='';
   if(!activeGroup||groupMembers.length<2){
     hero.classList.add('solo');$('#leadBadge').textContent='Noch solo';$('#tugText').textContent='Für das Tauziehen braucht die Gruppe zwei Mitglieder. Schick deinen Einladungslink weiter.';$('#totalPot').textContent=euro(groupMembers.reduce((s,m)=>s+memberDebt(m.id),0));return;
   }
   if(groupMembers.length>2){
-    hero.classList.add('multi');const ranked=[...groupMembers].map(m=>({...m,debt:memberDebt(m.id)})).sort((a,b)=>a.debt-b.debt);
-    $('#leadBadge').textContent=`${groupMembers.length} Mitglieder`;$('#tugText').textContent=`Aktuell vorne: ${ranked[0].name} mit ${euro(ranked[0].debt)}. Für 3+ Mitglieder bauen wir später eine Rangliste.`;$('#totalPot').textContent=euro(ranked.reduce((s,m)=>s+m.debt,0));return;
+    hero.classList.add('multi');
+    const ranked=[...groupMembers].map(m=>({...m,debt:memberDebt(m.id)})).sort((a,b)=>a.debt-b.debt||a.name.localeCompare(b.name,'de'));
+    const medals=['🥇','🥈','🥉'];
+    ranking.innerHTML=ranked.map((m,i)=>`<div class="rank-row ${m.id===currentUser.id?'me':''}"><span class="rank-place">${medals[i]||`${i+1}.`}</span><span class="rank-name">${escapeHtml(m.name)}${m.id===currentUser.id?' (du)':''}</span><span class="rank-debt">${euro(m.debt)}</span></div>`).join('');
+    ranking.classList.remove('hidden');
+    $('#leadBadge').textContent=`${ranked[0].name} führt`;
+    $('#tugText').textContent=ranked.every(x=>x.debt===ranked[0].debt)?'Gleichstand – noch ist alles offen.':`${ranked[0].name} hat aktuell die wenigsten Strafschulden.`;
+    $('#totalPot').textContent=euro(ranked.reduce((sum,m)=>sum+m.debt,0));return;
   }
   const [a,b]=groupMembers;const da=memberDebt(a.id),db=memberDebt(b.id),total=da+db;let redPct=50;
   if(total>0)redPct=50+((db-da)/total)*42;redPct=Math.max(8,Math.min(92,redPct));
@@ -408,19 +414,22 @@ function renderEvents(){
   const list=$('#eventList'),next=$('#nextEvents');list.innerHTML='';next.innerHTML='';const sorted=[...events].sort((a,b)=>`${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`));
   if(!activeGroup){list.innerHTML='<div class="empty">Wähle zuerst eine Gruppe.</div>';next.innerHTML='<div class="empty">Noch keine Gruppe.</div>';return;}
   if(!sorted.length)list.innerHTML='<div class="empty">Noch keine Termine. Trag euren ersten Termin ein.</div>';
-  sorted.forEach(ev=>list.appendChild(eventNode(ev,true)));
   const now=new Date();
+  sorted.forEach(ev=>{
+    const shownDate=nextOccurrenceDate(ev,now)||ev.date;
+    list.appendChild(eventNode(ev,true,shownDate));
+  });
   const upcoming=events.map(ev=>{
     const date=nextOccurrenceDate(ev,now);
     return date?{...ev,date}:null;
   }).filter(Boolean).filter(e=>new Date(`${e.date}T${e.end||e.start||'23:59'}`)>=now)
     .sort((a,b)=>`${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`)).slice(0,4);
-  if(!upcoming.length)next.innerHTML='<div class="empty">Keine kommenden Termine.</div>';upcoming.forEach(ev=>next.appendChild(eventNode(ev,false)));
+  if(!upcoming.length)next.innerHTML='<div class="empty">Keine kommenden Termine.</div>';upcoming.forEach(ev=>next.appendChild(eventNode(ev,false,ev.date)));
 }
 function statusLabel(s){return {planned:'Geplant',completed:'Erledigt',missed:'Verpasst',excused:'Entschuldigt'}[s]||s;}
-function eventNode(ev,withDelete){
+function eventNode(ev,withDelete,occurrenceDateOverride=null){
   const wrap=document.createElement('div');wrap.className='event-item';
-  const occurrenceDate=ev.date;
+  const occurrenceDate=occurrenceDateOverride||ev.date;
   const statuses=ev.participants.map(p=>{const st=occurrenceStatus(ev,p.profile_id,occurrenceDate);return `<span class="status ${st}">${escapeHtml(p.name)}: ${statusLabel(st)}</span>`;}).join('');
   wrap.innerHTML=`<div class="event-main"><strong>${escapeHtml(ev.title)} <span class="event-sync-badge">● synchronisiert</span></strong><div class="event-meta">${formatDate(occurrenceDate)}${recurrenceText(ev)} · ${ev.start||'–'}${ev.end?`–${ev.end}`:''} · ${euro(ev.penalty)} Strafe</div><div class="status-row">${statuses}</div></div><div class="event-actions"><button class="small-btn status-btn" type="button">Status</button>${withDelete&&ev.created_by===currentUser.id?'<button class="small-btn delete-btn" type="button">🗑</button>':''}</div>`;
   wrap.querySelector('.status-btn').addEventListener('click',()=>{selectedEventId=ev.id;selectedOccurrenceDate=occurrenceDate;$('#dialogEventName').textContent=`${ev.title} · ${formatDate(occurrenceDate)}`;$('#statusDialog').showModal();});
@@ -434,12 +443,25 @@ function renderMonthCalendar(){
     const d=new Date(start);d.setDate(start.getDate()+i);const iso=localISO(d),cell=document.createElement('button');cell.type='button';cell.className='calendar-day';
     if(d.getMonth()!==m)cell.classList.add('other-month');if(iso===today)cell.classList.add('today');if(iso===selected)cell.classList.add('selected');
     const dayEvents=events.filter(e=>eventOccursOn(e,iso)).sort((a,b)=>(a.start||'').localeCompare(b.start||''));
-    cell.innerHTML=`<span class="day-number">${d.getDate()}</span><span class="calendar-events">${dayEvents.slice(0,3).map(e=>`<span class="calendar-event ${e.color} ${calendarEventStatus(e,iso)}"><span class="calendar-event-time">${escapeHtml(e.start||'')}</span><span class="calendar-event-title">${calendarStatusSymbol(e,iso)}${escapeHtml(e.title)}</span></span>`).join('')}${dayEvents.length>3?`<span class="calendar-more">+${dayEvents.length-3} mehr</span>`:''}</span>`;
+    const visibleEvents=dayEvents.slice(0,3);
+    cell.innerHTML=`<span class="day-number">${d.getDate()}</span><span class="calendar-events">${visibleEvents.map(e=>`<span class="calendar-event ${e.color} ${calendarEventStatus(e,iso)}" title="Status für ${escapeHtml(e.title)} ändern"><span class="calendar-event-time">${escapeHtml(e.start||'')}</span><span class="calendar-event-title">${calendarStatusSymbol(e,iso)}${escapeHtml(e.title)}</span></span>`).join('')}${dayEvents.length>3?`<span class="calendar-more">+${dayEvents.length-3} mehr</span>`:''}</span>`;
+    cell.querySelectorAll('.calendar-event').forEach((chip,index)=>chip.addEventListener('click',event=>{
+      event.stopPropagation();
+      const ev=visibleEvents[index];
+      if(!ev?.participants.some(p=>p.profile_id===currentUser.id))return alert('Du bist bei diesem Termin nicht als Teilnehmer eingetragen.');
+      selectedEventId=ev.id;selectedOccurrenceDate=iso;$('#dialogEventName').textContent=`${ev.title} · ${formatDate(iso)}`;$('#statusDialog').showModal();
+    }));
     cell.addEventListener('click',()=>{$('#eventDate').value=iso;renderMonthCalendar();});cell.addEventListener('dblclick',()=>showEventForm(iso));grid.appendChild(cell);
   }
 }
-function calendarStatusSymbol(ev,date){const c=calendarEventStatus(ev,date);return c==='done'?'✓ ':c==='missed'?'✕ ':'';}
-function calendarEventStatus(ev,date){const sts=ev.participants.map(p=>occurrenceStatus(ev,p.profile_id,date));if(sts.some(s=>s==='missed'))return'missed';if(sts.length&&sts.every(s=>s==='completed'))return'done';return'';}
+function calendarStatusSymbol(ev,date){const c=calendarEventStatus(ev,date);return c==='done'?'✓ ':c==='missed'?'✕ ':c==='excused'?'🩹 ':'';}
+function calendarEventStatus(ev,date){
+  const sts=ev.participants.map(p=>occurrenceStatus(ev,p.profile_id,date));
+  if(sts.some(s=>s==='missed'))return'missed';
+  if(sts.length&&sts.every(s=>s==='completed'))return'done';
+  if(sts.length&&sts.every(s=>s==='completed'||s==='excused')&&sts.some(s=>s==='excused'))return'excused';
+  return'';
+}
 function showEventForm(iso){$('#eventDate').value=iso;$('#eventFormCard').scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>$('#eventTitle').focus(),250);}
 
 async function saveOwnProfile(){
