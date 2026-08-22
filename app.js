@@ -24,7 +24,9 @@ let activeGroup = null;
 let groupMembers = [];
 let events = [];
 let weights = [];
+let occurrenceStatuses = [];
 let selectedEventId = null;
+let selectedOccurrenceDate = null;
 let calendarCursor = new Date();
 calendarCursor.setDate(1);
 let pendingInvite = new URLSearchParams(location.search).get('join') || '';
@@ -94,8 +96,8 @@ function bindActions(){
   });
   $('#statusDialog').addEventListener('close',async()=>{
     if(!selectedEventId || $('#statusDialog').returnValue==='cancel') return;
-    await setEventStatus(selectedEventId,$('#statusDialog').returnValue);
-    selectedEventId=null;
+    await setEventStatus(selectedEventId,$('#statusDialog').returnValue,selectedOccurrenceDate);
+    selectedEventId=null;selectedOccurrenceDate=null;
   });
 }
 
@@ -140,7 +142,7 @@ async function signIn(){
 async function applySession(session){
   currentUser=session?.user||null;
   if(!currentUser){
-    currentProfile=null; groups=[]; activeGroup=null; groupMembers=[]; events=[]; weights=[];
+    currentProfile=null; groups=[]; activeGroup=null; groupMembers=[]; events=[]; weights=[]; occurrenceStatuses=[];
     $('#authScreen').classList.remove('hidden'); $('#appShell').classList.add('hidden'); document.body.classList.add('auth-open');
     return;
   }
@@ -167,6 +169,7 @@ async function loadGroups(){
 async function loadActiveGroupData(){
   if(!activeGroup){groupMembers=[];events=[];renderAll();return;}
   await Promise.all([loadGroupMembers(),loadEvents(),loadWeights()]);
+  await loadOccurrenceStatuses();
   await autoMarkOwnMissed();
   renderAll();
 }
@@ -187,6 +190,16 @@ async function loadEvents(){
     participants:(e.event_participants||[]).map(p=>({profile_id:p.profile_id,status:p.status,name:p.profiles?.name||'Mitglied',completed_at:p.completed_at}))
   }));
 }
+async function loadOccurrenceStatuses(){
+  if(!events.length){ occurrenceStatuses=[]; return; }
+  const ids=events.map(e=>e.id);
+  const {data,error}=await supabase.from('event_occurrence_status')
+    .select('event_id,occurrence_date,profile_id,status,completed_at')
+    .in('event_id',ids);
+  if(error){ console.error(error); occurrenceStatuses=[]; return; }
+  occurrenceStatuses=data||[];
+}
+
 async function loadWeights(){
   const {data,error}=await supabase.from('weight_entries').select('weight,measured_on').eq('profile_id',currentUser.id).order('measured_on');
   if(error){console.error(error);weights=[];return;}
@@ -200,36 +213,62 @@ function normalizeColor(c){
 }
 function colorHex(name){return {violet:'#8b5cf6',blue:'#22b7f2',green:'#22c55e',orange:'#f59e0b',pink:'#ec4899'}[name]||'#8b5cf6';}
 function toggleRepeatUntil(){
-  const weekly=$('#eventRepeat').value==='weekly';
-  $('#eventRepeatUntilWrap').classList.toggle('hidden',!weekly);
-  if(!weekly)$('#eventRepeatUntil').value='';
+  const recurring=$('#eventRepeat').value!=='none';
+  $('#eventRepeatUntilWrap').classList.toggle('hidden',!recurring);
+  if(!recurring)$('#eventRepeatUntil').value='';
 }
+function daysInMonth(year,month){return new Date(year,month+1,0).getDate();}
 function eventOccursOn(ev,iso){
-  if(ev.date===iso)return true;
-  if(ev.recurrence!=='weekly')return false;
   if(iso<ev.date)return false;
   if(ev.recurrence_until && iso>ev.recurrence_until)return false;
-  const start=new Date(`${ev.date}T12:00:00`);
-  const target=new Date(`${iso}T12:00:00`);
-  const days=Math.round((target-start)/86400000);
-  return days>=0 && days%7===0;
+  if(ev.date===iso)return true;
+  if(ev.recurrence==='none')return false;
+  const start=new Date(`${ev.date}T12:00:00`), target=new Date(`${iso}T12:00:00`);
+  if(ev.recurrence==='weekly'){
+    const days=Math.round((target-start)/86400000);
+    return days>=0 && days%7===0;
+  }
+  if(ev.recurrence==='monthly'){
+    const months=(target.getFullYear()-start.getFullYear())*12+(target.getMonth()-start.getMonth());
+    if(months<0)return false;
+    return target.getDate()===Math.min(start.getDate(),daysInMonth(target.getFullYear(),target.getMonth()));
+  }
+  if(ev.recurrence==='yearly'){
+    if(target.getFullYear()<start.getFullYear() || target.getMonth()!==start.getMonth())return false;
+    return target.getDate()===Math.min(start.getDate(),daysInMonth(target.getFullYear(),target.getMonth()));
+  }
+  return false;
 }
 function recurrenceText(ev){
-  if(ev.recurrence!=='weekly')return '';
-  return ev.recurrence_until?` · wöchentlich bis ${formatDate(ev.recurrence_until)}`:' · wöchentlich';
+  const names={weekly:'wöchentlich',monthly:'monatlich',yearly:'jährlich'};
+  if(!names[ev.recurrence])return '';
+  return ev.recurrence_until?` · ${names[ev.recurrence]} bis ${formatDate(ev.recurrence_until)}`:` · ${names[ev.recurrence]}`;
 }
 function nextOccurrenceDate(ev,from=new Date()){
-  const fromIso=localISO(from);
-  if(ev.recurrence!=='weekly')return ev.date>=fromIso?ev.date:null;
   let d=new Date(`${ev.date}T12:00:00`);
-  const target=new Date(`${fromIso}T12:00:00`);
-  if(d<target){
-    const diff=Math.floor((target-d)/86400000);
-    d.setDate(d.getDate()+Math.ceil(diff/7)*7);
+  const target=new Date(from);target.setHours(12,0,0,0);
+  if(d<target)d=target;
+  for(let i=0;i<3660;i++){
+    const iso=localISO(d);
+    if(ev.recurrence_until && iso>ev.recurrence_until)return null;
+    if(eventOccursOn(ev,iso))return iso;
+    d.setDate(d.getDate()+1);
   }
-  const iso=localISO(d);
-  if(ev.recurrence_until && iso>ev.recurrence_until)return null;
-  return iso;
+  return null;
+}
+function occurrenceDatesThrough(ev,endDate=new Date()){
+  const out=[];let d=new Date(`${ev.date}T12:00:00`);const end=new Date(endDate);end.setHours(12,0,0,0);
+  for(let i=0;i<3660 && d<=end;i++,d.setDate(d.getDate()+1)){
+    const iso=localISO(d);if(ev.recurrence_until&&iso>ev.recurrence_until)break;if(eventOccursOn(ev,iso))out.push(iso);
+  }
+  return out;
+}
+function occurrenceStatus(ev,profileId,date){
+  const row=occurrenceStatuses.find(x=>x.event_id===ev.id&&x.profile_id===profileId&&x.occurrence_date===date);
+  if(row)return row.status;
+  const base=ev.participants.find(p=>p.profile_id===profileId);
+  if(date===ev.date && base && base.status!=='planned')return base.status;
+  return 'planned';
 }
 
 
@@ -301,7 +340,7 @@ async function addEvent(){
   const payload={
     group_id:activeGroup.id,title,event_date:date,start_time:$('#eventStart').value||null,end_time:$('#eventEnd').value||null,
     color:colorHex($('#eventColor').value),penalty:Number($('#eventPenalty').value||0),notes:$('#eventNote').value.trim()||null,created_by:currentUser.id,
-    recurrence:$('#eventRepeat').value||'none',recurrence_until:$('#eventRepeat').value==='weekly'?($('#eventRepeatUntil').value||null):null
+    recurrence:$('#eventRepeat').value||'none',recurrence_until:$('#eventRepeat').value!=='none'?($('#eventRepeatUntil').value||null):null
   };
   const {data,error}=await supabase.from('events').insert(payload).select('id').single();
   if(error)return alert(`Termin konnte nicht gespeichert werden: ${error.message}`);
@@ -311,28 +350,35 @@ async function addEvent(){
   $('#eventTitle').value='';$('#eventNote').value='';$('#eventRepeat').value='none';$('#eventRepeatUntil').value='';toggleRepeatUntil();
   await loadEvents();renderAll();
 }
-async function setEventStatus(id,statusUi){
+async function setEventStatus(id,statusUi,date){
   const ev=events.find(e=>e.id===id);if(!ev)return;
   const mine=ev.participants.find(p=>p.profile_id===currentUser.id);
   if(!mine)return alert('Du bist bei diesem Termin nicht als Teilnehmer eingetragen.');
+  date=date||ev.date;
   const dbStatus={done:'completed',missed:'missed',excused:'excused'}[statusUi]||statusUi;
-  const update={status:dbStatus,completed_at:dbStatus==='completed'?new Date().toISOString():null};
-  const {error}=await supabase.from('event_participants').update(update).eq('event_id',id).eq('profile_id',currentUser.id);
+  const row={event_id:id,occurrence_date:date,profile_id:currentUser.id,status:dbStatus,completed_at:dbStatus==='completed'?new Date().toISOString():null};
+  const {error}=await supabase.from('event_occurrence_status').upsert(row,{onConflict:'event_id,occurrence_date,profile_id'});
   if(error)return alert(`Status konnte nicht gespeichert werden: ${error.message}`);
-  await loadEvents();renderAll();
+  await loadOccurrenceStatuses();renderAll();
 }
 async function autoMarkOwnMissed(){
-  const now=new Date();const ids=[];
+  const now=new Date();const rows=[];
   for(const ev of events){
-    const mine=ev.participants.find(p=>p.profile_id===currentUser.id);if(!mine||mine.status!=='planned')continue;
-    const end=new Date(`${ev.date}T${ev.end||ev.start||'23:59'}:00`);if(end<now)ids.push(ev.id);
+    if(!ev.participants.some(p=>p.profile_id===currentUser.id))continue;
+    for(const date of occurrenceDatesThrough(ev,now)){
+      if(occurrenceStatus(ev,currentUser.id,date)!=='planned')continue;
+      const end=new Date(`${date}T${ev.end||ev.start||'23:59'}:00`);
+      if(end<now)rows.push({event_id:ev.id,occurrence_date:date,profile_id:currentUser.id,status:'missed',completed_at:null});
+    }
   }
-  for(const id of ids)await supabase.from('event_participants').update({status:'missed',completed_at:null}).eq('event_id',id).eq('profile_id',currentUser.id);
-  if(ids.length)await loadEvents();
+  if(rows.length){
+    const {error}=await supabase.from('event_occurrence_status').upsert(rows,{onConflict:'event_id,occurrence_date,profile_id'});
+    if(error)console.error(error);else await loadOccurrenceStatuses();
+  }
 }
 
 function renderAll(){renderGroupUI();renderTug();renderEvents();renderMonthCalendar();renderStats();renderWeights();renderPhotos();renderProfiles();}
-function memberDebt(id){return events.reduce((sum,e)=>sum+(e.participants.find(p=>p.profile_id===id)?.status==='missed'?Number(e.penalty||0):0),0);}
+function memberDebt(id){return occurrenceStatuses.reduce((sum,r)=>{const ev=events.find(e=>e.id===r.event_id);return sum+(r.profile_id===id&&r.status==='missed'?Number(ev?.penalty||0):0);},0);}
 function renderTug(){
   const hero=$('.hero-card');hero.classList.remove('solo','multi');
   if(!activeGroup||groupMembers.length<2){
@@ -351,8 +397,11 @@ function renderTug(){
 }
 function myParticipant(ev){return ev.participants.find(p=>p.profile_id===currentUser.id);}
 function renderStats(){
-  const mine=events.filter(e=>myParticipant(e));const done=mine.filter(e=>myParticipant(e).status==='completed').length;
-  let cur=0,best=0;[...mine].sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{const st=myParticipant(e).status;if(st==='completed'){cur++;best=Math.max(best,cur);}else if(st==='missed')cur=0;});
+  const items=[];const now=new Date();
+  events.filter(e=>myParticipant(e)).forEach(e=>occurrenceDatesThrough(e,now).forEach(date=>items.push({date,status:occurrenceStatus(e,currentUser.id,date)})));
+  items.sort((a,b)=>a.date.localeCompare(b.date));
+  const done=items.filter(x=>x.status==='completed').length;let cur=0,best=0;
+  items.forEach(x=>{if(x.status==='completed'){cur++;best=Math.max(best,cur);}else if(x.status==='missed')cur=0;});
   $('#currentStreak').textContent=cur;$('#bestStreak').textContent=best;$('#doneCount').textContent=done;
 }
 function renderEvents(){
@@ -371,10 +420,11 @@ function renderEvents(){
 function statusLabel(s){return {planned:'Geplant',completed:'Erledigt',missed:'Verpasst',excused:'Entschuldigt'}[s]||s;}
 function eventNode(ev,withDelete){
   const wrap=document.createElement('div');wrap.className='event-item';
-  const statuses=ev.participants.map(p=>`<span class="status ${p.status}">${escapeHtml(p.name)}: ${statusLabel(p.status)}</span>`).join('');
-  wrap.innerHTML=`<div class="event-main"><strong>${escapeHtml(ev.title)} <span class="event-sync-badge">● synchronisiert</span></strong><div class="event-meta">${formatDate(ev.date)}${recurrenceText(ev)} · ${ev.start||'–'}${ev.end?`–${ev.end}`:''} · ${euro(ev.penalty)} Strafe</div><div class="status-row">${statuses}</div></div><div class="event-actions"><button class="small-btn status-btn" type="button">Status</button>${withDelete&&ev.created_by===currentUser.id?'<button class="small-btn delete-btn" type="button">🗑</button>':''}</div>`;
-  wrap.querySelector('.status-btn').addEventListener('click',()=>{selectedEventId=ev.id;$('#dialogEventName').textContent=ev.title;$('#statusDialog').showModal();});
-  const del=wrap.querySelector('.delete-btn');if(del)del.addEventListener('click',async()=>{if(confirm(`„${ev.title}“ löschen?`)){const {error}=await supabase.from('events').delete().eq('id',ev.id);if(error)alert(error.message);else{await loadEvents();renderAll();}}});
+  const occurrenceDate=ev.date;
+  const statuses=ev.participants.map(p=>{const st=occurrenceStatus(ev,p.profile_id,occurrenceDate);return `<span class="status ${st}">${escapeHtml(p.name)}: ${statusLabel(st)}</span>`;}).join('');
+  wrap.innerHTML=`<div class="event-main"><strong>${escapeHtml(ev.title)} <span class="event-sync-badge">● synchronisiert</span></strong><div class="event-meta">${formatDate(occurrenceDate)}${recurrenceText(ev)} · ${ev.start||'–'}${ev.end?`–${ev.end}`:''} · ${euro(ev.penalty)} Strafe</div><div class="status-row">${statuses}</div></div><div class="event-actions"><button class="small-btn status-btn" type="button">Status</button>${withDelete&&ev.created_by===currentUser.id?'<button class="small-btn delete-btn" type="button">🗑</button>':''}</div>`;
+  wrap.querySelector('.status-btn').addEventListener('click',()=>{selectedEventId=ev.id;selectedOccurrenceDate=occurrenceDate;$('#dialogEventName').textContent=`${ev.title} · ${formatDate(occurrenceDate)}`;$('#statusDialog').showModal();});
+  const del=wrap.querySelector('.delete-btn');if(del)del.addEventListener('click',async()=>{if(confirm(`„${ev.title}“${ev.recurrence!=='none'?' und die ganze Serie':''} löschen?`)){const {error}=await supabase.from('events').delete().eq('id',ev.id);if(error)alert(error.message);else{await loadEvents();await loadOccurrenceStatuses();renderAll();}}});
   return wrap;
 }
 function renderMonthCalendar(){
@@ -384,11 +434,12 @@ function renderMonthCalendar(){
     const d=new Date(start);d.setDate(start.getDate()+i);const iso=localISO(d),cell=document.createElement('button');cell.type='button';cell.className='calendar-day';
     if(d.getMonth()!==m)cell.classList.add('other-month');if(iso===today)cell.classList.add('today');if(iso===selected)cell.classList.add('selected');
     const dayEvents=events.filter(e=>eventOccursOn(e,iso)).sort((a,b)=>(a.start||'').localeCompare(b.start||''));
-    cell.innerHTML=`<span class="day-number">${d.getDate()}</span><span class="calendar-events">${dayEvents.slice(0,3).map(e=>`<span class="calendar-event ${e.color} ${calendarEventStatus(e)}"><span class="calendar-event-time">${escapeHtml(e.start||'')}</span><span class="calendar-event-title">${escapeHtml(e.title)}</span></span>`).join('')}${dayEvents.length>3?`<span class="calendar-more">+${dayEvents.length-3} mehr</span>`:''}</span>`;
+    cell.innerHTML=`<span class="day-number">${d.getDate()}</span><span class="calendar-events">${dayEvents.slice(0,3).map(e=>`<span class="calendar-event ${e.color} ${calendarEventStatus(e,iso)}"><span class="calendar-event-time">${escapeHtml(e.start||'')}</span><span class="calendar-event-title">${calendarStatusSymbol(e,iso)}${escapeHtml(e.title)}</span></span>`).join('')}${dayEvents.length>3?`<span class="calendar-more">+${dayEvents.length-3} mehr</span>`:''}</span>`;
     cell.addEventListener('click',()=>{$('#eventDate').value=iso;renderMonthCalendar();});cell.addEventListener('dblclick',()=>showEventForm(iso));grid.appendChild(cell);
   }
 }
-function calendarEventStatus(ev){if(ev.participants.some(p=>p.status==='missed'))return'missed';if(ev.participants.length&&ev.participants.every(p=>p.status==='completed'))return'done';return'';}
+function calendarStatusSymbol(ev,date){const c=calendarEventStatus(ev,date);return c==='done'?'✓ ':c==='missed'?'✕ ':'';}
+function calendarEventStatus(ev,date){const sts=ev.participants.map(p=>occurrenceStatus(ev,p.profile_id,date));if(sts.some(s=>s==='missed'))return'missed';if(sts.length&&sts.every(s=>s==='completed'))return'done';return'';}
 function showEventForm(iso){$('#eventDate').value=iso;$('#eventFormCard').scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>$('#eventTitle').focus(),250);}
 
 async function saveOwnProfile(){
@@ -397,9 +448,9 @@ async function saveOwnProfile(){
   currentProfile={...currentProfile,name};await loadGroupMembers();renderAll();
 }
 function renderProfiles(){
-  const me=currentProfile||{name:'Ich'};$('#ownProfileName').textContent=me.name;$('#ownNameInput').value=me.name;$('#ownAvatar').textContent=(me.name?.[0]||'?').toUpperCase();$('#ownProfileDebt').textContent=euro(memberDebt(currentUser?.id));$('#ownProfileDone').textContent=events.filter(e=>e.participants.find(p=>p.profile_id===currentUser?.id)?.status==='completed').length;
+  const me=currentProfile||{name:'Ich'};$('#ownProfileName').textContent=me.name;$('#ownNameInput').value=me.name;$('#ownAvatar').textContent=(me.name?.[0]||'?').toUpperCase();$('#ownProfileDebt').textContent=euro(memberDebt(currentUser?.id));$('#ownProfileDone').textContent=occurrenceStatuses.filter(r=>r.profile_id===currentUser?.id&&r.status==='completed').length;
   const partner=groupMembers.find(m=>m.id!==currentUser?.id);
-  $('#partnerProfileName').textContent=partner?.name||'Noch niemand';$('#partnerAvatar').textContent=(partner?.name?.[0]||'?').toUpperCase();$('#partnerProfileDebt').textContent=partner?euro(memberDebt(partner.id)):'–';$('#partnerProfileDone').textContent=partner?events.filter(e=>e.participants.find(p=>p.profile_id===partner.id)?.status==='completed').length:'–';
+  $('#partnerProfileName').textContent=partner?.name||'Noch niemand';$('#partnerAvatar').textContent=(partner?.name?.[0]||'?').toUpperCase();$('#partnerProfileDebt').textContent=partner?euro(memberDebt(partner.id)):'–';$('#partnerProfileDone').textContent=partner?occurrenceStatuses.filter(r=>r.profile_id===partner.id&&r.status==='completed').length:'–';
   renderMembers();
 }
 

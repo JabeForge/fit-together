@@ -1,8 +1,8 @@
-FitTogether V0.9.1
+FitTogether V0.10
 
-Sichtbare Versionsnummer im Header. CSS/JS Cache-Busting auf 0.9.1. Woechentliche Wiederholung aus V0.9 enthalten.
+Sichtbare Versionsnummer im Header. CSS/JS Cache-Busting auf 0.9.1. Woechentliche Wiederholung aus V0.10 enthalten.
 
-FitTogether V0.9
+FitTogether V0.10
 
 Neu: echte wöchentliche Darstellung im Monatskalender, optionale Enddatum-Angabe und korrekte nächste Termine für Serien.
 Hinweis: Status/Strafgeld gelten in dieser Zwischenversion noch für die Serie; einzelne Wiederholungs-Status folgen im nächsten Schritt.

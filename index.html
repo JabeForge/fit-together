@@ -41,7 +41,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Gemeinsam durchziehen</p>
-        <h1>FitTogether <span class="app-version">V0.9.1</span></h1>
+        <h1>FitTogether <span class="app-version">V0.10</span></h1>
       </div>
       <div class="top-actions">
         <select id="activeGroupSelect" class="group-select" aria-label="Aktive Gruppe"></select>
@@ -130,13 +130,13 @@
             <label>Teilnehmer<select id="eventOwner"><option value="all">Alle Gruppenmitglieder</option><option value="self">Nur ich</option></select></label>
             <label>Farbe<select id="eventColor"><option value="violet">Lila</option><option value="blue">Blau</option><option value="green">Grün</option><option value="orange">Orange</option><option value="pink">Pink</option></select></label>
             <label>Strafe bei Verpassen (€)<input id="eventPenalty" type="number" min="0" step="0.5" value="2" /></label>
-            <label>Wiederholung<select id="eventRepeat"><option value="none">Keine</option><option value="weekly">Wöchentlich</option></select></label>
+            <label>Wiederholung<select id="eventRepeat"><option value="none">Keine</option><option value="weekly">Wöchentlich</option><option value="monthly">Monatlich</option><option value="yearly">Jährlich</option></select></label>
             <label id="eventRepeatUntilWrap" class="hidden">Wiederholen bis (optional)<input id="eventRepeatUntil" type="date" /></label>
             <label>Erinnerung<select id="eventReminder"><option value="60">1 Stunde vorher</option><option value="15">15 Minuten vorher</option><option value="0">Keine</option></select></label>
           </div>
           <label>Notiz<textarea id="eventNote" rows="3" placeholder="Optional"></textarea></label>
           <button id="addEventBtn" class="primary-btn full" type="button">Termin speichern</button>
-          <p class="helper">Wöchentliche Termine werden automatisch in jedem passenden Kalendertag angezeigt. Der Status pro einzelner Wiederholung kommt im nächsten Schritt.</p>
+          <p class="helper">Wiederholungen werden automatisch im Kalender angezeigt. Jede einzelne Wiederholung hat ihren eigenen Status und zählt separat für Streaks und Strafgeld.</p>
         </section>
 
         <section class="card">
