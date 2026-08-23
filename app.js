@@ -34,7 +34,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL = "https://iixnjrxvdpqvkjoizify.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_AlrqVCyUGwfClbmSJEnKZg_ytg6XyOe";
 const APP_URL = "https://jabeforge.github.io/fit-together/";
-const PUSH_VAPID_PUBLIC_KEY = "BFKVqaicrRbWrV9-0uUP5vY9DRIGuqXPLexGavPPCTUHJY4b8-6oYyVroUSKhdPMkBcGArIxDvl27pvFPvWJ53Q";
+const PUSH_VAPID_PUBLIC_KEY = "BLByxNSvn-6IiTcaFHuMc5kilJQeYbV5HYnIRCXxWcIJdXDYQKq_PSIlhH0SEuFiH0Q7TWcYHF8cU_DnSmcVI";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
