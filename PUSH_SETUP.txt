@@ -1,0 +1,23 @@
+FitTogether V0.17 – echtes Web Push
+
+Dieser Schritt braucht einmalig Supabase-Konfiguration, weil GitHub Pages selbst keine Nachrichten senden kann.
+
+1. push_setup.sql im Supabase SQL Editor ausführen.
+2. Ein VAPID-Schlüsselpaar erzeugen. Beispiel lokal:
+   npx web-push generate-vapid-keys
+3. Den PUBLIC KEY in app.js bei PUSH_VAPID_PUBLIC_KEY eintragen.
+   Der PRIVATE KEY gehört NICHT in GitHub oder app.js.
+4. In Supabase Edge Functions eine Function namens send-training-reminders anlegen
+   und den Inhalt aus supabase_edge_function/index.ts verwenden.
+5. Für die Edge Function Secrets setzen:
+   VAPID_PUBLIC_KEY
+   VAPID_PRIVATE_KEY
+   VAPID_SUBJECT  (z.B. mailto:deine-email@example.com)
+6. Die Function regelmäßig per Supabase Cron/pg_cron aufrufen, sinnvoll: alle 5 Minuten.
+7. App öffnen -> Einstellungen -> „Push bei geschlossener App einrichten“.
+
+WICHTIG:
+- V0.17 stellt die komplette Push-Infrastruktur bereit.
+- Der beiliegende erste Edge-Function-Stand sendet zunächst Erinnerungen für NICHT wiederholte Termine ca. 1 Stunde vorher.
+- Wiederholte Termine werden im nächsten Backend-Patch serverseitig expandiert, sobald der Push-Transport auf deinem Gerät bestätigt ist.
+- iPhone/iPad: Web Push funktioniert für installierte Home-Screen-Web-Apps; Browser-/OS-Regeln können abweichen.

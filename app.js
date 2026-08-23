@@ -1,4 +1,4 @@
-const APP_VERSION = "0.17";
+const APP_VERSION = "0.17.1";
 const I18N={
  de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise'},
  en:{display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof'}
@@ -34,7 +34,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL = "https://iixnjrxvdpqvkjoizify.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_AlrqVCyUGwfClbmSJEnKZg_ytg6XyOe";
 const APP_URL = "https://jabeforge.github.io/fit-together/";
-const PUSH_VAPID_PUBLIC_KEY = "BLByxNSvn-6IiTcaFHuMc5kilJQeYbV5HYnIRCXxWcIJdXDYQKq_PSIlhH0SEuFiH0Q7TWcYHF8cU_DnSmcVI";
+const PUSH_VAPID_PUBLIC_KEY = "BM0bJRkL_fxPV-ZDD9hbmuREjxpZztV-yi26VjU-1Vba40deDcxiwNhr-aa1wFGEq04uUVQ2M8glLr3H-2B2ahs";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
@@ -831,27 +831,89 @@ async function updatePushStatus(){
     el.textContent=appLanguage==='en'?(sub?'Closed-app push is enabled on this device.':'Closed-app push is not set up yet.'):(sub?'Push bei geschlossener App ist auf diesem Gerät aktiviert.':'Push bei geschlossener App ist noch nicht eingerichtet.');
   }catch{}
 }
+async function ensurePushSubscription(showSuccess=true){
+  if(PUSH_VAPID_PUBLIC_KEY.includes('PASTE_YOUR'))throw new Error(appLanguage==='en'?'VAPID public key missing.':'VAPID Public Key fehlt.');
+  if(!currentUser)throw new Error(appLanguage==='en'?'Please sign in first.':'Bitte zuerst anmelden.');
+  if(!('serviceWorker' in navigator)||!('PushManager' in window))throw new Error(appLanguage==='en'?'Push is not supported by this browser.':'Push wird von diesem Browser nicht unterstützt.');
+  if(Notification.permission!=='granted')throw new Error(appLanguage==='en'?'Notification permission is not granted.':'Benachrichtigungen sind noch nicht erlaubt.');
+
+  const reg=await getServiceWorkerRegistration();
+  await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+
+  // If an old subscription belongs to another VAPID key, recreate it.
+  if(sub){
+    try{
+      const opts=sub.options;
+      const currentKey=opts?.applicationServerKey?Array.from(new Uint8Array(opts.applicationServerKey)):[];
+      const wanted=Array.from(urlBase64ToUint8Array(PUSH_VAPID_PUBLIC_KEY));
+      if(currentKey.length && (currentKey.length!==wanted.length || currentKey.some((v,i)=>v!==wanted[i]))){
+        await sub.unsubscribe();
+        sub=null;
+      }
+    }catch{}
+  }
+
+  if(!sub){
+    sub=await reg.pushManager.subscribe({
+      userVisibleOnly:true,
+      applicationServerKey:urlBase64ToUint8Array(PUSH_VAPID_PUBLIC_KEY)
+    });
+  }
+
+  const json=sub.toJSON();
+  const row={
+    profile_id:currentUser.id,
+    endpoint:json.endpoint,
+    p256dh:json.keys?.p256dh,
+    auth:json.keys?.auth,
+    user_agent:navigator.userAgent,
+    updated_at:new Date().toISOString()
+  };
+  const {error}=await supabase.from('push_subscriptions').upsert(row,{onConflict:'profile_id,endpoint'});
+  if(error)throw error;
+  await updatePushStatus();
+  if(showSuccess)alert(appLanguage==='en'?'Push is enabled on this device.':'Push ist auf diesem Gerät aktiviert.');
+  return sub;
+}
+
 async function enableClosedAppPush(){
-  if(PUSH_VAPID_PUBLIC_KEY.includes('PASTE_YOUR'))return alert(appLanguage==='en'?'First add the VAPID public key to app.js. See PUSH_SETUP.txt.':'Trage zuerst den öffentlichen VAPID-Key in app.js ein. Siehe PUSH_SETUP.txt.');
-  if(!currentUser)return alert(appLanguage==='en'?'Please sign in first.':'Bitte zuerst anmelden.');
   try{
-    const permission=await Notification.requestPermission();if(permission!=='granted')return updatePushStatus();
-    const reg=await getServiceWorkerRegistration();await navigator.serviceWorker.ready;
-    let sub=await reg.pushManager.getSubscription();
-    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(PUSH_VAPID_PUBLIC_KEY)});
-    const json=sub.toJSON();
-    const row={profile_id:currentUser.id,endpoint:json.endpoint,p256dh:json.keys?.p256dh,auth:json.keys?.auth,user_agent:navigator.userAgent,updated_at:new Date().toISOString()};
-    const {error}=await supabase.from('push_subscriptions').upsert(row,{onConflict:'profile_id,endpoint'});
-    if(error)throw error;
-    await updatePushStatus();
-    alert(appLanguage==='en'?'Push is enabled on this device.':'Push ist auf diesem Gerät aktiviert.');
-  }catch(err){alert(`${appLanguage==='en'?'Push setup failed':'Push-Einrichtung fehlgeschlagen'}: ${err.message||err}`);}
+    const permission=Notification.permission==='granted'?'granted':await Notification.requestPermission();
+    if(permission!=='granted'){updatePushStatus();return;}
+    await ensurePushSubscription(true);
+  }catch(err){
+    alert(`${appLanguage==='en'?'Push setup failed':'Push-Einrichtung fehlgeschlagen'}: ${err.message||err}`);
+  }
+}
+
+async function maybeOfferNotificationOnboarding(){
+  if(!currentUser || !('Notification' in window))return;
+
+  // Permission was already granted (for example via the old bell button):
+  // silently finish the real Push subscription and save it to Supabase.
+  if(Notification.permission==='granted'){
+    try{ await ensurePushSubscription(false); }catch(err){ console.warn('Automatic push registration failed',err); }
+    return;
+  }
+
+  // Browser permission dialogs should be triggered by a real user click.
+  if(Notification.permission!=='default')return;
+  const key=`fitTogether_notificationOnboarding_${currentUser.id}`;
+  if(localStorage.getItem(key)==='shown')return;
+  localStorage.setItem(key,'shown');
+  const dlg=document.querySelector('#notificationOnboardingDialog');
+  if(dlg?.showModal)dlg.showModal();
 }
 async function requestNotifications(){
   if(!('Notification' in window))return alert(appLanguage==='en'?'This browser does not support notifications.':'Dieser Browser unterstützt keine Benachrichtigungen.');
   const permission=await Notification.requestPermission();
   updateNotificationStatus();
-  if(permission==='granted'){scheduleReminderChecks();new Notification('FitTogether',{body:appLanguage==='en'?'Notifications enabled.':'Benachrichtigungen aktiviert.'});}
+  if(permission==='granted'){
+    scheduleReminderChecks();
+    try{ await ensurePushSubscription(false); }catch(err){ console.warn('Push subscription failed',err); }
+    new Notification('FitTogether',{body:appLanguage==='en'?'Notifications enabled.':'Benachrichtigungen aktiviert.'});
+  }
 }
 function updateNotificationStatus(){
   const el=$('#notificationStatus');if(!el)return;
@@ -912,6 +974,7 @@ function checkDueReminders(){/* Push/Background-Erinnerungen folgen später. */}
 window.addEventListener('resize',()=>drawWeightChart(weights));
 
 init();
+setTimeout(()=>maybeOfferNotificationOnboarding(),1200);
 
 
 

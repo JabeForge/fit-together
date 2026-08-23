@@ -7,7 +7,7 @@
   <title>FitTogether</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <style>.hidden{display:none!important}</style>
-  <link rel="stylesheet" href="styles.css?v=0.16" />
+  <link rel="stylesheet" href="styles.css?v=0.17.1" />
 </head>
 <body>
   <section id="authScreen" class="auth-screen" role="dialog" aria-modal="true" aria-labelledby="authTitle">
@@ -41,7 +41,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Gemeinsam durchziehen</p>
-        <h1>FitTogether <span class="app-version">V0.16</span></h1>
+        <h1>FitTogether <span class="app-version">V0.17.1</span></h1>
       </div>
       <div class="top-actions">
         <select id="activeGroupSelect" class="group-select" aria-label="Aktive Gruppe"></select>
@@ -311,8 +311,9 @@
           <div class="dialog-actions">
             <button id="settingsNotifyBtn" class="primary-btn" type="button">🔔 Benachrichtigungen aktivieren</button>
             <button id="testNotifyBtn" class="ghost-btn" type="button">Test senden</button>
+            <button id="enablePushBtn" class="ghost-btn" type="button">📲 Push bei geschlossener App einrichten</button>
           </div>
-          <p class="helper">Hinweis: Browser-Benachrichtigungen funktionieren zuverlässig, solange die App geöffnet ist. Echte Push-Nachrichten bei komplett geschlossener App benötigen später einen Server/Push-Dienst.</p>
+          <p class="helper"><span id="pushStatus">Push bei geschlossener App ist noch nicht eingerichtet.</span></p>
         </section>
       </section>
     </main>
@@ -338,7 +339,7 @@
     </form>
   </dialog>
 
-  <script type="module" src="app.js?v=0.16"></script>
+  <script type="module" src="app.js?v=0.17.1"></script>
 
   <dialog id="seriesActionDialog" class="status-dialog">
     <form method="dialog" class="dialog-card">
@@ -352,5 +353,18 @@
       </div>
     </form>
   </dialog>
+
+  <dialog id="notificationOnboardingDialog" class="status-dialog">
+    <div class="dialog-card">
+      <p class="eyebrow">🔔 Erinnerungen</p>
+      <h3>Trainingserinnerungen aktivieren?</h3>
+      <p class="helper">FitTogether kann dich vor deinen geplanten Trainings erinnern – auch wenn die App geschlossen ist.</p>
+      <div class="dialog-actions stacked-actions">
+        <button id="notificationOnboardingEnableBtn" type="button" class="primary-btn">Benachrichtigungen aktivieren</button>
+        <button id="notificationOnboardingLaterBtn" type="button" class="ghost-btn">Später</button>
+      </div>
+    </div>
+  </dialog>
+
 </body>
 </html>
