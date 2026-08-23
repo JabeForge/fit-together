@@ -7,7 +7,7 @@
   <title>FitTogether</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <style>.hidden{display:none!important}</style>
-  <link rel="stylesheet" href="styles.css?v=0.17.1" />
+  <link rel="stylesheet" href="styles.css?v=0.18" />
 </head>
 <body>
   <section id="authScreen" class="auth-screen" role="dialog" aria-modal="true" aria-labelledby="authTitle">
@@ -41,7 +41,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Gemeinsam durchziehen</p>
-        <h1>FitTogether <span class="app-version">V0.17.1</span></h1>
+        <h1>FitTogether <span class="app-version">V0.18</span></h1>
       </div>
       <div class="top-actions">
         <select id="activeGroupSelect" class="group-select" aria-label="Aktive Gruppe"></select>
@@ -294,9 +294,15 @@
           </div>
           <p class="helper" data-i18n="formatHint">Sprache, Datum, Uhrzeit und Gewichtseinheit können unabhängig voneinander eingestellt werden. Gewichte werden intern weiterhin in kg gespeichert.</p>
         </section>
-        <section class="card">
-          <div class="section-heading"><div><p class="eyebrow">App</p><h2>Benachrichtigungen</h2></div></div>
-          <p id="notificationStatus" class="helper">Benachrichtigungen sind noch nicht aktiviert.</p>
+        <section class="card notification-settings-card">
+          <div class="section-heading">
+            <div><p class="eyebrow">App</p><h2>Benachrichtigungen</h2></div>
+            <span id="notificationBadge" class="badge">Nicht eingerichtet</span>
+          </div>
+          <div class="notification-state-box">
+            <p id="notificationStatus" class="helper">Benachrichtigungen sind noch nicht aktiviert.</p>
+            <p id="pushStatus" class="helper">Push bei geschlossener App ist noch nicht eingerichtet.</p>
+          </div>
           <div class="form-grid two">
             <label><span>Standard-Erinnerung</span>
               <select id="defaultReminderSelect">
@@ -308,12 +314,12 @@
             </label>
             <label class="toggle-label"><span>Nur eigene Termine</span><input id="ownNotificationsOnly" type="checkbox" checked /></label>
           </div>
+          <p class="helper">Die Einstellungen werden automatisch gespeichert. Geschlossene-App-Pushs werden aktuell serverseitig 1 Stunde vor dem Training gesendet.</p>
           <div class="dialog-actions">
-            <button id="settingsNotifyBtn" class="primary-btn" type="button">🔔 Benachrichtigungen aktivieren</button>
+            <button id="settingsNotifyBtn" class="primary-btn" type="button">🔔 Push aktivieren</button>
+            <button id="disablePushBtn" class="ghost-btn" type="button">🔕 Push deaktivieren</button>
             <button id="testNotifyBtn" class="ghost-btn" type="button">Test senden</button>
-            <button id="enablePushBtn" class="ghost-btn" type="button">📲 Push bei geschlossener App einrichten</button>
           </div>
-          <p class="helper"><span id="pushStatus">Push bei geschlossener App ist noch nicht eingerichtet.</span></p>
         </section>
       </section>
     </main>
@@ -325,10 +331,10 @@
       <p id="dialogEventName"></p>
       <div class="proof-box">
         <strong>📷 Trainingsnachweis</strong>
-        <p id="proofStatus" class="helper">Noch kein Nachweis hochgeladen.</p>
+        <p id="proofStatus" class="helper">Für „Erledigt“ ist ein Trainingsfoto erforderlich.</p>
         <img id="proofPreview" class="proof-preview hidden" alt="Trainingsnachweis" />
-        <label>Foto<input id="proofInput" type="file" accept="image/*" /></label>
-        <button id="uploadProofBtn" type="button" class="ghost-btn">Nachweis hochladen</button>
+        <label>Foto<input id="proofInput" type="file" accept="image/*" capture="environment" /></label>
+        <button id="uploadProofBtn" type="button" class="ghost-btn">Nachweis vorab hochladen</button>
       </div>
       <div class="dialog-actions">
         <button id="statusDoneBtn" type="button" class="primary-btn">✅ Erledigt</button>
@@ -339,7 +345,7 @@
     </form>
   </dialog>
 
-  <script type="module" src="app.js?v=0.17.1"></script>
+  <script type="module" src="app.js?v=0.18"></script>
 
   <dialog id="seriesActionDialog" class="status-dialog">
     <form method="dialog" class="dialog-card">

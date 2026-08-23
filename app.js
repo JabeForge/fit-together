@@ -1,4 +1,4 @@
-const APP_VERSION = "0.17.1";
+const APP_VERSION = "0.18";
 const I18N={
  de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise'},
  en:{display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof'}
@@ -130,7 +130,12 @@ function bindActions(){
   $('#slidePlayBtn').addEventListener('click',toggleSlideshow);
   $('#photoReminderNowBtn').addEventListener('click',()=>{showTab('photos');$('#photoInput').scrollIntoView({behavior:'smooth',block:'center'});});
   $('#photoReminderLaterBtn').addEventListener('click',snoozePhotoReminder);
-  $('#notifyBtn').addEventListener('click',requestNotifications);
+  $('#notifyBtn').addEventListener('click',enableClosedAppPush);
+  $('#settingsNotifyBtn')?.addEventListener('click',enableClosedAppPush);
+  $('#disablePushBtn')?.addEventListener('click',disableClosedAppPush);
+  $('#testNotifyBtn')?.addEventListener('click',testNotification);
+  $('#defaultReminderSelect')?.addEventListener('change',saveReminderSettings);
+  $('#ownNotificationsOnly')?.addEventListener('change',saveReminderSettings);
   $('#prevMonthBtn').addEventListener('click',()=>{calendarCursor.setMonth(calendarCursor.getMonth()-1);renderMonthCalendar();});
   $('#nextMonthBtn').addEventListener('click',()=>{calendarCursor.setMonth(calendarCursor.getMonth()+1);renderMonthCalendar();});
   $('#todayBtn').addEventListener('click',()=>{calendarCursor=new Date();calendarCursor.setDate(1);renderMonthCalendar();});
@@ -306,9 +311,9 @@ async function deleteProgressPhoto(photo){
   await loadProgressPhotos();renderPhotos();
 }
 async function uploadTrainingProof(){
-  if(!selectedEventId||!selectedOccurrenceDate)return alert('Kein Termin ausgewählt.');
-  const file=$('#proofInput').files?.[0];if(!file)return alert('Bitte zuerst ein Foto auswählen.');
-  if(file.size>12*1024*1024)return alert('Das Bild ist größer als 12 MB.');
+  if(!selectedEventId||!selectedOccurrenceDate){alert('Kein Termin ausgewählt.');return false;}
+  const file=$('#proofInput').files?.[0];if(!file){alert('Bitte zuerst ein Foto auswählen.');return false;}
+  if(file.size>12*1024*1024){alert('Das Bild ist größer als 12 MB.');return false;}
   const path=`${currentUser.id}/${selectedEventId}/${selectedOccurrenceDate}/${crypto.randomUUID()}.${safeExt(file)}`;
   const btn=$('#uploadProofBtn');btn.disabled=true;btn.textContent='Wird hochgeladen …';
   try{
@@ -317,14 +322,20 @@ async function uploadTrainingProof(){
     const {error:dbError}=await supabase.from('training_proofs').insert({event_id:selectedEventId,occurrence_date:selectedOccurrenceDate,profile_id:currentUser.id,storage_path:path});
     if(dbError){await supabase.storage.from('training-proofs').remove([path]);throw dbError;}
     $('#proofInput').value='';await loadTrainingProofs();await renderProofInDialog();
-  }catch(err){alert(`Nachweis konnte nicht gespeichert werden: ${err.message||err}`);}
-  finally{btn.disabled=false;btn.textContent='Nachweis hochladen';}
+    return true;
+  }catch(err){alert(`Nachweis konnte nicht gespeichert werden: ${err.message||err}`);return false;}
+  finally{btn.disabled=false;btn.textContent=appLanguage==='en'?'Upload proof':'Nachweis vorab hochladen';}
 }
 async function renderProofInDialog(){
   const proof=trainingProofs.find(p=>p.event_id===selectedEventId&&p.occurrence_date===selectedOccurrenceDate&&p.profile_id===currentUser.id);
   const img=$('#proofPreview');
-  if(proof?.signed_url){$('#proofStatus').textContent='Dein Nachweis ist gespeichert.';img.src=proof.signed_url;img.classList.remove('hidden');}
-  else{$('#proofStatus').textContent='Noch kein eigener Nachweis hochgeladen.';img.removeAttribute('src');img.classList.add('hidden');}
+  if(proof?.signed_url){
+    $('#proofStatus').textContent=appLanguage==='en'?'✅ Your workout proof is saved. You can mark the workout as done.':'✅ Dein Trainingsnachweis ist gespeichert. Du kannst das Training als erledigt markieren.';
+    img.src=proof.signed_url;img.classList.remove('hidden');
+  }else{
+    $('#proofStatus').textContent=appLanguage==='en'?'📷 A workout photo is required for “Done”. You can select it and press Done directly.':'📷 Für „Erledigt“ ist ein Trainingsfoto Pflicht. Du kannst es auswählen und direkt auf Erledigt drücken.';
+    img.removeAttribute('src');img.classList.add('hidden');
+  }
 }
 function openStatusDialog(ev,date){
   selectedEventId=ev.id;selectedOccurrenceDate=date;$('#dialogEventName').textContent=`${ev.title} · ${formatDate(date)}`;$('#proofInput').value='';renderProofInDialog();$('#statusDialog').showModal();
@@ -488,10 +499,16 @@ async function addEvent(){
 async function finishStatus(status){
   if(!selectedEventId||!selectedOccurrenceDate)return;
   if(status==='done'){
-    const proof=trainingProofs.find(p=>p.event_id===selectedEventId&&p.occurrence_date===selectedOccurrenceDate&&p.profile_id===currentUser.id);
+    let proof=trainingProofs.find(p=>p.event_id===selectedEventId&&p.occurrence_date===selectedOccurrenceDate&&p.profile_id===currentUser.id);
     if(!proof){
-      alert('Für „Erledigt“ ist ein Trainingsnachweis erforderlich. Bitte zuerst ein Foto hochladen.');
-      return;
+      const file=$('#proofInput').files?.[0];
+      if(!file){
+        alert(appLanguage==='en'?'A workout photo is required before you can mark this event as done. Take or select a photo first.':'Für „Erledigt“ ist ein Trainingsfoto erforderlich. Nimm zuerst ein Foto auf oder wähle eines aus.');
+        return;
+      }
+      await uploadTrainingProof();
+      proof=trainingProofs.find(p=>p.event_id===selectedEventId&&p.occurrence_date===selectedOccurrenceDate&&p.profile_id===currentUser.id);
+      if(!proof)return;
     }
   }
   await setEventStatus(selectedEventId,status,selectedOccurrenceDate);
@@ -823,13 +840,41 @@ async function getServiceWorkerRegistration(){
   return navigator.serviceWorker.register('./sw.js?v=0.17');
 }
 async function updatePushStatus(){
-  const el=$('#pushStatus');if(!el)return;
-  if(!('serviceWorker' in navigator)||!('PushManager' in window)){el.textContent=appLanguage==='en'?'Closed-app push is not supported by this browser.':'Push bei geschlossener App wird von diesem Browser nicht unterstützt.';return;}
+  const el=$('#pushStatus'),badge=$('#notificationBadge');
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)){
+    if(el)el.textContent=appLanguage==='en'?'Closed-app push is not supported by this browser.':'Push bei geschlossener App wird von diesem Browser nicht unterstützt.';
+    if(badge)badge.textContent=appLanguage==='en'?'Unsupported':'Nicht unterstützt';
+    return;
+  }
   try{
     const reg=await navigator.serviceWorker.getRegistration();
     const sub=reg?await reg.pushManager.getSubscription():null;
-    el.textContent=appLanguage==='en'?(sub?'Closed-app push is enabled on this device.':'Closed-app push is not set up yet.'):(sub?'Push bei geschlossener App ist auf diesem Gerät aktiviert.':'Push bei geschlossener App ist noch nicht eingerichtet.');
-  }catch{}
+    if(el)el.textContent=appLanguage==='en'?(sub?'Closed-app push is enabled on this device.':'Closed-app push is not set up yet.'):(sub?'Push bei geschlossener App ist auf diesem Gerät aktiviert.':'Push bei geschlossener App ist noch nicht eingerichtet.');
+    if(badge)badge.textContent=sub?(appLanguage==='en'?'Active':'Aktiv'):(appLanguage==='en'?'Not set up':'Nicht eingerichtet');
+    $('#settingsNotifyBtn')?.classList.toggle('hidden',!!sub);
+    $('#disablePushBtn')?.classList.toggle('hidden',!sub);
+  }catch(err){
+    console.warn('Push status failed',err);
+  }
+}
+
+async function disableClosedAppPush(){
+  if(!currentUser)return;
+  try{
+    const reg=await navigator.serviceWorker.getRegistration();
+    const sub=reg?await reg.pushManager.getSubscription():null;
+    if(sub){
+      const endpoint=sub.endpoint;
+      await sub.unsubscribe();
+      const {error}=await supabase.from('push_subscriptions').delete().eq('profile_id',currentUser.id).eq('endpoint',endpoint);
+      if(error)console.warn('Subscription row cleanup:',error.message);
+    }
+    await updatePushStatus();
+    updateNotificationStatus();
+    alert(appLanguage==='en'?'Closed-app push was disabled on this device.':'Push wurde auf diesem Gerät deaktiviert.');
+  }catch(err){
+    alert(`${appLanguage==='en'?'Push could not be disabled':'Push konnte nicht deaktiviert werden'}: ${err.message||err}`);
+  }
 }
 async function ensurePushSubscription(showSuccess=true){
   if(PUSH_VAPID_PUBLIC_KEY.includes('PASTE_YOUR'))throw new Error(appLanguage==='en'?'VAPID public key missing.':'VAPID Public Key fehlt.');
@@ -987,8 +1032,8 @@ const EN_TEXT = new Map(Object.entries({
 'Gewicht':'Weight','Verlauf eintragen':'Add weight entry','Gewicht (kg)':'Weight','Speichern':'Save','Start':'Start','Aktuell':'Current','Veränderung':'Change','Die Linie zeigt deine Einträge; zusätzlich wird ein 7-Tage-Trend geglättet dargestellt.':'The line shows your entries; a smoothed 7-day trend is shown as well.',
 '📸 Monatsfoto':'📸 Monthly photo','Zeit für ein Fortschrittsbild':'Time for a progress photo','Dein letztes Fortschrittsbild ist mindestens 30 Tage her.':'Your last progress photo is at least 30 days old.','Jetzt aufnehmen':'Take one now','In 7 Tagen erinnern':'Remind me in 7 days','Vorher / Nachher':'Before / after','Fortschrittsbilder':'Progress photos','Sichtbarkeit':'Visibility','🔒 Privat':'🔒 Private','👥 Mit Gruppe teilen':'👥 Share with group','Bild':'Photo','Bild hinzufügen':'Add photo','Bilder werden sicher in Supabase Storage gespeichert. Private Bilder siehst nur du; geteilte Bilder können Mitglieder deiner Gruppe sehen.':'Photos are stored securely in Supabase Storage. Only you can see private photos; shared photos are visible to members of your group.','Veränderung ansehen':'View progress','Fortschritts-Slideshow':'Progress slideshow','Noch nicht genug Bilder für eine Slideshow.':'Not enough photos for a slideshow yet.','‹ Zurück':'‹ Back','▶ Abspielen':'▶ Play','Weiter ›':'Next ›','Galerie':'Gallery','🏋️ Trainingsnachweise':'🏋️ Workout proof','Gym-Bilder':'Gym photos','Diese Bilder gehören zu bestätigten Trainings und sind für Mitglieder der jeweiligen Gruppe sichtbar. Sie bleiben getrennt von deinen Fortschrittsbildern.':'These photos belong to confirmed workouts and are visible to members of the respective group. They stay separate from your progress photos.',
 'Gemeinsam trainieren':'Train together','Gruppen':'Groups','Mitglieder':'Members','Aktive Gruppe':'Active group','Einladungslink kopieren':'Copy invite link','Neue Gruppe':'New group','Gruppenname':'Group name','Gruppe erstellen':'Create group','Gruppe beitreten':'Join group','Einladungscode':'Invite code','Beitreten':'Join','Dein Profil':'Your profile','Dieses Profil kannst nur du bearbeiten.':'Only you can edit this profile.','Profil speichern':'Save profile','Schulden':'Debt','Partnerprofil':'Partner profile','Hier siehst du später alles, was sie für dich freigibt.':'You will see everything they share with you here.','🔒 Private Gewichte und Bilder bleiben verborgen. Geteilte Fortschritte erscheinen später hier.':'🔒 Private weights and photos stay hidden. Shared progress will appear here later.',
-'Anzeige':'Display','Sprache & Format':'Language & format','Sprache':'Language','Datumsformat':'Date format','Zeitformat':'Time format','Gewichtseinheit':'Weight unit','Sprache, Datum, Uhrzeit und Gewichtseinheit können unabhängig voneinander eingestellt werden. Gewichte werden intern weiterhin in kg gespeichert.':'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.','App':'App','Benachrichtigungen':'Notifications','Trainingserinnerungen kannst du über die Glocke oben aktivieren. Weitere Push-Einstellungen bauen wir im nächsten Benachrichtigungs-Schritt aus.':'You can enable workout reminders using the bell at the top. More push notification settings will be added in the next notification update.','🔔 Benachrichtigungen aktivieren':'🔔 Enable notifications','Standard-Erinnerung':'Default reminder','2 Stunden vorher':'2 hours before','1 Tag vorher':'1 day before','Nur eigene Termine':'Only my events','Test senden':'Send test','Benachrichtigungen sind noch nicht aktiviert.':'Notifications are not enabled yet.','Hinweis: Browser-Benachrichtigungen funktionieren zuverlässig, solange die App geöffnet ist. Echte Push-Nachrichten bei komplett geschlossener App benötigen später einen Server/Push-Dienst.':'Note: Browser notifications work reliably while the app is open. True push notifications when the app is completely closed will later require a server/push service.',
-'Trainingsnachweis':'Workout proof','Noch kein Nachweis hochgeladen.':'No proof uploaded yet.','Foto':'Photo','Nachweis hochladen':'Upload proof','✅ Erledigt':'✅ Done','❌ Verpasst':'❌ Missed','🩹 Entschuldigt':'🩹 Excused','Abbrechen':'Cancel','Status':'Status','Geplant':'Planned','Erledigt':'Done','Verpasst':'Missed','Entschuldigt':'Excused','🗑 Löschen':'🗑 Delete','Gruppe':'Group','Privat':'Private','Training':'Workout','Mitglied':'Member','Noch niemand':'No one yet','Optional':'Optional','📲 Push bei geschlossener App einrichten':'📲 Set up closed-app push','Push bei geschlossener App ist noch nicht eingerichtet.':'Closed-app push is not set up yet.','Jahresabschluss':'Annual settlement','Gemeinsamer Geldtopf':'Shared money pot','Gemeinsamer Topf':'Shared pot','Nur diesen Termin':'Only this occurrence','Gesamte Serie':'Entire series','Wiederholten Termin löschen':'Delete repeating event','Wiederholten Termin bearbeiten':'Edit repeating event','Möchtest du nur diesen Termin oder die gesamte Serie ändern?':'Do you want to change only this occurrence or the entire series?'
+'Anzeige':'Display','Sprache & Format':'Language & format','Sprache':'Language','Datumsformat':'Date format','Zeitformat':'Time format','Gewichtseinheit':'Weight unit','Sprache, Datum, Uhrzeit und Gewichtseinheit können unabhängig voneinander eingestellt werden. Gewichte werden intern weiterhin in kg gespeichert.':'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.','App':'App','Benachrichtigungen':'Notifications','Trainingserinnerungen kannst du über die Glocke oben aktivieren. Weitere Push-Einstellungen bauen wir im nächsten Benachrichtigungs-Schritt aus.':'You can enable workout reminders using the bell at the top.','🔔 Benachrichtigungen aktivieren':'🔔 Enable notifications','Standard-Erinnerung':'Default reminder','2 Stunden vorher':'2 hours before','1 Tag vorher':'1 day before','Nur eigene Termine':'Only my events','Test senden':'Send test','Benachrichtigungen sind noch nicht aktiviert.':'Notifications are not enabled yet.','Hinweis: Browser-Benachrichtigungen funktionieren zuverlässig, solange die App geöffnet ist. Echte Push-Nachrichten bei komplett geschlossener App benötigen später einen Server/Push-Dienst.':'Note: Browser notifications work reliably while the app is open. True push notifications when the app is completely closed will later require a server/push service.',
+'Trainingsnachweis':'Workout proof','Noch kein Nachweis hochgeladen.':'No proof uploaded yet.','Foto':'Photo','Nachweis hochladen':'Upload proof','✅ Erledigt':'✅ Done','❌ Verpasst':'❌ Missed','🩹 Entschuldigt':'🩹 Excused','Abbrechen':'Cancel','Status':'Status','Geplant':'Planned','Erledigt':'Done','Verpasst':'Missed','Entschuldigt':'Excused','🗑 Löschen':'🗑 Delete','Gruppe':'Group','Privat':'Private','Training':'Workout','Mitglied':'Member','Noch niemand':'No one yet','Optional':'Optional','📲 Push bei geschlossener App einrichten':'📲 Set up closed-app push','🔔 Push aktivieren':'🔔 Enable push','🔕 Push deaktivieren':'🔕 Disable push','Nicht eingerichtet':'Not set up','Aktiv':'Active','Die Einstellungen werden automatisch gespeichert. Geschlossene-App-Pushs werden aktuell serverseitig 1 Stunde vor dem Training gesendet.':'Settings are saved automatically. Closed-app push is currently sent server-side 1 hour before the workout.','Nachweis vorab hochladen':'Upload proof early','Push bei geschlossener App ist noch nicht eingerichtet.':'Closed-app push is not set up yet.','Jahresabschluss':'Annual settlement','Gemeinsamer Geldtopf':'Shared money pot','Gemeinsamer Topf':'Shared pot','Nur diesen Termin':'Only this occurrence','Gesamte Serie':'Entire series','Wiederholten Termin löschen':'Delete repeating event','Wiederholten Termin bearbeiten':'Edit repeating event','Möchtest du nur diesen Termin oder die gesamte Serie ändern?':'Do you want to change only this occurrence or the entire series?'
 }));
 const DE_TEXT = new Map([...EN_TEXT].map(([de,en])=>[en,de]));
 function translateExact(text){

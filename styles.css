@@ -160,3 +160,20 @@ body.auth-open .app-shell{filter:blur(3px);pointer-events:none;user-select:none}
 .winner-banner,.info-banner{margin-top:14px;padding:14px 16px;border-radius:16px;border:1px solid var(--line,#26334e)}
 .winner-banner{font-size:1.02rem}
 @media(max-width:600px){.year-stats{grid-template-columns:1fr}.year-member{align-items:flex-start}}
+
+
+/* V0.18 */
+.notification-state-box{
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:14px 16px;
+  margin:12px 0 18px;
+  background:rgba(255,255,255,.025);
+}
+.notification-state-box p{margin:4px 0}
+.proof-box{
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:16px;
+}
+#proofInput{margin-top:8px}

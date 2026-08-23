@@ -1,12 +1,21 @@
-FitTogether V0.17.1 – Push registration fix
+FitTogether V0.18
 
-- Vollständige V0.17-Oberfläche; Versionsanzeige jetzt V0.17.1.
-- Der normale Glocken-Button registriert nach Erlaubnis auch das echte Web-Push-Abo.
-- Wenn Benachrichtigungen bereits erlaubt sind, wird die fehlende Push-Subscription beim Start automatisch nachgetragen.
-- Beim ersten Start erscheint ein eigener FitTogether-Dialog mit „Benachrichtigungen aktivieren“.
-  Der Systemdialog wird erst nach diesem echten Nutzer-Klick geöffnet (browserkompatibel).
-- Push-Einstellungen bleiben unter Einstellungen verfügbar.
-- Aktueller VAPID Public Key ist enthalten.
-- Kein neues SQL nötig; vorhandene push_subscriptions-Tabelle und Backend-Konfiguration werden weiterverwendet.
+Fertig in diesem Paket:
+- Benachrichtigungsbereich in Einstellungen ist jetzt wirklich funktional.
+- Push aktivieren/deaktivieren und Test-Benachrichtigung direkt in Einstellungen.
+- Push-Status wird sichtbar angezeigt.
+- Standard-Erinnerung + „nur eigene Termine“ speichern automatisch.
+- Erststart-Onboarding für Benachrichtigungen bleibt erhalten.
+- Trainingsnachweis ist für „Erledigt“ verpflichtend.
+- Wenn beim Klick auf „Erledigt“ bereits ein Foto ausgewählt ist, wird es automatisch hochgeladen und danach der Termin bestätigt.
+- Kamera kann auf Mobilgeräten direkt über das Nachweis-Feld geöffnet werden.
+- Gym-/Trainingsnachweise bleiben getrennt von Fortschrittsbildern.
+- Monats-Erinnerung und Fortschritts-Slideshow bleiben enthalten.
+- Aktueller funktionierender VAPID Public Key ist enthalten.
+- Edge-Function-Vorlage enthält den Europe/Berlin-Zeitzonenfix.
 
-Wichtig: Für GitHub Pages ALLE Dateien dieses ZIPs hochladen/ersetzen, nicht nur app.js.
+WICHTIG:
+- Für GitHub Pages alle Dateien dieses ZIPs ersetzen/hochladen.
+- Kein neues SQL nötig.
+- Deine bereits eingerichtete Supabase Edge Function/Cron-Konfiguration muss nicht erneut eingerichtet werden.
+- Serverseitige Push-Erinnerungen sind momentan weiterhin auf 1 Stunde vor dem Training festgelegt.
