@@ -1,21 +1,22 @@
-FitTogether V0.18
+FitTogether V0.19
 
-Fertig in diesem Paket:
-- Benachrichtigungsbereich in Einstellungen ist jetzt wirklich funktional.
-- Push aktivieren/deaktivieren und Test-Benachrichtigung direkt in Einstellungen.
-- Push-Status wird sichtbar angezeigt.
-- Standard-Erinnerung + „nur eigene Termine“ speichern automatisch.
-- Erststart-Onboarding für Benachrichtigungen bleibt erhalten.
-- Trainingsnachweis ist für „Erledigt“ verpflichtend.
-- Wenn beim Klick auf „Erledigt“ bereits ein Foto ausgewählt ist, wird es automatisch hochgeladen und danach der Termin bestätigt.
-- Kamera kann auf Mobilgeräten direkt über das Nachweis-Feld geöffnet werden.
-- Gym-/Trainingsnachweise bleiben getrennt von Fortschrittsbildern.
-- Monats-Erinnerung und Fortschritts-Slideshow bleiben enthalten.
-- Aktueller funktionierender VAPID Public Key ist enthalten.
-- Edge-Function-Vorlage enthält den Europe/Berlin-Zeitzonenfix.
+Neu:
+- Achievement-System mit Bronze / Silber / Gold.
+- Jede Achievement-Karte zeigt höchste erreichte Medaille + aktuellen Fortschritt zur nächsten Stufe.
+- Bereits erreichte Stufen bleiben durch historische Bestwerte erhalten, auch wenn eine laufende Streak später zurückgesetzt wird.
+- Achievements:
+  Durchgezogen: 10 / 50 / 100 erledigte Trainings
+  Zuverlässig: 80 / 90 / 100 % Erfolgsquote
+  Streak: 2 / 4 / 12 perfekte Trainingswochen
+  Auf Kurs: 2,5 / 5 / 10 kg Fortschritt
+  Keine Ausreden: 1 / 3 / 6 Monate ohne verpassten Termin
+  Zeitraffer: 5 / 13 / 26 Fortschrittsbilder
+- Erweiterte 30-Tage-Statistik.
+- Mehrpersonen-Gruppen verwenden weiterhin die bereits vorhandene Rangliste statt des 2-Personen-Tauziehens.
+- Fortschrittsfoto-Erinnerung jetzt alle 14 Tage statt alle 30 Tage.
+- Kein neues Supabase-SQL nötig.
 
-WICHTIG:
-- Für GitHub Pages alle Dateien dieses ZIPs ersetzen/hochladen.
-- Kein neues SQL nötig.
-- Deine bereits eingerichtete Supabase Edge Function/Cron-Konfiguration muss nicht erneut eingerichtet werden.
-- Serverseitige Push-Erinnerungen sind momentan weiterhin auf 1 Stunde vor dem Training festgelegt.
+Hinweis:
+- Zuverlässigkeit nutzt für die aktuell sichtbare Leiste die letzten 30 Tage.
+- Die höchste Zuverlässigkeits-Medaille wird aus den besten historischen Monatswerten abgeleitet.
+- Streak und „Keine Ausreden“ berechnen aktuelle und historische Bestserien aus den vorhandenen Termindaten.

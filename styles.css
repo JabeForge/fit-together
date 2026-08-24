@@ -177,3 +177,25 @@ body.auth-open .app-shell{filter:blur(3px);pointer-events:none;user-select:none}
   padding:16px;
 }
 #proofInput{margin-top:8px}
+
+
+/* V0.19 – achievements + extended stats */
+.achievement-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}
+.achievement-item{background:#0f1728;border:1px solid var(--border);border-radius:18px;padding:15px;display:grid;gap:12px}
+.achievement-item.medal-1{border-color:rgba(205,127,50,.55)}
+.achievement-item.medal-2{border-color:rgba(192,192,192,.65)}
+.achievement-item.medal-3{border-color:rgba(245,158,11,.75);box-shadow:0 0 28px rgba(245,158,11,.08)}
+.achievement-top{display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:center}
+.achievement-top>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.achievement-top>div span{font-size:12px;color:var(--muted)}
+.achievement-icon{font-size:27px}.achievement-medal{font-size:26px}
+.achievement-value{display:flex;align-items:baseline;gap:8px}.achievement-value strong{font-size:20px}.achievement-value span{font-size:11px;color:var(--muted)}
+.achievement-track{height:16px;background:#0a1020;border:1px solid var(--border);border-radius:999px;position:relative;overflow:visible;margin:5px 4px 0}
+.achievement-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#2563eb,#7c3aed);transition:width .4s ease}
+.achievement-marker{position:absolute;top:50%;transform:translate(-50%,-50%);font-size:16px;filter:drop-shadow(0 1px 2px #000)}
+.achievement-marker.bronze{left:20%}.achievement-marker.silver{left:55%}.achievement-marker.gold{left:96%}
+.achievement-foot{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:var(--muted)}
+.advanced-stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}
+.advanced-stat{background:#0f1728;border:1px solid var(--border);border-radius:15px;padding:13px;display:flex;flex-direction:column;gap:5px}
+.advanced-stat span{color:var(--muted);font-size:12px}.advanced-stat strong{font-size:23px}
+@media(max-width:760px){.achievement-grid{grid-template-columns:1fr}.advanced-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}

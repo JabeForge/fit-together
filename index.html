@@ -7,7 +7,7 @@
   <title>FitTogether</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <style>.hidden{display:none!important}</style>
-  <link rel="stylesheet" href="styles.css?v=0.18" />
+  <link rel="stylesheet" href="styles.css?v=0.19" />
 </head>
 <body>
   <section id="authScreen" class="auth-screen" role="dialog" aria-modal="true" aria-labelledby="authTitle">
@@ -41,7 +41,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Gemeinsam durchziehen</p>
-        <h1>FitTogether <span class="app-version">V0.18</span></h1>
+        <h1>FitTogether <span class="app-version">V0.19</span></h1>
       </div>
       <div class="top-actions">
         <select id="activeGroupSelect" class="group-select" aria-label="Aktive Gruppe"></select>
@@ -148,6 +148,25 @@
       </section>
 
       <section id="progress" class="panel">
+        <section class="card achievement-card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Medaillen</p>
+              <h2>Achievements</h2>
+            </div>
+            <span id="achievementSummaryBadge" class="badge">0 Gold</span>
+          </div>
+          <p class="helper">Jedes Achievement hat Bronze, Silber und Gold. Erreichte Medaillen bleiben erhalten; die Leiste zeigt deinen aktuellen Fortschritt zur nächsten Stufe.</p>
+          <div id="achievementGrid" class="achievement-grid"></div>
+        </section>
+
+        <section class="card">
+          <div class="section-heading">
+            <div><p class="eyebrow">Deine letzten 30 Tage</p><h2>Trainingsstatistik</h2></div>
+          </div>
+          <div id="advancedStatsGrid" class="advanced-stats-grid"></div>
+        </section>
+
         
         <section class="card" id="yearEndCard">
           <div class="section-heading">
@@ -177,8 +196,8 @@
 
       <section id="photos" class="panel">
         <section id="photoReminderCard" class="card photo-reminder hidden">
-          <div class="section-heading"><div><p class="eyebrow">📸 Monatsfoto</p><h2>Zeit für ein Fortschrittsbild</h2></div></div>
-          <p id="photoReminderText" class="helper">Dein letztes Fortschrittsbild ist mindestens 30 Tage her.</p>
+          <div class="section-heading"><div><p class="eyebrow">📸 Fortschrittsfoto</p><h2>Zeit für ein Fortschrittsbild</h2></div></div>
+          <p id="photoReminderText" class="helper">Dein letztes Fortschrittsbild ist mindestens 14 Tage her.</p>
           <div class="dialog-actions"><button id="photoReminderNowBtn" class="primary-btn" type="button">Jetzt aufnehmen</button><button id="photoReminderLaterBtn" class="ghost-btn" type="button">In 7 Tagen erinnern</button></div>
         </section>
 
@@ -345,7 +364,7 @@
     </form>
   </dialog>
 
-  <script type="module" src="app.js?v=0.18"></script>
+  <script type="module" src="app.js?v=0.19"></script>
 
   <dialog id="seriesActionDialog" class="status-dialog">
     <form method="dialog" class="dialog-card">

@@ -1,4 +1,4 @@
-const APP_VERSION = "0.18";
+const APP_VERSION = "0.19";
 const I18N={
  de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise'},
  en:{display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof'}
@@ -622,7 +622,7 @@ async function deleteOccurrenceOrSeries(ev,date){
     try{await suppressSeriesOccurrence(ev,date);renderAll();}catch(err){alert(err.message||err);}
   }
 }
-function renderAll(){renderGroupUI();renderTug();renderEvents();renderMonthCalendar();renderStats();renderYearEnd();renderWeights();renderPhotos();renderTrainingProofs();renderPhotoReminder();renderProfiles();setTimeout(enhanceEventSeriesControls,0);}
+function renderAll(){renderGroupUI();renderTug();renderEvents();renderMonthCalendar();renderStats();renderAchievements();renderAdvancedStats();renderYearEnd();renderWeights();renderPhotos();renderTrainingProofs();renderPhotoReminder();renderProfiles();setTimeout(enhanceEventSeriesControls,0);}
 function memberDebt(id){return occurrenceStatuses.reduce((sum,r)=>{const ev=events.find(e=>e.id===r.event_id);return sum+(r.profile_id===id&&r.status==='missed'?Number(ev?.penalty||0):0);},0);}
 function renderTug(){
   const hero=$('.hero-card'),ranking=$('#multiRanking');hero.classList.remove('solo','multi');ranking.classList.add('hidden');ranking.innerHTML='';
@@ -655,6 +655,184 @@ function renderStats(){
   items.forEach(x=>{if(x.status==='completed'){cur++;best=Math.max(best,cur);}else if(x.status==='missed')cur=0;});
   $('#currentStreak').textContent=cur;$('#bestStreak').textContent=best;$('#doneCount').textContent=done;
 }
+
+function allMyOccurrences(){
+  if(!currentUser)return[];
+  const now=new Date();
+  const items=[];
+  events.filter(e=>myParticipant(e)).forEach(ev=>{
+    occurrenceDatesThrough(ev,now).forEach(date=>{
+      items.push({date,status:occurrenceStatus(ev,currentUser.id,date),event:ev});
+    });
+  });
+  return items.sort((a,b)=>a.date.localeCompare(b.date));
+}
+function dayDiff(a,b){return Math.round((new Date(`${b}T12:00:00`)-new Date(`${a}T12:00:00`))/86400000);}
+function isoWeekKey(iso){
+  const d=new Date(`${iso}T12:00:00`);
+  const day=(d.getDay()+6)%7;
+  d.setDate(d.getDate()-day+3);
+  const firstThu=new Date(d.getFullYear(),0,4,12);
+  const firstDay=(firstThu.getDay()+6)%7;
+  firstThu.setDate(firstThu.getDate()-firstDay+3);
+  const week=1+Math.round((d-firstThu)/604800000);
+  return `${d.getFullYear()}-W${String(week).padStart(2,'0')}`;
+}
+function monthKey(iso){return String(iso).slice(0,7);}
+function consecutiveKeys(sortedKeys,kind){
+  if(!sortedKeys.length)return 0;
+  let cur=1,best=1;
+  for(let i=1;i<sortedKeys.length;i++){
+    const prev=sortedKeys[i-1],now=sortedKeys[i];
+    let consecutive=false;
+    if(kind==='month'){
+      const [py,pm]=prev.split('-').map(Number),[ny,nm]=now.split('-').map(Number);
+      consecutive=(ny*12+nm)===(py*12+pm+1);
+    }else{
+      const [py,pw]=prev.split('-W').map(Number),[ny,nw]=now.split('-W').map(Number);
+      if(py===ny)consecutive=nw===pw+1;
+      else if(ny===py+1){
+        const dec28=new Date(py,11,28,12);
+        const lastWeek=Number(isoWeekKey(localISO(dec28)).split('-W')[1]);
+        consecutive=pw===lastWeek&&nw===1;
+      }
+    }
+    cur=consecutive?cur+1:1;best=Math.max(best,cur);
+  }
+  return best;
+}
+function weeklyStreakMetrics(items){
+  const by=new Map();
+  items.forEach(x=>{const k=isoWeekKey(x.date);if(!by.has(k))by.set(k,[]);by.get(k).push(x);});
+  const active=[...by.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
+  const perfect=active.filter(([,rows])=>rows.length&&rows.every(r=>r.status==='completed'||r.status==='excused')).map(([k])=>k);
+  let best=0,cur=0,last=null;
+  for(const [key,rows] of active){
+    const ok=rows.length&&rows.every(r=>r.status==='completed'||r.status==='excused');
+    if(!ok){cur=0;last=key;continue;}
+    let consecutive=true;
+    if(last){
+      const test=consecutiveKeys([last,key],'week');
+      consecutive=test===2;
+    }
+    cur=consecutive?cur+1:1;best=Math.max(best,cur);last=key;
+  }
+  return {current:cur,best,perfectWeeks:perfect.length};
+}
+function cleanMonthMetrics(items){
+  const by=new Map();
+  items.forEach(x=>{const k=monthKey(x.date);if(!by.has(k))by.set(k,[]);by.get(k).push(x);});
+  const months=[...by.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
+  let cur=0,best=0,last=null;
+  for(const [key,rows] of months){
+    const clean=rows.length>0&&!rows.some(r=>r.status==='missed');
+    if(!clean){cur=0;last=key;continue;}
+    const consecutive=!last||consecutiveKeys([last,key],'month')===2;
+    cur=consecutive?cur+1:1;best=Math.max(best,cur);last=key;
+  }
+  return {current:cur,best};
+}
+function reliabilityMetrics(items){
+  const today=todayISO();
+  const recent=items.filter(x=>dayDiff(x.date,today)>=0&&dayDiff(x.date,today)<=29);
+  const eligible=recent.filter(x=>x.status!=='planned');
+  const success=eligible.filter(x=>x.status==='completed'||x.status==='excused').length;
+  const current=eligible.length?Math.round(success/eligible.length*100):0;
+
+  // Best historic calendar-month reliability; at least 3 decided workouts.
+  const by=new Map();
+  items.forEach(x=>{if(x.status==='planned')return;const k=monthKey(x.date);if(!by.has(k))by.set(k,[]);by.get(k).push(x);});
+  let best=0;
+  for(const rows of by.values()){
+    if(rows.length<3)continue;
+    const good=rows.filter(r=>r.status==='completed'||r.status==='excused').length;
+    best=Math.max(best,Math.round(good/rows.length*100));
+  }
+  best=Math.max(best,current);
+  return {current,best,decided:eligible.length};
+}
+function weightLossMetrics(){
+  if(!weights.length)return{current:0,best:0};
+  const sorted=[...weights].sort((a,b)=>a.date.localeCompare(b.date));
+  let highest=Number(sorted[0].weight),best=0;
+  sorted.forEach(w=>{highest=Math.max(highest,Number(w.weight));best=Math.max(best,highest-Number(w.weight));});
+  const current=Math.max(0,highest-Number(sorted.at(-1).weight));
+  return {current,best};
+}
+function achievementLevel(best,thresholds){
+  if(best>=thresholds[2])return 3;
+  if(best>=thresholds[1])return 2;
+  if(best>=thresholds[0])return 1;
+  return 0;
+}
+function achievementMedal(level){return level===3?'🥇':level===2?'🥈':level===1?'🥉':'◻️';}
+function achievementProgress(current,thresholds){
+  const level=achievementLevel(current,thresholds);
+  if(level>=3)return{pct:100,label:`${current} / ${thresholds[2]}`};
+  const next=thresholds[level];
+  const prev=level?thresholds[level-1]:0;
+  const pct=Math.max(0,Math.min(100,((current-prev)/(next-prev))*100));
+  return{pct,label:`${current} / ${next}`};
+}
+function renderAchievements(){
+  const grid=$('#achievementGrid'),badge=$('#achievementSummaryBadge');if(!grid||!badge)return;
+  const items=allMyOccurrences();
+  const done=items.filter(x=>x.status==='completed').length;
+  const rel=reliabilityMetrics(items);
+  const weeks=weeklyStreakMetrics(items);
+  const clean=cleanMonthMetrics(items);
+  const loss=weightLossMetrics();
+  const photos=myProgressPhotos().length;
+
+  const defs=[
+    {icon:'🏋️',name:'Durchgezogen',desc:'Erledigte Trainings insgesamt',current:done,best:done,thresholds:[10,50,100],unit:''},
+    {icon:'🎯',name:'Zuverlässig',desc:'Erfolgsquote der letzten 30 Tage',current:rel.current,best:rel.best,thresholds:[80,90,100],unit:'%'},
+    {icon:'🔥',name:'Streak',desc:'Perfekte Trainingswochen in Folge',current:weeks.current,best:weeks.best,thresholds:[2,4,12],unit:' Wochen'},
+    {icon:'⚖️',name:'Auf Kurs',desc:'Größter Gewichtsfortschritt seit Beginn',current:Number(loss.current.toFixed(1)),best:Number(loss.best.toFixed(1)),thresholds:[2.5,5,10],unit:' kg'},
+    {icon:'🛡️',name:'Keine Ausreden',desc:'Monate in Folge ohne „Verpasst“',current:clean.current,best:clean.best,thresholds:[1,3,6],unit:' Monate'},
+    {icon:'📸',name:'Zeitraffer',desc:'Fortschrittsbilder – Gold = ein ganzes Jahr',current:photos,best:photos,thresholds:[5,13,26],unit:' Bilder'}
+  ];
+
+  grid.innerHTML=defs.map(a=>{
+    const unlocked=achievementLevel(a.best,a.thresholds);
+    const prog=achievementProgress(a.current,a.thresholds);
+    const nextName=unlocked>=3?(appLanguage==='en'?'Gold complete':'Gold erreicht'):(unlocked===2?'Gold':unlocked===1?'Silber':'Bronze');
+    const medal=achievementMedal(unlocked);
+    const valueText=`${a.current}${a.unit}`;
+    const bestText=a.best!==a.current?` · ${appLanguage==='en'?'Best':'Bestwert'} ${a.best}${a.unit}`:'';
+    return `<article class="achievement-item medal-${unlocked}">
+      <div class="achievement-top"><span class="achievement-icon">${a.icon}</span><div><strong>${escapeHtml(a.name)}</strong><span>${escapeHtml(a.desc)}</span></div><span class="achievement-medal">${medal}</span></div>
+      <div class="achievement-value"><strong>${valueText}</strong><span>${bestText}</span></div>
+      <div class="achievement-track"><div class="achievement-fill" style="width:${prog.pct}%"></div><span class="achievement-marker bronze">🥉</span><span class="achievement-marker silver">🥈</span><span class="achievement-marker gold">🥇</span></div>
+      <div class="achievement-foot"><span>${prog.label}</span><span>${nextName}</span></div>
+    </article>`;
+  }).join('');
+
+  const gold=defs.filter(a=>achievementLevel(a.best,a.thresholds)>=3).length;
+  const silver=defs.filter(a=>achievementLevel(a.best,a.thresholds)===2).length;
+  const bronze=defs.filter(a=>achievementLevel(a.best,a.thresholds)===1).length;
+  badge.textContent=`🥇 ${gold} · 🥈 ${silver} · 🥉 ${bronze}`;
+}
+function renderAdvancedStats(){
+  const box=$('#advancedStatsGrid');if(!box)return;
+  const items=allMyOccurrences(),today=todayISO();
+  const recent=items.filter(x=>dayDiff(x.date,today)>=0&&dayDiff(x.date,today)<=29);
+  const decided=recent.filter(x=>x.status!=='planned');
+  const done=decided.filter(x=>x.status==='completed').length;
+  const missed=decided.filter(x=>x.status==='missed').length;
+  const excused=decided.filter(x=>x.status==='excused').length;
+  const rate=decided.length?Math.round((done+excused)/decided.length*100):0;
+  const weeks=weeklyStreakMetrics(items);
+  box.innerHTML=[
+    ['✅',appLanguage==='en'?'Completion rate':'Erfolgsquote',`${rate}%`],
+    ['🏋️',appLanguage==='en'?'Completed':'Erledigt',String(done)],
+    ['❌',appLanguage==='en'?'Missed':'Verpasst',String(missed)],
+    ['🩹',appLanguage==='en'?'Excused':'Entschuldigt',String(excused)],
+    ['🔥',appLanguage==='en'?'Current perfect weeks':'Aktuelle perfekte Wochen',String(weeks.current)],
+    ['📸',appLanguage==='en'?'Progress photos':'Fortschrittsbilder',String(myProgressPhotos().length)]
+  ].map(([icon,label,value])=>`<div class="advanced-stat"><span>${icon} ${label}</span><strong>${value}</strong></div>`).join('');
+}
+
 function renderEvents(){
   const list=$('#eventList'),next=$('#nextEvents');list.innerHTML='';next.innerHTML='';const sorted=[...events].sort((a,b)=>`${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`));
   if(!activeGroup){list.innerHTML='<div class="empty">Wähle zuerst eine Gruppe.</div>';next.innerHTML='<div class="empty">Noch keine Gruppe.</div>';return;}
@@ -825,8 +1003,8 @@ function renderPhotoReminder(){
   let snooze=0;try{snooze=Number(localStorage.getItem(`fitTogether_photoSnooze_${currentUser.id}`)||0);}catch{}
   if(Date.now()<snooze){card.classList.add('hidden');return;}
   const mine=myProgressPhotos();const last=mine.at(-1);const age=last?Math.floor((new Date(`${todayISO()}T12:00:00`)-new Date(`${last.taken_on}T12:00:00`))/86400000):9999;
-  const due=!last||age>=30;card.classList.toggle('hidden',!due);
-  if(due)$('#photoReminderText').textContent=last?`Dein letztes Fortschrittsbild ist ${age} Tage her. Zeit für ein neues Monatsfoto.`:'Du hast noch kein Fortschrittsbild. Starte heute deine Vorher-/Nachher-Reihe.';
+  const due=!last||age>=14;card.classList.toggle('hidden',!due);
+  if(due)$('#photoReminderText').textContent=last?`Dein letztes Fortschrittsbild ist ${age} Tage her. Zeit für dein nächstes 14-Tage-Foto.`:'Du hast noch kein Fortschrittsbild. Starte heute deine Vorher-/Nachher-Reihe.';
 }
 function snoozePhotoReminder(){try{localStorage.setItem(`fitTogether_photoSnooze_${currentUser.id}`,String(Date.now()+7*86400000));}catch{}$('#photoReminderCard').classList.add('hidden');}
 
@@ -1030,7 +1208,7 @@ const EN_TEXT = new Map(Object.entries({
 'Strafgeld-Tauziehen':'Penalty tug of war','Wer hält besser durch?':'Who keeps going better?','Gleichstand':'Tie','Ich':'Me','Partner':'Partner','Noch keine Strafgelder. Perfekter Start.':'No penalties yet. Perfect start.','🔥 Aktuelle Streak':'🔥 Current streak','erledigte Termine':'completed events','🏆 Beste Streak':'🏆 Best streak','am Stück':'in a row','✅ Geschafft':'✅ Completed','Trainings':'Workouts','💸 Gemeinsamer Topf':'💸 Shared pot','Jahressumme':'Year total','Als Nächstes':'Up next','Nächste Termine':'Upcoming events','+ Termin':'+ Event',
 'MO.':'MON','DI.':'TUE','MI.':'WED','DO.':'THU','FR.':'FRI','SA.':'SAT','SO.':'SUN','+ Termin hinzufügen':'+ Add event','Neuer Eintrag':'New entry','Termin eintragen':'Add event','Titel':'Title','Datum':'Date','Von':'From','Bis':'To','Teilnehmer':'Participants','Alle Gruppenmitglieder':'All group members','Nur ich':'Only me','Farbe':'Color','Lila':'Purple','Blau':'Blue','Grün':'Green','Orange':'Orange','Pink':'Pink','Strafe bei Verpassen (€)':'Penalty if missed (€)','Wiederholung':'Repeat','Keine':'None','Wöchentlich':'Weekly','Monatlich':'Monthly','Jährlich':'Yearly','Wiederholen bis (optional)':'Repeat until (optional)','Erinnerung':'Reminder','1 Stunde vorher':'1 hour before','15 Minuten vorher':'15 minutes before','Notiz':'Note','Termin speichern':'Save event','Wiederholungen werden automatisch im Kalender angezeigt. Jede einzelne Wiederholung hat ihren eigenen Status und zählt separat für Streaks und Strafgeld.':'Repeating events are shown automatically in the calendar. Each occurrence has its own status and counts separately for streaks and penalties.','Liste':'List','Alle Termine':'All events',
 'Gewicht':'Weight','Verlauf eintragen':'Add weight entry','Gewicht (kg)':'Weight','Speichern':'Save','Start':'Start','Aktuell':'Current','Veränderung':'Change','Die Linie zeigt deine Einträge; zusätzlich wird ein 7-Tage-Trend geglättet dargestellt.':'The line shows your entries; a smoothed 7-day trend is shown as well.',
-'📸 Monatsfoto':'📸 Monthly photo','Zeit für ein Fortschrittsbild':'Time for a progress photo','Dein letztes Fortschrittsbild ist mindestens 30 Tage her.':'Your last progress photo is at least 30 days old.','Jetzt aufnehmen':'Take one now','In 7 Tagen erinnern':'Remind me in 7 days','Vorher / Nachher':'Before / after','Fortschrittsbilder':'Progress photos','Sichtbarkeit':'Visibility','🔒 Privat':'🔒 Private','👥 Mit Gruppe teilen':'👥 Share with group','Bild':'Photo','Bild hinzufügen':'Add photo','Bilder werden sicher in Supabase Storage gespeichert. Private Bilder siehst nur du; geteilte Bilder können Mitglieder deiner Gruppe sehen.':'Photos are stored securely in Supabase Storage. Only you can see private photos; shared photos are visible to members of your group.','Veränderung ansehen':'View progress','Fortschritts-Slideshow':'Progress slideshow','Noch nicht genug Bilder für eine Slideshow.':'Not enough photos for a slideshow yet.','‹ Zurück':'‹ Back','▶ Abspielen':'▶ Play','Weiter ›':'Next ›','Galerie':'Gallery','🏋️ Trainingsnachweise':'🏋️ Workout proof','Gym-Bilder':'Gym photos','Diese Bilder gehören zu bestätigten Trainings und sind für Mitglieder der jeweiligen Gruppe sichtbar. Sie bleiben getrennt von deinen Fortschrittsbildern.':'These photos belong to confirmed workouts and are visible to members of the respective group. They stay separate from your progress photos.',
+'📸 Monatsfoto':'📸 Monthly photo','Zeit für ein Fortschrittsbild':'Time for a progress photo','Dein letztes Fortschrittsbild ist mindestens 14 Tage her.':'Your last progress photo is at least 30 days old.','Jetzt aufnehmen':'Take one now','In 7 Tagen erinnern':'Remind me in 7 days','Vorher / Nachher':'Before / after','Fortschrittsbilder':'Progress photos','Sichtbarkeit':'Visibility','🔒 Privat':'🔒 Private','👥 Mit Gruppe teilen':'👥 Share with group','Bild':'Photo','Bild hinzufügen':'Add photo','Bilder werden sicher in Supabase Storage gespeichert. Private Bilder siehst nur du; geteilte Bilder können Mitglieder deiner Gruppe sehen.':'Photos are stored securely in Supabase Storage. Only you can see private photos; shared photos are visible to members of your group.','Veränderung ansehen':'View progress','Fortschritts-Slideshow':'Progress slideshow','Noch nicht genug Bilder für eine Slideshow.':'Not enough photos for a slideshow yet.','‹ Zurück':'‹ Back','▶ Abspielen':'▶ Play','Weiter ›':'Next ›','Galerie':'Gallery','🏋️ Trainingsnachweise':'🏋️ Workout proof','Gym-Bilder':'Gym photos','Diese Bilder gehören zu bestätigten Trainings und sind für Mitglieder der jeweiligen Gruppe sichtbar. Sie bleiben getrennt von deinen Fortschrittsbildern.':'These photos belong to confirmed workouts and are visible to members of the respective group. They stay separate from your progress photos.',
 'Gemeinsam trainieren':'Train together','Gruppen':'Groups','Mitglieder':'Members','Aktive Gruppe':'Active group','Einladungslink kopieren':'Copy invite link','Neue Gruppe':'New group','Gruppenname':'Group name','Gruppe erstellen':'Create group','Gruppe beitreten':'Join group','Einladungscode':'Invite code','Beitreten':'Join','Dein Profil':'Your profile','Dieses Profil kannst nur du bearbeiten.':'Only you can edit this profile.','Profil speichern':'Save profile','Schulden':'Debt','Partnerprofil':'Partner profile','Hier siehst du später alles, was sie für dich freigibt.':'You will see everything they share with you here.','🔒 Private Gewichte und Bilder bleiben verborgen. Geteilte Fortschritte erscheinen später hier.':'🔒 Private weights and photos stay hidden. Shared progress will appear here later.',
 'Anzeige':'Display','Sprache & Format':'Language & format','Sprache':'Language','Datumsformat':'Date format','Zeitformat':'Time format','Gewichtseinheit':'Weight unit','Sprache, Datum, Uhrzeit und Gewichtseinheit können unabhängig voneinander eingestellt werden. Gewichte werden intern weiterhin in kg gespeichert.':'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.','App':'App','Benachrichtigungen':'Notifications','Trainingserinnerungen kannst du über die Glocke oben aktivieren. Weitere Push-Einstellungen bauen wir im nächsten Benachrichtigungs-Schritt aus.':'You can enable workout reminders using the bell at the top.','🔔 Benachrichtigungen aktivieren':'🔔 Enable notifications','Standard-Erinnerung':'Default reminder','2 Stunden vorher':'2 hours before','1 Tag vorher':'1 day before','Nur eigene Termine':'Only my events','Test senden':'Send test','Benachrichtigungen sind noch nicht aktiviert.':'Notifications are not enabled yet.','Hinweis: Browser-Benachrichtigungen funktionieren zuverlässig, solange die App geöffnet ist. Echte Push-Nachrichten bei komplett geschlossener App benötigen später einen Server/Push-Dienst.':'Note: Browser notifications work reliably while the app is open. True push notifications when the app is completely closed will later require a server/push service.',
 'Trainingsnachweis':'Workout proof','Noch kein Nachweis hochgeladen.':'No proof uploaded yet.','Foto':'Photo','Nachweis hochladen':'Upload proof','✅ Erledigt':'✅ Done','❌ Verpasst':'❌ Missed','🩹 Entschuldigt':'🩹 Excused','Abbrechen':'Cancel','Status':'Status','Geplant':'Planned','Erledigt':'Done','Verpasst':'Missed','Entschuldigt':'Excused','🗑 Löschen':'🗑 Delete','Gruppe':'Group','Privat':'Private','Training':'Workout','Mitglied':'Member','Noch niemand':'No one yet','Optional':'Optional','📲 Push bei geschlossener App einrichten':'📲 Set up closed-app push','🔔 Push aktivieren':'🔔 Enable push','🔕 Push deaktivieren':'🔕 Disable push','Nicht eingerichtet':'Not set up','Aktiv':'Active','Die Einstellungen werden automatisch gespeichert. Geschlossene-App-Pushs werden aktuell serverseitig 1 Stunde vor dem Training gesendet.':'Settings are saved automatically. Closed-app push is currently sent server-side 1 hour before the workout.','Nachweis vorab hochladen':'Upload proof early','Push bei geschlossener App ist noch nicht eingerichtet.':'Closed-app push is not set up yet.','Jahresabschluss':'Annual settlement','Gemeinsamer Geldtopf':'Shared money pot','Gemeinsamer Topf':'Shared pot','Nur diesen Termin':'Only this occurrence','Gesamte Serie':'Entire series','Wiederholten Termin löschen':'Delete repeating event','Wiederholten Termin bearbeiten':'Edit repeating event','Möchtest du nur diesen Termin oder die gesamte Serie ändern?':'Do you want to change only this occurrence or the entire series?'
@@ -1053,7 +1231,7 @@ function translateDynamic(text){
  x=x.replace(/Status für (.+) ändern/g,'Change status for $1').replace(/\+(\d+) mehr/g,'+$1 more');
  x=x.replace(/Noch keine Gewichtseinträge\./g,'No weight entries yet.').replace(/Noch keine Fortschrittsbilder\. Lade dein erstes Monatsbild hoch\./g,'No progress photos yet. Upload your first monthly photo.').replace(/Noch keine eigenen Fortschrittsbilder\./g,'No personal progress photos yet.').replace(/Noch keine Trainingsnachweise vorhanden\./g,'No workout proof yet.').replace(/Bild konnte nicht geladen werden\./g,'Image could not be loaded.');
  x=x.replace(/Fortschrittsbild von /g,'Progress photo by ').replace(/Trainingsnachweis von /g,'Workout proof by ').replace(/Fortschrittsbild (\d+)/g,'Progress photo $1');
- x=x.replace(/Dein letztes Fortschrittsbild ist (\d+) Tage her\. Zeit für ein neues Monatsfoto\./g,'Your last progress photo was $1 days ago. Time for a new monthly photo.').replace(/Du hast noch kein Fortschrittsbild\. Starte heute deine Vorher-\/Nachher-Reihe\./g,'You do not have a progress photo yet. Start your before/after series today.');
+ x=x.replace(/Dein letztes Fortschrittsbild ist (\d+) Tage her\. Zeit für ein neues Monatsfoto\./g,'Your last progress photo was $1 days ago. Time for your next 14-day photo.').replace(/Du hast noch kein Fortschrittsbild\. Starte heute deine Vorher-\/Nachher-Reihe\./g,'You do not have a progress photo yet. Start your before/after series today.');
  x=x.replace(/Für das Tauziehen braucht die Gruppe zwei Mitglieder\. Schick deinen Einladungslink weiter\./g,'The tug of war needs two group members. Share your invite link.').replace(/Gleichstand – noch ist alles offen\./g,'Tie — everything is still open.').replace(/ hat aktuell die wenigsten Strafschulden\./g,' currently has the lowest penalty debt.').replace(/ führt/g,' leads').replace(/Gleichstand bei /g,'Tie at ').replace(/ liegt um (.+) vorne und würde aktuell über den Topf entscheiden\./g,' is ahead by $1 and would currently decide how to use the pot.');
  x=x.replace(/wöchentlich/g,'weekly').replace(/monatlich/g,'monthly').replace(/jährlich/g,'yearly');
  return x;
