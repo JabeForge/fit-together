@@ -226,3 +226,35 @@ body.auth-open .app-shell{filter:blur(3px);pointer-events:none;user-select:none}
 .hidden-file-input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
 .proof-source-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}
 @media(max-width:700px){.weight-chart-settings{grid-template-columns:1fr}.weight-timeline{margin:0 12px;overflow-x:auto;justify-content:flex-start;gap:12px}.camera-card{width:96vw}.proof-source-actions{grid-template-columns:1fr}}
+
+/* V0.19.3 – clearer achievements */
+.earned-medal{
+  width:42px;height:42px;border-radius:50%;
+  display:grid;place-items:center;position:relative;
+  font-size:20px;font-weight:900;border:2px solid rgba(255,255,255,.18);
+  box-shadow:0 4px 14px rgba(0,0,0,.2);
+}
+.earned-medal small{
+  position:absolute;right:-3px;bottom:-5px;
+  min-width:18px;height:18px;padding:0 4px;border-radius:999px;
+  display:grid;place-items:center;font-size:9px;font-weight:900;
+  background:#0f1728;border:1px solid var(--border);color:#fff;
+}
+.medal-bronze{background:linear-gradient(145deg,#d18a45,#7c3f16);color:#fff0dc}
+.medal-silver{background:linear-gradient(145deg,#e5e7eb,#7b8492);color:#fff}
+.medal-gold{background:linear-gradient(145deg,#fde68a,#d97706);color:#fff8d8}
+.medal-none{background:#111827;color:#64748b;border-style:dashed;box-shadow:none}
+.medal-none small{display:none}
+.achievement-tier-table{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.achievement-tier-table>span{
+  display:flex;flex-direction:column;gap:3px;padding:8px;
+  border:1px solid var(--border);border-radius:11px;
+  font-size:10px;color:var(--muted);background:#0b1220;
+}
+.achievement-tier-table b{font-size:11px;color:#cbd5e1}
+.achievement-tier-table .tier-earned{border-color:#64748b;background:#162033;color:#e5e7eb}
+.achievement-track{overflow:hidden}
+.achievement-track .achievement-marker{display:none!important}
+@media(max-width:520px){
+  .achievement-tier-table{grid-template-columns:1fr}
+}

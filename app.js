@@ -1,4 +1,4 @@
-const APP_VERSION = "0.19.2";
+const APP_VERSION = "0.19.3";
 const I18N={
  de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise'},
  en:{display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof'}
@@ -792,12 +792,23 @@ function reliabilityMetrics(items){
   return {current,best,decided:eligible.length};
 }
 function weightLossMetrics(){
-  if(!weights.length)return{current:0,best:0};
+  if(!weights.length)return{current:0,best:0,start:0,trend:0};
   const sorted=[...weights].sort((a,b)=>a.date.localeCompare(b.date));
-  let highest=Number(sorted[0].weight),best=0;
-  sorted.forEach(w=>{highest=Math.max(highest,Number(w.weight));best=Math.max(best,highest-Number(w.weight));});
-  const current=Math.max(0,highest-Number(sorted.at(-1).weight));
-  return {current,best};
+  const start=Number(sorted[0].weight);
+  // Use a rolling average over up to the last 5 measurements so one low weigh-in
+  // from an empty stomach / water fluctuation does not immediately unlock a medal.
+  const trendSeries=sorted.map((w,i)=>{
+    const slice=sorted.slice(Math.max(0,i-4),i+1);
+    return slice.reduce((s,x)=>s+Number(x.weight),0)/slice.length;
+  });
+  const currentTrend=trendSeries.at(-1);
+  const bestTrend=Math.min(...trendSeries);
+  return{
+    current:Math.max(0,start-currentTrend),
+    best:Math.max(0,start-bestTrend),
+    start,
+    trend:currentTrend
+  };
 }
 function achievementLevel(best,thresholds){
   if(best>=thresholds[2])return 3;
@@ -805,14 +816,19 @@ function achievementLevel(best,thresholds){
   if(best>=thresholds[0])return 1;
   return 0;
 }
-function achievementMedal(level){return level===3?'🥇':level===2?'🥈':level===1?'🥉':'◻️';}
+function achievementMedalHtml(level){
+  if(level===3)return '<span class="earned-medal medal-gold" title="Gold">★<small>G</small></span>';
+  if(level===2)return '<span class="earned-medal medal-silver" title="Silber">★<small>S</small></span>';
+  if(level===1)return '<span class="earned-medal medal-bronze" title="Bronze">★<small>B</small></span>';
+  return '<span class="earned-medal medal-none" title="Noch keine Medaille">–</span>';
+}
 function achievementProgress(current,thresholds){
   const level=achievementLevel(current,thresholds);
-  if(level>=3)return{pct:100,label:`${current} / ${thresholds[2]}`};
+  if(level>=3)return{pct:100,label:`${current} / ${thresholds[2]}`,next:'Gold erreicht'};
   const next=thresholds[level];
   const prev=level?thresholds[level-1]:0;
   const pct=Math.max(0,Math.min(100,((current-prev)/(next-prev))*100));
-  return{pct,label:`${current} / ${next}`};
+  return{pct,label:`${current} / ${next}`,next:level===2?'Bis Gold':level===1?'Bis Silber':'Bis Bronze'};
 }
 function renderAchievements(){
   const grid=$('#achievementGrid'),badge=$('#achievementSummaryBadge');if(!grid||!badge)return;
@@ -825,33 +841,73 @@ function renderAchievements(){
   const photos=myProgressPhotos().length;
 
   const defs=[
-    {icon:'🏋️',name:'Durchgezogen',desc:'Erledigte Trainings insgesamt',current:done,best:done,thresholds:[10,50,100],unit:''},
-    {icon:'🎯',name:'Zuverlässig',desc:'Erfolgsquote der letzten 30 Tage',current:rel.current,best:rel.best,thresholds:[80,90,100],unit:'%'},
-    {icon:'🔥',name:'Streak',desc:'Perfekte Trainingswochen in Folge',current:weeks.current,best:weeks.best,thresholds:[2,4,12],unit:' Wochen'},
-    {icon:'⚖️',name:'Auf Kurs',desc:'Größter Gewichtsfortschritt seit Beginn',current:Number(loss.current.toFixed(1)),best:Number(loss.best.toFixed(1)),thresholds:[2.5,5,10],unit:' kg'},
-    {icon:'🛡️',name:'Keine Ausreden',desc:'Monate in Folge ohne „Verpasst“',current:clean.current,best:clean.best,thresholds:[1,3,6],unit:' Monate'},
-    {icon:'📸',name:'Zeitraffer',desc:'Fortschrittsbilder – Gold = ein ganzes Jahr',current:photos,best:photos,thresholds:[5,13,26],unit:' Bilder'}
+    {
+      icon:'🏋️',name:'Durchgezogen',
+      desc:'Zählt nur Trainings, die wirklich als „Erledigt“ bestätigt wurden.',
+      current:done,best:done,thresholds:[10,50,100],unit:' Trainings',
+      bronze:'10 erledigte Trainings',silver:'50 erledigte Trainings',gold:'100 erledigte Trainings'
+    },
+    {
+      icon:'🎯',name:'Zuverlässig',
+      desc:'Erfolgsquote aus Erledigt + Entschuldigt gegenüber entschiedenen Terminen. Für historische Medaillen zählt nur ein Monat mit mindestens 3 Terminen.',
+      current:rel.current,best:rel.best,thresholds:[80,90,100],unit:'%',
+      bronze:'80 % zuverlässig',silver:'90 % zuverlässig',gold:'100 % zuverlässig'
+    },
+    {
+      icon:'🔥',name:'Streak',
+      desc:'Eine perfekte Woche zählt nur, wenn alle eigenen geplanten Trainings erledigt oder entschuldigt sind. „Verpasst“ setzt die aktuelle Serie zurück.',
+      current:weeks.current,best:weeks.best,thresholds:[2,4,12],unit:' Wochen',
+      bronze:'2 perfekte Wochen',silver:'4 perfekte Wochen',gold:'12 perfekte Wochen'
+    },
+    {
+      icon:'⚖️',name:'Auf Kurs',
+      desc:'Gewichtsfortschritt wird aus einem geglätteten Trend der letzten Messungen berechnet. Ein einzelner niedriger Wert durch Wasser oder leeren Magen reicht nicht.',
+      current:Number(loss.current.toFixed(1)),best:Number(loss.best.toFixed(1)),thresholds:[3,7,12],unit:' kg',
+      bronze:'3 kg Trend-Fortschritt',silver:'7 kg Trend-Fortschritt',gold:'12 kg Trend-Fortschritt'
+    },
+    {
+      icon:'🛡️',name:'Keine Ausreden',
+      desc:'Ein kompletter Monat ohne einen einzigen als „Verpasst“ gewerteten eigenen Termin. Mehrere saubere Monate müssen direkt aufeinander folgen.',
+      current:clean.current,best:clean.best,thresholds:[1,3,6],unit:' Monate',
+      bronze:'1 sauberer Monat',silver:'3 Monate in Folge',gold:'6 Monate in Folge'
+    },
+    {
+      icon:'📸',name:'Zeitraffer',
+      desc:'Zählt nur deine Fortschrittsbilder. Bei einem Foto alle 14 Tage entsprechen 26 Bilder ungefähr einem kompletten Jahr.',
+      current:photos,best:photos,thresholds:[5,13,26],unit:' Bilder',
+      bronze:'5 Fortschrittsbilder',silver:'13 Fortschrittsbilder',gold:'26 Fortschrittsbilder'
+    }
   ];
 
   grid.innerHTML=defs.map(a=>{
     const unlocked=achievementLevel(a.best,a.thresholds);
     const prog=achievementProgress(a.current,a.thresholds);
-    const nextName=unlocked>=3?(appLanguage==='en'?'Gold complete':'Gold erreicht'):(unlocked===2?'Gold':unlocked===1?'Silber':'Bronze');
-    const medal=achievementMedal(unlocked);
-    const valueText=`${a.current}${a.unit}`;
-    const bestText=a.best!==a.current?` · ${appLanguage==='en'?'Best':'Bestwert'} ${a.best}${a.unit}`:'';
+    const currentText=`${a.current}${a.unit}`;
+    const bestText=a.best!==a.current?` · Bestwert ${a.best}${a.unit}`:'';
     return `<article class="achievement-item medal-${unlocked}">
-      <div class="achievement-top"><span class="achievement-icon">${a.icon}</span><div><strong>${escapeHtml(a.name)}</strong><span>${escapeHtml(a.desc)}</span></div><span class="achievement-medal">${medal}</span></div>
-      <div class="achievement-value"><strong>${valueText}</strong><span>${bestText}</span></div>
-      <div class="achievement-track"><div class="achievement-fill" style="width:${prog.pct}%"></div><span class="achievement-marker bronze">🥉</span><span class="achievement-marker silver">🥈</span><span class="achievement-marker gold">🥇</span></div>
-      <div class="achievement-foot"><span>${prog.label}</span><span>${nextName}</span></div>
+      <div class="achievement-top">
+        <span class="achievement-icon">${a.icon}</span>
+        <div>
+          <strong>${escapeHtml(a.name)}</strong>
+          <span>${escapeHtml(a.desc)}</span>
+        </div>
+        ${achievementMedalHtml(unlocked)}
+      </div>
+      <div class="achievement-tier-table">
+        <span class="${unlocked>=1?'tier-earned':''}"><b>Bronze</b>${escapeHtml(a.bronze)}</span>
+        <span class="${unlocked>=2?'tier-earned':''}"><b>Silber</b>${escapeHtml(a.silver)}</span>
+        <span class="${unlocked>=3?'tier-earned':''}"><b>Gold</b>${escapeHtml(a.gold)}</span>
+      </div>
+      <div class="achievement-value"><strong>${currentText}</strong><span>${bestText}</span></div>
+      <div class="achievement-track"><div class="achievement-fill" style="width:${prog.pct}%"></div></div>
+      <div class="achievement-foot"><span>${prog.label}</span><span>${prog.next}</span></div>
     </article>`;
   }).join('');
 
   const gold=defs.filter(a=>achievementLevel(a.best,a.thresholds)>=3).length;
   const silver=defs.filter(a=>achievementLevel(a.best,a.thresholds)===2).length;
   const bronze=defs.filter(a=>achievementLevel(a.best,a.thresholds)===1).length;
-  badge.textContent=`🥇 ${gold} · 🥈 ${silver} · 🥉 ${bronze}`;
+  badge.textContent=`Gold ${gold} · Silber ${silver} · Bronze ${bronze}`;
 }
 function renderAdvancedStats(){
   const box=$('#advancedStatsGrid');if(!box)return;
