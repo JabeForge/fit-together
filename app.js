@@ -1,4 +1,4 @@
-const APP_VERSION = "0.19";
+const APP_VERSION = "0.19.1";
 const I18N={
  de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise'},
  en:{display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof'}
@@ -91,7 +91,7 @@ async function removeLegacyCache(){
 
 async function init(){
   $('#eventDate').value=todayISO();
-  $('#weightDate').value=todayISO();
+  $('#weightDate').value=todayISO();$('#weightDate').max=todayISO();
   $('#photoDate').value=todayISO();
   bindTabs(); bindActions();
   if($('#defaultReminderSelect'))$('#defaultReminderSelect').value=String(localStorage.getItem('fitTogether_defaultReminder')||60);
@@ -120,6 +120,14 @@ function bindActions(){
   $('#quickAddBtn').addEventListener('click',()=>showTab('calendar'));
   $('#addEventBtn').addEventListener('click',addEvent);
   $('#addWeightBtn').addEventListener('click',addWeight);
+  $('#weightEntryList')?.addEventListener('click',e=>{const b=e.target.closest('[data-delete-weight]');if(b)deleteWeightEntry(b.dataset.deleteWeight);});
+  const weightCanvas=$('#weightChart');
+  weightCanvas?.addEventListener('pointerdown',e=>selectWeightPointFromPointer(e,true));
+  weightCanvas?.addEventListener('pointermove',e=>{if(e.buttons||e.pointerType==='touch')selectWeightPointFromPointer(e,false);});
+  $('#proofCameraBtn')?.addEventListener('click',()=>$('#proofCameraInput')?.click());
+  $('#proofGalleryBtn')?.addEventListener('click',()=>$('#proofInput')?.click());
+  $('#proofCameraInput')?.addEventListener('change',()=>syncProofFileFromSource('#proofCameraInput'));
+  $('#proofInput')?.addEventListener('change',()=>showSelectedProofFile());
   $('#addPhotoBtn').addEventListener('click',addProgressPhoto);
   $('#uploadProofBtn').addEventListener('click',uploadTrainingProof);
   $('#statusDoneBtn').addEventListener('click',()=>finishStatus('done'));
@@ -310,9 +318,23 @@ async function deleteProgressPhoto(photo){
   await supabase.storage.from('progress-photos').remove([photo.image_url]);
   await loadProgressPhotos();renderPhotos();
 }
+function showSelectedProofFile(){
+  const file=$('#proofInput')?.files?.[0],label=$('#proofSelectedFile');
+  if(label)label.textContent=file?`Ausgewählt: ${file.name||'Foto'} · ${(file.size/1024/1024).toFixed(1)} MB`:'Noch kein neues Bild ausgewählt.';
+}
+function syncProofFileFromSource(selector){
+  const source=$(selector),file=source?.files?.[0];if(!file)return;
+  try{
+    const dt=new DataTransfer();dt.items.add(file);$('#proofInput').files=dt.files;
+  }catch(err){
+    console.warn('Kamerabild konnte nicht in Standardauswahl kopiert werden',err);
+    // Fallback: uploadTrainingProof reads the camera input too.
+  }
+  showSelectedProofFile();
+}
 async function uploadTrainingProof(){
   if(!selectedEventId||!selectedOccurrenceDate){alert('Kein Termin ausgewählt.');return false;}
-  const file=$('#proofInput').files?.[0];if(!file){alert('Bitte zuerst ein Foto auswählen.');return false;}
+  const file=$('#proofInput').files?.[0]||$('#proofCameraInput')?.files?.[0];if(!file){alert('Bitte zuerst ein Foto aufnehmen oder auswählen.');return false;}
   if(file.size>12*1024*1024){alert('Das Bild ist größer als 12 MB.');return false;}
   const path=`${currentUser.id}/${selectedEventId}/${selectedOccurrenceDate}/${crypto.randomUUID()}.${safeExt(file)}`;
   const btn=$('#uploadProofBtn');btn.disabled=true;btn.textContent='Wird hochgeladen …';
@@ -321,7 +343,7 @@ async function uploadTrainingProof(){
     if(uploadError)throw uploadError;
     const {error:dbError}=await supabase.from('training_proofs').insert({event_id:selectedEventId,occurrence_date:selectedOccurrenceDate,profile_id:currentUser.id,storage_path:path});
     if(dbError){await supabase.storage.from('training-proofs').remove([path]);throw dbError;}
-    $('#proofInput').value='';await loadTrainingProofs();await renderProofInDialog();
+    $('#proofInput').value='';if($('#proofCameraInput'))$('#proofCameraInput').value='';showSelectedProofFile();await loadTrainingProofs();await renderProofInDialog();
     return true;
   }catch(err){alert(`Nachweis konnte nicht gespeichert werden: ${err.message||err}`);return false;}
   finally{btn.disabled=false;btn.textContent=appLanguage==='en'?'Upload proof':'Nachweis vorab hochladen';}
@@ -501,7 +523,7 @@ async function finishStatus(status){
   if(status==='done'){
     let proof=trainingProofs.find(p=>p.event_id===selectedEventId&&p.occurrence_date===selectedOccurrenceDate&&p.profile_id===currentUser.id);
     if(!proof){
-      const file=$('#proofInput').files?.[0];
+      const file=$('#proofInput').files?.[0]||$('#proofCameraInput')?.files?.[0];
       if(!file){
         alert(appLanguage==='en'?'A workout photo is required before you can mark this event as done. Take or select a photo first.':'Für „Erledigt“ ist ein Trainingsfoto erforderlich. Nimm zuerst ein Foto auf oder wähle eines aus.');
         return;
@@ -900,9 +922,19 @@ function renderProfiles(){
 }
 
 async function addWeight(){
-  const date=$('#weightDate').value,weight=inputWeightToKg($('#weightValue').value);if(!date||!weight)return alert('Bitte Datum und Gewicht eintragen.');
-  const {error}=await supabase.from('weight_entries').upsert({profile_id:currentUser.id,weight,measured_on:date},{onConflict:'profile_id,measured_on'});if(error)return alert(`Gewicht konnte nicht gespeichert werden: ${error.message}`);
-  $('#weightValue').value='';await loadWeights();renderWeights();
+  const date=$('#weightDate').value,weight=inputWeightToKg($('#weightValue').value);
+  if(!date||!weight)return alert('Bitte Datum und Gewicht eintragen.');
+  if(date>todayISO())return alert('Gewicht kann nicht für einen zukünftigen Tag eingetragen werden.');
+  const {error}=await supabase.from('weight_entries').upsert({profile_id:currentUser.id,weight,measured_on:date},{onConflict:'profile_id,measured_on'});
+  if(error)return alert(`Gewicht konnte nicht gespeichert werden: ${error.message}`);
+  $('#weightValue').value='';await loadWeights();renderWeights();renderAchievements();renderAdvancedStats();
+}
+async function deleteWeightEntry(date){
+  const entry=weights.find(w=>w.date===date);if(!entry)return;
+  if(!confirm(`Gewichtseintrag vom ${formatDate(date)} (${entry.weight.toFixed(1)} kg) wirklich löschen?`))return;
+  const {error}=await supabase.from('weight_entries').delete().eq('profile_id',currentUser.id).eq('measured_on',date);
+  if(error)return alert(`Eintrag konnte nicht gelöscht werden: ${error.message}`);
+  await loadWeights();weightChartSelectedIndex=null;renderWeights();renderAchievements();renderAdvancedStats();
 }
 function movingAverage(arr,days=7){return arr.map((x,i)=>{const slice=arr.slice(Math.max(0,i-days+1),i+1);return slice.reduce((s,v)=>s+v.weight,0)/slice.length;});}
 
@@ -955,16 +987,60 @@ function renderYearEnd(){
     decision.innerHTML=`<div class="info-banner">🤝 ${appLanguage==='en'?`Tie: ${winners.map(r=>escapeHtml(r.member.name)).join(', ')} share the fewest missed events. Decide together what happens to the ${euro(pot)} pot.`:`Gleichstand: ${winners.map(r=>escapeHtml(r.member.name)).join(', ')} haben gleich wenige Termine verpasst. Ihr entscheidet gemeinsam über den Topf von ${euro(pot)}.`}</div>`;
   }
 }
+let weightChartSelectedIndex=null;
+let weightChartGeometry=null;
 function renderWeights(){
-  $('#weightStart').textContent=weights.length?`${weights[0].weight.toFixed(1)} kg`:'–';$('#weightCurrent').textContent=weights.length?`${weights.at(-1).weight.toFixed(1)} kg`:'–';$('#weightDelta').textContent=weights.length>1?`${(weights.at(-1).weight-weights[0].weight).toFixed(1)} kg`:'–';drawWeightChart(weights);
+  $('#weightStart').textContent=weights.length?`${weights[0].weight.toFixed(1)} kg`:'–';
+  $('#weightCurrent').textContent=weights.length?`${weights.at(-1).weight.toFixed(1)} kg`:'–';
+  $('#weightDelta').textContent=weights.length>1?`${(weights.at(-1).weight-weights[0].weight).toFixed(1)} kg`:'–';
+  const list=$('#weightEntryList');
+  if(list)list.innerHTML=weights.length?[...weights].reverse().map(w=>`<div class="weight-entry-row"><div><strong>${w.weight.toFixed(1)} kg</strong><span>${formatDate(w.date)}</span></div><button type="button" class="danger-text-btn" data-delete-weight="${w.date}">Löschen</button></div>`).join(''):'<div class="empty">Noch keine Gewichtseinträge.</div>';
+  if(weightChartSelectedIndex!==null&&weightChartSelectedIndex>=weights.length)weightChartSelectedIndex=weights.length?weights.length-1:null;
+  drawWeightChart(weights);
+  updateWeightCursorInfo();
+}
+function updateWeightCursorInfo(){
+  const el=$('#weightCursorInfo');if(!el)return;
+  if(weightChartSelectedIndex===null||!weights[weightChartSelectedIndex]){
+    el.innerHTML='<strong>Messpunkt auswählen</strong><span>Tippe oder ziehe über den Graphen.</span>';return;
+  }
+  const p=weights[weightChartSelectedIndex];
+  el.innerHTML=`<strong>${p.weight.toFixed(1)} kg</strong><span>${formatDate(p.date)}</span>`;
+}
+function selectWeightPointFromPointer(ev,redraw=true){
+  if(!weights.length||!weightChartGeometry)return;
+  const c=$('#weightChart'),rect=c.getBoundingClientRect();
+  const px=ev.clientX-rect.left,{pad,plotW}=weightChartGeometry;
+  const ratio=Math.max(0,Math.min(1,(px-pad)/plotW));
+  weightChartSelectedIndex=weights.length===1?0:Math.round(ratio*(weights.length-1));
+  updateWeightCursorInfo();drawWeightChart(weights);
+  if(redraw&&c.setPointerCapture&&ev.pointerId!==undefined){try{c.setPointerCapture(ev.pointerId);}catch{}}
 }
 function drawWeightChart(data){
-  const c=$('#weightChart'),ctx=c.getContext('2d'),dpr=window.devicePixelRatio||1,cssW=c.clientWidth||900,cssH=Math.max(260,cssW*.4);c.width=cssW*dpr;c.height=cssH*dpr;ctx.scale(dpr,dpr);ctx.clearRect(0,0,cssW,cssH);ctx.fillStyle='#0f1728';ctx.fillRect(0,0,cssW,cssH);
-  if(!data.length){ctx.fillStyle='#9da9bd';ctx.font='14px system-ui';ctx.textAlign='center';ctx.fillText('Noch keine Gewichtseinträge.',cssW/2,cssH/2);return;}
-  const vals=data.map(x=>x.weight),avg=movingAverage(data),min=Math.min(...vals,...avg)-1,max=Math.max(...vals,...avg)+1,pad=42,x=i=>pad+(data.length===1?0:(i/(data.length-1))*(cssW-pad*2)),y=v=>cssH-pad-((v-min)/(max-min))*(cssH-pad*2);
-  ctx.strokeStyle='#26334e';for(let i=0;i<5;i++){const yy=pad+i*(cssH-pad*2)/4;ctx.beginPath();ctx.moveTo(pad,yy);ctx.lineTo(cssW-pad,yy);ctx.stroke();}
-  ctx.strokeStyle='#60a5fa';ctx.lineWidth=2.5;ctx.beginPath();data.forEach((p,i)=>i?ctx.lineTo(x(i),y(p.weight)):ctx.moveTo(x(i),y(p.weight)));ctx.stroke();ctx.strokeStyle='#f59e0b';ctx.lineWidth=2;ctx.setLineDash([7,6]);ctx.beginPath();avg.forEach((v,i)=>i?ctx.lineTo(x(i),y(v)):ctx.moveTo(x(i),y(v)));ctx.stroke();ctx.setLineDash([]);
-  ctx.fillStyle='#9da9bd';ctx.font='12px system-ui';ctx.textAlign='left';ctx.fillText(`${max.toFixed(1)} kg`,4,pad+4);ctx.fillText(`${min.toFixed(1)} kg`,4,cssH-pad+4);ctx.textAlign='center';ctx.fillText(formatDate(data[0].date),x(0),cssH-12);if(data.length>1)ctx.fillText(formatDate(data.at(-1).date),x(data.length-1),cssH-12);
+  const c=$('#weightChart'),ctx=c.getContext('2d'),dpr=window.devicePixelRatio||1,cssW=c.clientWidth||900,cssH=Math.max(260,cssW*.4);
+  c.width=cssW*dpr;c.height=cssH*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,cssW,cssH);ctx.fillStyle='#0f1728';ctx.fillRect(0,0,cssW,cssH);
+  if(!data.length){weightChartGeometry=null;ctx.fillStyle='#9da9bd';ctx.font='14px system-ui';ctx.textAlign='center';ctx.fillText('Noch keine Gewichtseinträge.',cssW/2,cssH/2);return;}
+  const vals=data.map(x=>x.weight),avg=movingAverage(data),highest=Math.max(...vals,...avg);
+  // A stable 25 kg viewing window prevents tiny 0.2 kg changes from looking like huge drops.
+  const max=Math.ceil((highest+3)/5)*5,min=Math.max(0,max-25),pad=48,plotW=cssW-pad*2,plotH=cssH-pad*2;
+  const x=i=>pad+(data.length===1?plotW/2:(i/(data.length-1))*plotW),y=v=>cssH-pad-((v-min)/(max-min))*plotH;
+  weightChartGeometry={pad,plotW,plotH,min,max};
+
+  ctx.strokeStyle='#26334e';ctx.lineWidth=1;
+  for(let i=0;i<6;i++){const yy=pad+i*plotH/5;ctx.beginPath();ctx.moveTo(pad,yy);ctx.lineTo(cssW-pad,yy);ctx.stroke();const val=max-i*(max-min)/5;ctx.fillStyle='#9da9bd';ctx.font='11px system-ui';ctx.textAlign='left';ctx.fillText(`${val.toFixed(0)} kg`,4,yy+4);}
+
+  ctx.strokeStyle='#60a5fa';ctx.lineWidth=2.5;ctx.beginPath();data.forEach((p,i)=>i?ctx.lineTo(x(i),y(p.weight)):ctx.moveTo(x(i),y(p.weight)));ctx.stroke();
+  ctx.strokeStyle='#f59e0b';ctx.lineWidth=2;ctx.setLineDash([7,6]);ctx.beginPath();avg.forEach((v,i)=>i?ctx.lineTo(x(i),y(v)):ctx.moveTo(x(i),y(v)));ctx.stroke();ctx.setLineDash([]);
+
+  // Actual measurement points only.
+  data.forEach((p,i)=>{ctx.beginPath();ctx.arc(x(i),y(p.weight),4,0,Math.PI*2);ctx.fillStyle='#60a5fa';ctx.fill();ctx.strokeStyle='#dbeafe';ctx.lineWidth=1.5;ctx.stroke();});
+
+  if(weightChartSelectedIndex!==null&&data[weightChartSelectedIndex]){
+    const i=weightChartSelectedIndex,xx=x(i),yy=y(data[i].weight);
+    ctx.strokeStyle='#ef4444';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(xx,pad);ctx.lineTo(xx,cssH-pad);ctx.stroke();
+    ctx.beginPath();ctx.arc(xx,yy,7,0,Math.PI*2);ctx.fillStyle='#ef4444';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+  }
+  ctx.fillStyle='#9da9bd';ctx.font='12px system-ui';ctx.textAlign='center';ctx.fillText(formatDate(data[0].date),x(0),cssH-12);if(data.length>1)ctx.fillText(formatDate(data.at(-1).date),x(data.length-1),cssH-12);
 }
 function renderPhotos(){
   renderSlideshow();
