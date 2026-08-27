@@ -258,3 +258,7 @@ body.auth-open .app-shell{filter:blur(3px);pointer-events:none;user-select:none}
 @media(max-width:520px){
   .achievement-tier-table{grid-template-columns:1fr}
 }
+
+/* V0.19.4 */
+.participant-status-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.participant-status-row .status{display:inline-flex;align-items:center;gap:3px}

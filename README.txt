@@ -1,25 +1,15 @@
-FitTogether V0.19.3 – Achievement-Überarbeitung
+FitTogether V0.19.4 – gemeinsame Terminstatus
 
-- Silber/Gold/Bronze verwenden jetzt eigene CSS-Medaillen statt unzuverlässiger Emoji-Darstellung.
-- Rechts oben wird NUR die höchste bereits erreichte Medaille angezeigt.
-- Ohne Medaille steht dort nur „–“; die nächste Medaille wird nicht vorweggenommen.
-- Jede Achievement-Karte erklärt jetzt genau, was gezählt wird.
-- Bronze/Silber/Gold-Ziele werden direkt in der Karte ausgeschrieben.
-- Fortschrittsleiste zeigt weiterhin den Weg zur nächsten Stufe.
-
-Auf Kurs wurde schwerer und robuster:
-- Bronze 3 kg
-- Silber 7 kg
-- Gold 12 kg
-- Berechnung basiert auf einem geglätteten Trend der letzten bis zu 5 Gewichtsmessungen.
-- Ein einzelner niedriger Wert durch Wasserverlust / leeren Magen soll dadurch nicht sofort eine Medaille freischalten.
-
-Andere Stufen bleiben:
-Durchgezogen 10 / 50 / 100
-Zuverlässig 80 / 90 / 100 %
-Streak 2 / 4 / 12 perfekte Wochen
-Keine Ausreden 1 / 3 / 6 Monate
-Zeitraffer 5 / 13 / 26 Bilder
+Neu:
+- Jeder Teilnehmerstatus wird am Termin klar einzeln angezeigt:
+  ✅ Erledigt / ❌ Verpasst / 🩹 Entschuldigt / 🕒 Geplant.
+- Bei „Verpasst“ wird direkt die zugehörige Termin-Strafe angezeigt.
+- Die bestehende Supabase Edge Function wurde erweitert:
+  Abgelaufene Termine werden serverseitig für ALLE Teilnehmer geprüft.
+- Ein noch „Geplant“ stehender Teilnehmer wird nach Terminende automatisch auf „Verpasst“ gesetzt,
+  auch wenn diese Person die App nicht geöffnet hat.
+- Funktioniert auch für wiederkehrende Termine innerhalb eines 30-Tage-Catch-up-Fensters.
+- Die App-seitige eigene Auto-Missed-Logik bleibt als zusätzlicher Fallback erhalten.
 
 Kein neues SQL nötig.
-Alle Dateien aus dem ZIP auf GitHub ersetzen.
+Die Edge Function muss mit dem beiliegenden supabase_edge_function/index.ts aktualisiert werden.
