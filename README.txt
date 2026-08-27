@@ -1,22 +1,20 @@
-FitTogether V0.19.1 – Bugfix Update
+FitTogether V0.19.2 – Graph + Gym-Kamera Fix
 
-Gewicht:
-- Zukünftige Gewichtseinträge werden blockiert; Datumsauswahl endet bei heute.
-- Gewichtseinträge können einzeln gelöscht werden.
-- Löschen lädt Gewicht, Graph, Statistik und Achievements neu. Dadurch verschwinden Testdaten auch aus dem Gewichts-Achievement.
-- Gewichtshistorie unter dem Graphen.
-- Graph hat eine stabilere 25-kg-Y-Skala statt extrem auf kleinste Schwankungen zu zoomen.
-- Punkte werden nur für echte Messungen gezeichnet.
-- Tippen/ziehen auf dem Graphen wählt den nächsten Messpunkt.
-- Ausgewählter Wert + Datum werden angezeigt.
-- Rote vertikale Linie markiert den ausgewählten Messpunkt.
+Gewichtsgraph:
+- Messpunkte liegen jetzt in einer eigenen Leiste UNTER dem Graphen.
+- Klick auf einen Punkt zeigt Datum und Gewicht direkt darunter.
+- Rote vertikale Linie markiert den ausgewählten Messpunkt im Graphen.
+- Y-Achse ist einstellbar:
+  Automatisch = ruhiges 25-kg-Fenster.
+  Eigener Bereich = Minimum/Maximum frei setzen; Standardvorschlag 85–100 kg.
+- Einstellung bleibt auf dem Gerät gespeichert.
 
 Gym-Nachweis:
-- „Bild aufnehmen“ und „Bild auswählen“ sind getrennte Buttons.
-- „Bild aufnehmen“ benutzt die Kamera.
-- „Bild auswählen“ öffnet ohne capture-Attribut die Galerie/Dateiauswahl.
-- Ein aufgenommenes Kamerabild wird anschließend als ausgewählter Nachweis übernommen.
-- Fallback eingebaut, falls ein Browser das Kopieren zwischen File-Inputs nicht erlaubt.
+- Bild auswählen öffnet nur Galerie/Dateiauswahl.
+- Bild aufnehmen nutzt jetzt eine In-App-Kamera (getUserMedia), statt die externe Kamera-App zu öffnen.
+- Dadurch sollte FitTogether beim Fotografieren nicht neu geladen werden.
+- Das Foto wird direkt im Browser erzeugt und als Nachweis verwendet.
+- Fallback: Falls die In-App-Kamera nicht unterstützt wird, Bild auswählen nutzen.
 
 Kein neues Supabase-SQL nötig.
-Alle Dateien des ZIPs auf GitHub ersetzen.
+Alle Dateien aus dem ZIP auf GitHub ersetzen.

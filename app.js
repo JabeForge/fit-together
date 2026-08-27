@@ -1,4 +1,4 @@
-const APP_VERSION = "0.19.1";
+const APP_VERSION = "0.19.2";
 const I18N={
  de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise'},
  en:{display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof'}
@@ -91,7 +91,7 @@ async function removeLegacyCache(){
 
 async function init(){
   $('#eventDate').value=todayISO();
-  $('#weightDate').value=todayISO();$('#weightDate').max=todayISO();
+  $('#weightDate').value=todayISO();$('#weightDate').max=todayISO();loadWeightScaleSettings();$('#weightDate').max=todayISO();
   $('#photoDate').value=todayISO();
   bindTabs(); bindActions();
   if($('#defaultReminderSelect'))$('#defaultReminderSelect').value=String(localStorage.getItem('fitTogether_defaultReminder')||60);
@@ -121,13 +121,17 @@ function bindActions(){
   $('#addEventBtn').addEventListener('click',addEvent);
   $('#addWeightBtn').addEventListener('click',addWeight);
   $('#weightEntryList')?.addEventListener('click',e=>{const b=e.target.closest('[data-delete-weight]');if(b)deleteWeightEntry(b.dataset.deleteWeight);});
-  const weightCanvas=$('#weightChart');
-  weightCanvas?.addEventListener('pointerdown',e=>selectWeightPointFromPointer(e,true));
-  weightCanvas?.addEventListener('pointermove',e=>{if(e.buttons||e.pointerType==='touch')selectWeightPointFromPointer(e,false);});
-  $('#proofCameraBtn')?.addEventListener('click',()=>$('#proofCameraInput')?.click());
+  $('#weightTimeline')?.addEventListener('click',e=>{const dot=e.target.closest('[data-weight-index]');if(dot)selectWeightPoint(Number(dot.dataset.weightIndex));});
+  $('#weightScaleMode')?.addEventListener('change',saveWeightScaleSettings);
+  $('#weightScaleMin')?.addEventListener('change',saveWeightScaleSettings);
+  $('#weightScaleMax')?.addEventListener('change',saveWeightScaleSettings);
+  $('#proofCameraBtn')?.addEventListener('click',openProofCamera);
   $('#proofGalleryBtn')?.addEventListener('click',()=>$('#proofInput')?.click());
-  $('#proofCameraInput')?.addEventListener('change',()=>syncProofFileFromSource('#proofCameraInput'));
   $('#proofInput')?.addEventListener('change',()=>showSelectedProofFile());
+  $('#proofCameraCaptureBtn')?.addEventListener('click',captureProofCameraFrame);
+  $('#proofCameraCloseBtn')?.addEventListener('click',closeProofCamera);
+  $('#proofCameraCancelBtn')?.addEventListener('click',closeProofCamera);
+  $('#proofCameraDialog')?.addEventListener('close',stopProofCamera);
   $('#addPhotoBtn').addEventListener('click',addProgressPhoto);
   $('#uploadProofBtn').addEventListener('click',uploadTrainingProof);
   $('#statusDoneBtn').addEventListener('click',()=>finishStatus('done'));
@@ -318,23 +322,37 @@ async function deleteProgressPhoto(photo){
   await supabase.storage.from('progress-photos').remove([photo.image_url]);
   await loadProgressPhotos();renderPhotos();
 }
+let proofCameraStream=null;
+let proofCapturedFile=null;
 function showSelectedProofFile(){
-  const file=$('#proofInput')?.files?.[0],label=$('#proofSelectedFile');
-  if(label)label.textContent=file?`Ausgewählt: ${file.name||'Foto'} · ${(file.size/1024/1024).toFixed(1)} MB`:'Noch kein neues Bild ausgewählt.';
+  const file=$('#proofInput')?.files?.[0]||proofCapturedFile,label=$('#proofSelectedFile');
+  if(label)label.textContent=file?`${appLanguage==='en'?'Selected':'Ausgewählt'}: ${file.name||'Foto'} · ${(file.size/1024/1024).toFixed(1)} MB`:(appLanguage==='en'?'No new image selected.':'Noch kein neues Bild ausgewählt.');
 }
-function syncProofFileFromSource(selector){
-  const source=$(selector),file=source?.files?.[0];if(!file)return;
+async function openProofCamera(){
+  const dlg=$('#proofCameraDialog'),video=$('#proofCameraVideo'),msg=$('#proofCameraMessage');
+  if(!navigator.mediaDevices?.getUserMedia){alert('Dieser Browser unterstützt die In-App-Kamera nicht. Nutze „Bild auswählen“.');return;}
   try{
-    const dt=new DataTransfer();dt.items.add(file);$('#proofInput').files=dt.files;
-  }catch(err){
-    console.warn('Kamerabild konnte nicht in Standardauswahl kopiert werden',err);
-    // Fallback: uploadTrainingProof reads the camera input too.
-  }
-  showSelectedProofFile();
+    dlg.showModal();msg.textContent='Kamera wird gestartet …';
+    proofCameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+    video.srcObject=proofCameraStream;await video.play();msg.textContent='Kamera bereit.';
+  }catch(err){console.error(err);msg.textContent='Kamera konnte nicht geöffnet werden.';}
+}
+function stopProofCamera(){
+  if(proofCameraStream){proofCameraStream.getTracks().forEach(t=>t.stop());proofCameraStream=null;}
+  const video=$('#proofCameraVideo');if(video)video.srcObject=null;
+}
+function closeProofCamera(){stopProofCamera();$('#proofCameraDialog')?.close();}
+async function captureProofCameraFrame(){
+  const video=$('#proofCameraVideo');if(!video?.videoWidth)return;
+  const canvas=document.createElement('canvas');canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+  canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);
+  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.9));if(!blob)return;
+  proofCapturedFile=new File([blob],`training-${Date.now()}.jpg`,{type:'image/jpeg'});
+  showSelectedProofFile();closeProofCamera();
 }
 async function uploadTrainingProof(){
   if(!selectedEventId||!selectedOccurrenceDate){alert('Kein Termin ausgewählt.');return false;}
-  const file=$('#proofInput').files?.[0]||$('#proofCameraInput')?.files?.[0];if(!file){alert('Bitte zuerst ein Foto aufnehmen oder auswählen.');return false;}
+  const file=$('#proofInput').files?.[0]||proofCapturedFile;if(!file){alert('Bitte zuerst ein Foto aufnehmen oder auswählen.');return false;}
   if(file.size>12*1024*1024){alert('Das Bild ist größer als 12 MB.');return false;}
   const path=`${currentUser.id}/${selectedEventId}/${selectedOccurrenceDate}/${crypto.randomUUID()}.${safeExt(file)}`;
   const btn=$('#uploadProofBtn');btn.disabled=true;btn.textContent='Wird hochgeladen …';
@@ -343,7 +361,7 @@ async function uploadTrainingProof(){
     if(uploadError)throw uploadError;
     const {error:dbError}=await supabase.from('training_proofs').insert({event_id:selectedEventId,occurrence_date:selectedOccurrenceDate,profile_id:currentUser.id,storage_path:path});
     if(dbError){await supabase.storage.from('training-proofs').remove([path]);throw dbError;}
-    $('#proofInput').value='';if($('#proofCameraInput'))$('#proofCameraInput').value='';showSelectedProofFile();await loadTrainingProofs();await renderProofInDialog();
+    $('#proofInput').value='';proofCapturedFile=null;showSelectedProofFile();await loadTrainingProofs();await renderProofInDialog();
     return true;
   }catch(err){alert(`Nachweis konnte nicht gespeichert werden: ${err.message||err}`);return false;}
   finally{btn.disabled=false;btn.textContent=appLanguage==='en'?'Upload proof':'Nachweis vorab hochladen';}
@@ -523,7 +541,7 @@ async function finishStatus(status){
   if(status==='done'){
     let proof=trainingProofs.find(p=>p.event_id===selectedEventId&&p.occurrence_date===selectedOccurrenceDate&&p.profile_id===currentUser.id);
     if(!proof){
-      const file=$('#proofInput').files?.[0]||$('#proofCameraInput')?.files?.[0];
+      const file=$('#proofInput').files?.[0]||proofCapturedFile;
       if(!file){
         alert(appLanguage==='en'?'A workout photo is required before you can mark this event as done. Take or select a photo first.':'Für „Erledigt“ ist ein Trainingsfoto erforderlich. Nimm zuerst ein Foto auf oder wähle eines aus.');
         return;
@@ -989,58 +1007,85 @@ function renderYearEnd(){
 }
 let weightChartSelectedIndex=null;
 let weightChartGeometry=null;
+
+function loadWeightScaleSettings(){
+  const mode=localStorage.getItem('fitTogether_weightScaleMode')||'auto';
+  const min=localStorage.getItem('fitTogether_weightScaleMin')||'85';
+  const max=localStorage.getItem('fitTogether_weightScaleMax')||'100';
+  if($('#weightScaleMode'))$('#weightScaleMode').value=mode;
+  if($('#weightScaleMin'))$('#weightScaleMin').value=min;
+  if($('#weightScaleMax'))$('#weightScaleMax').value=max;
+  updateWeightScaleControls();
+}
+function updateWeightScaleControls(){
+  const custom=$('#weightScaleMode')?.value==='custom';
+  $('#weightScaleMinWrap')?.classList.toggle('hidden',!custom);
+  $('#weightScaleMaxWrap')?.classList.toggle('hidden',!custom);
+}
+function saveWeightScaleSettings(){
+  const mode=$('#weightScaleMode')?.value||'auto';
+  const min=Number($('#weightScaleMin')?.value||85),max=Number($('#weightScaleMax')?.value||100);
+  if(mode==='custom'&&(!Number.isFinite(min)||!Number.isFinite(max)||max<=min)){alert('Das Maximum muss größer als das Minimum sein.');return;}
+  localStorage.setItem('fitTogether_weightScaleMode',mode);
+  localStorage.setItem('fitTogether_weightScaleMin',String(min));
+  localStorage.setItem('fitTogether_weightScaleMax',String(max));
+  updateWeightScaleControls();drawWeightChart(weights);
+}
 function renderWeights(){
-  $('#weightStart').textContent=weights.length?`${weights[0].weight.toFixed(1)} kg`:'–';
-  $('#weightCurrent').textContent=weights.length?`${weights.at(-1).weight.toFixed(1)} kg`:'–';
-  $('#weightDelta').textContent=weights.length>1?`${(weights.at(-1).weight-weights[0].weight).toFixed(1)} kg`:'–';
+  $('#weightStart').textContent=weights.length?displayWeight(weights[0].weight):'–';
+  $('#weightCurrent').textContent=weights.length?displayWeight(weights.at(-1).weight):'–';
+  $('#weightDelta').textContent=weights.length>1?`${(weightUnit==='lb'?(weights.at(-1).weight-weights[0].weight)*2.2046226218:(weights.at(-1).weight-weights[0].weight)).toFixed(1)} ${weightUnit}`:'–';
   const list=$('#weightEntryList');
-  if(list)list.innerHTML=weights.length?[...weights].reverse().map(w=>`<div class="weight-entry-row"><div><strong>${w.weight.toFixed(1)} kg</strong><span>${formatDate(w.date)}</span></div><button type="button" class="danger-text-btn" data-delete-weight="${w.date}">Löschen</button></div>`).join(''):'<div class="empty">Noch keine Gewichtseinträge.</div>';
+  if(list)list.innerHTML=weights.length?[...weights].reverse().map(w=>`<div class="weight-entry-row"><div><strong>${displayWeight(w.weight)}</strong><span>${dateLabel(w.date)}</span></div><button type="button" class="danger-text-btn" data-delete-weight="${w.date}">${appLanguage==='en'?'Delete':'Löschen'}</button></div>`).join(''):'<div class="empty">Noch keine Gewichtseinträge.</div>';
   if(weightChartSelectedIndex!==null&&weightChartSelectedIndex>=weights.length)weightChartSelectedIndex=weights.length?weights.length-1:null;
-  drawWeightChart(weights);
-  updateWeightCursorInfo();
+  drawWeightChart(weights);renderWeightTimeline();updateWeightCursorInfo();
+}
+function renderWeightTimeline(){
+  const timeline=$('#weightTimeline');if(!timeline)return;
+  if(!weights.length){timeline.innerHTML='';return;}
+  timeline.innerHTML=weights.map((w,i)=>`<button type="button" class="weight-timeline-dot ${i===weightChartSelectedIndex?'selected':''}" data-weight-index="${i}" title="${dateLabel(w.date)} · ${displayWeight(w.weight)}"><span></span></button>`).join('');
+}
+function selectWeightPoint(index){
+  if(!weights[index])return;
+  weightChartSelectedIndex=index;renderWeightTimeline();updateWeightCursorInfo();drawWeightChart(weights);
 }
 function updateWeightCursorInfo(){
   const el=$('#weightCursorInfo');if(!el)return;
   if(weightChartSelectedIndex===null||!weights[weightChartSelectedIndex]){
-    el.innerHTML='<strong>Messpunkt auswählen</strong><span>Tippe oder ziehe über den Graphen.</span>';return;
+    el.innerHTML=`<strong>${appLanguage==='en'?'Select measurement':'Messpunkt auswählen'}</strong><span>${appLanguage==='en'?'Tap a point below the graph.':'Tippe auf einen Punkt unter dem Graphen.'}</span>`;return;
   }
   const p=weights[weightChartSelectedIndex];
-  el.innerHTML=`<strong>${p.weight.toFixed(1)} kg</strong><span>${formatDate(p.date)}</span>`;
-}
-function selectWeightPointFromPointer(ev,redraw=true){
-  if(!weights.length||!weightChartGeometry)return;
-  const c=$('#weightChart'),rect=c.getBoundingClientRect();
-  const px=ev.clientX-rect.left,{pad,plotW}=weightChartGeometry;
-  const ratio=Math.max(0,Math.min(1,(px-pad)/plotW));
-  weightChartSelectedIndex=weights.length===1?0:Math.round(ratio*(weights.length-1));
-  updateWeightCursorInfo();drawWeightChart(weights);
-  if(redraw&&c.setPointerCapture&&ev.pointerId!==undefined){try{c.setPointerCapture(ev.pointerId);}catch{}}
+  el.innerHTML=`<strong>${displayWeight(p.weight)}</strong><span>${dateLabel(p.date)}</span>`;
 }
 function drawWeightChart(data){
   const c=$('#weightChart'),ctx=c.getContext('2d'),dpr=window.devicePixelRatio||1,cssW=c.clientWidth||900,cssH=Math.max(260,cssW*.4);
   c.width=cssW*dpr;c.height=cssH*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,cssW,cssH);ctx.fillStyle='#0f1728';ctx.fillRect(0,0,cssW,cssH);
   if(!data.length){weightChartGeometry=null;ctx.fillStyle='#9da9bd';ctx.font='14px system-ui';ctx.textAlign='center';ctx.fillText('Noch keine Gewichtseinträge.',cssW/2,cssH/2);return;}
-  const vals=data.map(x=>x.weight),avg=movingAverage(data),highest=Math.max(...vals,...avg);
-  // A stable 25 kg viewing window prevents tiny 0.2 kg changes from looking like huge drops.
-  const max=Math.ceil((highest+3)/5)*5,min=Math.max(0,max-25),pad=48,plotW=cssW-pad*2,plotH=cssH-pad*2;
+  const vals=data.map(x=>x.weight),avg=movingAverage(data),highest=Math.max(...vals,...avg),pad=48,plotW=cssW-pad*2,plotH=cssH-pad*2;
+  const mode=$('#weightScaleMode')?.value||localStorage.getItem('fitTogether_weightScaleMode')||'auto';
+  let min,max;
+  if(mode==='custom'){
+    min=Number($('#weightScaleMin')?.value||localStorage.getItem('fitTogether_weightScaleMin')||85);
+    max=Number($('#weightScaleMax')?.value||localStorage.getItem('fitTogether_weightScaleMax')||100);
+  }else{
+    max=Math.ceil((highest+3)/5)*5;min=Math.max(0,max-25);
+  }
   const x=i=>pad+(data.length===1?plotW/2:(i/(data.length-1))*plotW),y=v=>cssH-pad-((v-min)/(max-min))*plotH;
   weightChartGeometry={pad,plotW,plotH,min,max};
-
   ctx.strokeStyle='#26334e';ctx.lineWidth=1;
-  for(let i=0;i<6;i++){const yy=pad+i*plotH/5;ctx.beginPath();ctx.moveTo(pad,yy);ctx.lineTo(cssW-pad,yy);ctx.stroke();const val=max-i*(max-min)/5;ctx.fillStyle='#9da9bd';ctx.font='11px system-ui';ctx.textAlign='left';ctx.fillText(`${val.toFixed(0)} kg`,4,yy+4);}
-
+  for(let i=0;i<6;i++){
+    const yy=pad+i*plotH/5;ctx.beginPath();ctx.moveTo(pad,yy);ctx.lineTo(cssW-pad,yy);ctx.stroke();
+    const kg=max-i*(max-min)/5;ctx.fillStyle='#9da9bd';ctx.font='11px system-ui';ctx.textAlign='left';
+    ctx.fillText(weightUnit==='lb'?`${(kg*2.2046226218).toFixed(0)} lb`:`${kg.toFixed(0)} kg`,4,yy+4);
+  }
   ctx.strokeStyle='#60a5fa';ctx.lineWidth=2.5;ctx.beginPath();data.forEach((p,i)=>i?ctx.lineTo(x(i),y(p.weight)):ctx.moveTo(x(i),y(p.weight)));ctx.stroke();
   ctx.strokeStyle='#f59e0b';ctx.lineWidth=2;ctx.setLineDash([7,6]);ctx.beginPath();avg.forEach((v,i)=>i?ctx.lineTo(x(i),y(v)):ctx.moveTo(x(i),y(v)));ctx.stroke();ctx.setLineDash([]);
-
-  // Actual measurement points only.
-  data.forEach((p,i)=>{ctx.beginPath();ctx.arc(x(i),y(p.weight),4,0,Math.PI*2);ctx.fillStyle='#60a5fa';ctx.fill();ctx.strokeStyle='#dbeafe';ctx.lineWidth=1.5;ctx.stroke();});
-
   if(weightChartSelectedIndex!==null&&data[weightChartSelectedIndex]){
     const i=weightChartSelectedIndex,xx=x(i),yy=y(data[i].weight);
     ctx.strokeStyle='#ef4444';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(xx,pad);ctx.lineTo(xx,cssH-pad);ctx.stroke();
-    ctx.beginPath();ctx.arc(xx,yy,7,0,Math.PI*2);ctx.fillStyle='#ef4444';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+    ctx.beginPath();ctx.arc(xx,yy,6,0,Math.PI*2);ctx.fillStyle='#ef4444';ctx.fill();
   }
-  ctx.fillStyle='#9da9bd';ctx.font='12px system-ui';ctx.textAlign='center';ctx.fillText(formatDate(data[0].date),x(0),cssH-12);if(data.length>1)ctx.fillText(formatDate(data.at(-1).date),x(data.length-1),cssH-12);
+  ctx.fillStyle='#9da9bd';ctx.font='12px system-ui';ctx.textAlign='center';ctx.fillText(dateLabel(data[0].date),x(0),cssH-12);if(data.length>1)ctx.fillText(dateLabel(data.at(-1).date),x(data.length-1),cssH-12);
 }
 function renderPhotos(){
   renderSlideshow();

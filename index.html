@@ -7,7 +7,7 @@
   <title>FitTogether</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <style>.hidden{display:none!important}</style>
-  <link rel="stylesheet" href="styles.css?v=0.19" />
+  <link rel="stylesheet" href="styles.css?v=0.19.2" />
 </head>
 <body>
   <section id="authScreen" class="auth-screen" role="dialog" aria-modal="true" aria-labelledby="authTitle">
@@ -41,7 +41,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Gemeinsam durchziehen</p>
-        <h1>FitTogether <span class="app-version">V0.19</span></h1>
+        <h1>FitTogether <span class="app-version">V0.19.2</span></h1>
       </div>
       <div class="top-actions">
         <select id="activeGroupSelect" class="group-select" aria-label="Aktive Gruppe"></select>
@@ -189,8 +189,22 @@
             <div><span>Aktuell</span><strong id="weightCurrent">–</strong></div>
             <div><span>Veränderung</span><strong id="weightDelta">–</strong></div>
           </div>
+          <div class="weight-chart-settings">
+            <label><span>Y-Achse</span>
+              <select id="weightScaleMode">
+                <option value="auto">Automatisch (25-kg-Fenster)</option>
+                <option value="custom">Eigener Bereich</option>
+              </select>
+            </label>
+            <label id="weightScaleMinWrap" class="hidden"><span>Minimum (kg)</span><input id="weightScaleMin" type="number" step="1" value="85" /></label>
+            <label id="weightScaleMaxWrap" class="hidden"><span>Maximum (kg)</span><input id="weightScaleMax" type="number" step="1" value="100" /></label>
+          </div>
           <div class="chart-wrap"><canvas id="weightChart" width="900" height="360" aria-label="Gewichtsverlauf"></canvas></div>
-          <p class="helper">Die Linie zeigt deine Einträge; zusätzlich wird ein 7-Tage-Trend geglättet dargestellt.</p>
+          <div id="weightTimeline" class="weight-timeline" aria-label="Gewichtsmesspunkte"></div>
+          <div id="weightCursorInfo" class="weight-cursor-info"><strong>Messpunkt auswählen</strong><span>Tippe auf einen Punkt unter dem Graphen.</span></div>
+          <p class="helper">Die Punkte unter dem Graphen sind deine echten Messungen. Wähle einen Punkt, um Datum und Gewicht zu sehen; die rote Linie markiert ihn im Graphen.</p>
+          <div class="section-heading weight-history-heading"><div><p class="eyebrow">Messwerte</p><h3>Gewichtshistorie</h3></div></div>
+          <div id="weightEntryList" class="weight-entry-list"></div>
         </section>
       </section>
 
@@ -352,7 +366,12 @@
         <strong>📷 Trainingsnachweis</strong>
         <p id="proofStatus" class="helper">Für „Erledigt“ ist ein Trainingsfoto erforderlich.</p>
         <img id="proofPreview" class="proof-preview hidden" alt="Trainingsnachweis" />
-        <label>Foto<input id="proofInput" type="file" accept="image/*" capture="environment" /></label>
+        <input id="proofInput" type="file" accept="image/*" class="hidden-file-input" />
+        <div class="proof-source-actions">
+          <button id="proofCameraBtn" type="button" class="ghost-btn">📷 Bild aufnehmen</button>
+          <button id="proofGalleryBtn" type="button" class="ghost-btn">🖼️ Bild auswählen</button>
+        </div>
+        <p id="proofSelectedFile" class="helper">Noch kein neues Bild ausgewählt.</p>
         <button id="uploadProofBtn" type="button" class="ghost-btn">Nachweis vorab hochladen</button>
       </div>
       <div class="dialog-actions">
@@ -364,7 +383,7 @@
     </form>
   </dialog>
 
-  <script type="module" src="app.js?v=0.19"></script>
+  <script type="module" src="app.js?v=0.19.2"></script>
 
   <dialog id="seriesActionDialog" class="status-dialog">
     <form method="dialog" class="dialog-card">
@@ -387,6 +406,24 @@
       <div class="dialog-actions stacked-actions">
         <button id="notificationOnboardingEnableBtn" type="button" class="primary-btn">Benachrichtigungen aktivieren</button>
         <button id="notificationOnboardingLaterBtn" type="button" class="ghost-btn">Später</button>
+      </div>
+    </div>
+  </dialog>
+
+
+  <dialog id="proofCameraDialog" class="camera-dialog">
+    <div class="dialog-card camera-card">
+      <div class="section-heading">
+        <div><p class="eyebrow">Trainingsnachweis</p><h3>Kamera</h3></div>
+        <button id="proofCameraCloseBtn" type="button" class="ghost-btn">✕</button>
+      </div>
+      <div class="camera-stage">
+        <video id="proofCameraVideo" autoplay playsinline muted></video>
+      </div>
+      <p id="proofCameraMessage" class="helper">Kamera wird gestartet …</p>
+      <div class="dialog-actions">
+        <button id="proofCameraCaptureBtn" type="button" class="primary-btn">📸 Foto aufnehmen</button>
+        <button id="proofCameraCancelBtn" type="button" class="ghost-btn">Abbrechen</button>
       </div>
     </div>
   </dialog>
