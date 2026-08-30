@@ -1,436 +1,400 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="de">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#111827" />
-  <title>FitTogether</title>
-  <link rel="manifest" href="manifest.webmanifest" />
-  <style>.hidden{display:none!important}</style>
-  <link rel="stylesheet" href="styles.css?v=0.19.2" />
-</head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
+<meta content="#111827" name="theme-color"/>
+<title>FitTogether</title>
+<link href="manifest.webmanifest" rel="manifest"/>
+<style>.hidden{display:none!important}</style>
+<link href="styles.css?v=0.19.6" rel="stylesheet"/>
+<meta content="no-cache, no-store, must-revalidate" http-equiv="Cache-Control"/><meta content="no-cache" http-equiv="Pragma"/><meta content="0" http-equiv="Expires"/></head>
 <body>
-  <section id="authScreen" class="auth-screen" role="dialog" aria-modal="true" aria-labelledby="authTitle">
-    <div class="auth-card">
-      <p class="eyebrow">FitTogether Online</p>
-      <h1 id="authTitle">Willkommen bei FitTogether</h1>
-      <p class="helper">Melde dich an oder erstelle einmalig deinen Account.</p>
-
-      <div class="auth-tabs">
-        <button id="showLoginBtn" class="auth-tab active" type="button">Anmelden</button>
-        <button id="showRegisterBtn" class="auth-tab" type="button">Registrieren</button>
-      </div>
-
-      <div id="loginForm" class="auth-form">
-        <label>E-Mail<input id="loginEmail" type="email" autocomplete="email" placeholder="name@beispiel.de" /></label>
-        <label>Passwort<input id="loginPassword" type="password" autocomplete="current-password" placeholder="Passwort" /></label>
-        <button id="loginBtn" class="primary-btn full" type="button">Anmelden</button>
-      </div>
-
-      <div id="registerForm" class="auth-form hidden">
-        <label>Anzeigename<input id="registerName" type="text" maxlength="30" autocomplete="nickname" placeholder="Dein Name" /></label>
-        <label>E-Mail<input id="registerEmail" type="email" autocomplete="email" placeholder="name@beispiel.de" /></label>
-        <label>Passwort<input id="registerPassword" type="password" autocomplete="new-password" minlength="6" placeholder="Mindestens 6 Zeichen" /></label>
-        <button id="registerBtn" class="primary-btn full" type="button">Account erstellen</button>
-      </div>
-      <p id="authMessage" class="auth-message" aria-live="polite"></p>
-    </div>
-  </section>
-
-  <div id="appShell" class="app-shell hidden">
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">Gemeinsam durchziehen</p>
-        <h1>FitTogether <span class="app-version">V0.19.2</span></h1>
-      </div>
-      <div class="top-actions">
-        <select id="activeGroupSelect" class="group-select" aria-label="Aktive Gruppe"></select>
-        <span id="onlineBadge" class="online-badge">● Online</span>
-        <button id="notifyBtn" class="ghost-btn" type="button">🔔 Erinnerungen</button>
-        <button id="logoutBtn" class="ghost-btn" type="button">Abmelden</button>
-      </div>
-    </header>
-
-    <nav class="tabs" aria-label="Hauptnavigation">
-      <button class="tab active" data-tab="home">Übersicht</button>
-      <button class="tab" data-tab="calendar">Kalender</button>
-      <button class="tab" data-tab="progress">Fortschritt</button>
-      <button class="tab" data-tab="photos">Bilder</button>
-      <button class="tab" data-tab="profiles">Profile</button>
-      <button class="tab" data-tab="settings">⚙️ Einstellungen</button>
-    </nav>
-
-    <main>
-      <section id="noGroupBanner" class="card group-empty hidden">
-        <h2>Noch keine Gruppe</h2>
-        <p>Erstelle eine Gruppe oder tritt mit einem Einladungscode bei. Danach wird der Kalender automatisch mit allen Gruppenmitgliedern synchronisiert.</p>
-        <button id="openGroupsBtn" class="primary-btn" type="button">Gruppe einrichten</button>
-      </section>
-
-      <section id="home" class="panel active">
-        <section class="card hero-card">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Strafgeld-Tauziehen</p>
-              <h2>Wer hält besser durch?</h2>
-            </div>
-            <span id="leadBadge" class="badge">Gleichstand</span>
-          </div>
-
-          <div class="tug-labels">
-            <div><span class="dot red"></span><strong id="userANameLabel">Ich</strong><span id="debtA">0 €</span></div>
-            <div><span id="debtB">0 €</span><strong id="userBNameLabel">Partner</strong><span class="dot blue"></span></div>
-          </div>
-          <div class="tug-track" aria-label="Vergleich des Strafgelds">
-            <div id="redSide" class="tug-side red-side"></div>
-            <div id="blueSide" class="tug-side blue-side"></div>
-            <div id="ropeMarker" class="rope-marker">⚑</div>
-          </div>
-          <p id="tugText" class="helper center">Noch keine Strafgelder. Perfekter Start.</p>
-          <div id="multiRanking" class="multi-ranking hidden" aria-label="Strafgeld-Rangliste"></div>
-        </section>
-
-        <section class="stats-grid">
-          <article class="mini-card"><span>🔥 Aktuelle Streak</span><strong id="currentStreak">0</strong><small>erledigte Termine</small></article>
-          <article class="mini-card"><span>🏆 Beste Streak</span><strong id="bestStreak">0</strong><small>am Stück</small></article>
-          <article class="mini-card"><span>✅ Geschafft</span><strong id="doneCount">0</strong><small>Trainings</small></article>
-          <article class="mini-card"><span>💸 Gemeinsamer Topf</span><strong id="totalPot">0 €</strong><small>Jahressumme</small></article>
-        </section>
-
-        <section class="card">
-          <div class="section-heading">
-            <div><p class="eyebrow">Als Nächstes</p><h2>Nächste Termine</h2></div>
-            <button class="primary-btn" id="quickAddBtn" type="button">+ Termin</button>
-          </div>
-          <div id="nextEvents" class="list"></div>
-        </section>
-      </section>
-
-      <section id="calendar" class="panel">
-        <section class="calendar-board">
-          <div class="calendar-appbar">
-            <button id="prevMonthBtn" class="calendar-arrow" type="button" aria-label="Vorheriger Monat">‹</button>
-            <button id="todayBtn" class="calendar-month-button" type="button" title="Zum heutigen Monat">
-              <span id="calendarMonthTitle">August 2026</span>
-            </button>
-            <button id="nextMonthBtn" class="calendar-arrow" type="button" aria-label="Nächster Monat">›</button>
-          </div>
-          <div class="calendar-weekdays" aria-hidden="true">
-            <span>MO.</span><span>DI.</span><span>MI.</span><span>DO.</span><span>FR.</span><span>SA.</span><span>SO.</span>
-          </div>
-          <div id="monthGrid" class="month-grid" aria-label="Monatskalender"></div>
-          <button id="addSelectedDayBtn" class="calendar-fab" type="button">+ Termin hinzufügen</button>
-        </section>
-
-        <section class="card" id="eventFormCard">
-          <div class="section-heading"><div><p class="eyebrow">Neuer Eintrag</p><h2>Termin eintragen</h2></div></div>
-          <div class="form-grid">
-            <label>Titel<input id="eventTitle" type="text" placeholder="z. B. Gym, Schwimmen, Spaziergang" /></label>
-            <label>Datum<input id="eventDate" type="date" /></label>
-            <label>Von<input id="eventStart" type="time" value="18:00" /></label>
-            <label>Bis<input id="eventEnd" type="time" value="19:30" /></label>
-            <label>Teilnehmer<select id="eventOwner"><option value="all">Alle Gruppenmitglieder</option><option value="self">Nur ich</option></select></label>
-            <label>Farbe<select id="eventColor"><option value="violet">Lila</option><option value="blue">Blau</option><option value="green">Grün</option><option value="orange">Orange</option><option value="pink">Pink</option></select></label>
-            <label>Strafe bei Verpassen (€)<input id="eventPenalty" type="number" min="0" step="0.5" value="2" /></label>
-            <label>Wiederholung<select id="eventRepeat"><option value="none">Keine</option><option value="weekly">Wöchentlich</option><option value="monthly">Monatlich</option><option value="yearly">Jährlich</option></select></label>
-            <label id="eventRepeatUntilWrap" class="hidden">Wiederholen bis (optional)<input id="eventRepeatUntil" type="date" /></label>
-            <label>Erinnerung<select id="eventReminder"><option value="60">1 Stunde vorher</option><option value="15">15 Minuten vorher</option><option value="0">Keine</option></select></label>
-          </div>
-          <label>Notiz<textarea id="eventNote" rows="3" placeholder="Optional"></textarea></label>
-          <button id="addEventBtn" class="primary-btn full" type="button">Termin speichern</button>
-          <p class="helper">Wiederholungen werden automatisch im Kalender angezeigt. Jede einzelne Wiederholung hat ihren eigenen Status und zählt separat für Streaks und Strafgeld.</p>
-        </section>
-
-        <section class="card">
-          <div class="section-heading"><div><p class="eyebrow">Liste</p><h2>Alle Termine</h2></div></div>
-          <div id="eventList" class="list"></div>
-        </section>
-      </section>
-
-      <section id="progress" class="panel">
-        <section class="card achievement-card">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Medaillen</p>
-              <h2>Achievements</h2>
-            </div>
-            <span id="achievementSummaryBadge" class="badge">0 Gold</span>
-          </div>
-          <p class="helper">Jedes Achievement hat Bronze, Silber und Gold. Erreichte Medaillen bleiben erhalten; die Leiste zeigt deinen aktuellen Fortschritt zur nächsten Stufe.</p>
-          <div id="achievementGrid" class="achievement-grid"></div>
-        </section>
-
-        <section class="card">
-          <div class="section-heading">
-            <div><p class="eyebrow">Deine letzten 30 Tage</p><h2>Trainingsstatistik</h2></div>
-          </div>
-          <div id="advancedStatsGrid" class="advanced-stats-grid"></div>
-        </section>
-
-        
-        <section class="card" id="yearEndCard">
-          <div class="section-heading">
-            <div><p class="eyebrow">Jahresabschluss</p><h2>Gemeinsamer Geldtopf</h2></div>
-            <select id="yearEndSelect" class="compact-select"></select>
-          </div>
-          <div id="yearEndSummary" class="year-end-summary"></div>
-          <div id="yearEndMembers" class="year-end-members"></div>
-          <div id="yearEndDecision" class="year-end-decision"></div>
-        </section>
+<section aria-labelledby="authTitle" aria-modal="true" class="auth-screen" id="authScreen" role="dialog">
+<div class="auth-card">
+<p class="eyebrow">FitTogether Online</p>
+<h1 id="authTitle">Willkommen bei FitTogether</h1>
+<p class="helper">Melde dich an oder erstelle einmalig deinen Account.</p>
+<div class="auth-tabs">
+<button class="auth-tab active" id="showLoginBtn" type="button">Anmelden</button>
+<button class="auth-tab" id="showRegisterBtn" type="button">Registrieren</button>
+</div>
+<div class="auth-form" id="loginForm">
+<label>E-Mail<input autocomplete="email" id="loginEmail" placeholder="name@beispiel.de" type="email"/></label>
+<label>Passwort<input autocomplete="current-password" id="loginPassword" placeholder="Passwort" type="password"/></label>
+<button class="primary-btn full" id="loginBtn" type="button">Anmelden</button>
+</div>
+<div class="auth-form hidden" id="registerForm">
+<label>Anzeigename<input autocomplete="nickname" id="registerName" maxlength="30" placeholder="Dein Name" type="text"/></label>
+<label>E-Mail<input autocomplete="email" id="registerEmail" placeholder="name@beispiel.de" type="email"/></label>
+<label>Passwort<input autocomplete="new-password" id="registerPassword" minlength="6" placeholder="Mindestens 6 Zeichen" type="password"/></label>
+<button class="primary-btn full" id="registerBtn" type="button">Account erstellen</button>
+</div>
+<p aria-live="polite" class="auth-message" id="authMessage"></p>
+</div>
+</section>
+<div class="app-shell hidden" id="appShell">
+<header class="topbar">
+<div>
+<p class="eyebrow">Gemeinsam durchziehen</p>
+<h1>FitTogether <span class="app-version">V0.19.6</span></h1>
+</div>
+<div class="top-actions">
+<select aria-label="Aktive Gruppe" class="group-select" id="activeGroupSelect"></select>
+<span class="online-badge" id="onlineBadge">● Online</span>
+<button class="ghost-btn" id="notifyBtn" type="button">🔔 Erinnerungen</button>
+<button class="ghost-btn" id="logoutBtn" type="button">Abmelden</button>
+</div>
+</header>
+<nav aria-label="Hauptnavigation" class="tabs"><button class="tab active" data-tab="home">Übersicht</button><button class="tab" data-tab="calendar">Kalender</button><button class="tab" data-tab="weight">Gewicht</button><button class="tab" data-tab="achievements">Erfolge</button><button class="tab" data-tab="photos">Bilder</button><button class="tab" data-tab="groups">Gruppe</button><button class="tab" data-tab="profiles">Profile</button><button class="tab" data-tab="settings">⚙️ Einstellungen</button></nav>
+<main>
+<section class="card group-empty hidden" id="noGroupBanner">
+<h2>Noch keine Gruppe</h2>
+<p>Erstelle eine Gruppe oder tritt mit einem Einladungscode bei. Danach wird der Kalender automatisch mit allen Gruppenmitgliedern synchronisiert.</p>
+<button class="primary-btn" id="openGroupsBtn" type="button">Gruppe einrichten</button>
+</section>
+<section class="panel active" id="home">
+<section class="card hero-card">
+<div class="section-heading">
+<div>
+<p class="eyebrow">Strafgeld-Tauziehen</p>
+<h2>Wer hält besser durch?</h2>
+</div>
+<span class="badge" id="leadBadge">Gleichstand</span>
+</div>
+<div class="tug-labels">
+<div><span class="dot red"></span><strong id="userANameLabel">Ich</strong><span id="debtA">0 €</span></div>
+<div><span id="debtB">0 €</span><strong id="userBNameLabel">Partner</strong><span class="dot blue"></span></div>
+</div>
+<div aria-label="Vergleich des Strafgelds" class="tug-track">
+<div class="tug-side red-side" id="redSide"></div>
+<div class="tug-side blue-side" id="blueSide"></div>
+<div class="rope-marker" id="ropeMarker">⚑</div>
+</div>
+<p class="helper center" id="tugText">Noch keine Strafgelder. Perfekter Start.</p>
+<div aria-label="Strafgeld-Rangliste" class="multi-ranking hidden" id="multiRanking"></div>
+</section>
+<section class="stats-grid">
+<article class="mini-card"><span>🔥 Aktuelle Streak</span><strong id="currentStreak">0</strong><small>erledigte Termine</small></article>
+<article class="mini-card"><span>🏆 Beste Streak</span><strong id="bestStreak">0</strong><small>am Stück</small></article>
+<article class="mini-card"><span>✅ Geschafft</span><strong id="doneCount">0</strong><small>Trainings</small></article>
+<article class="mini-card"><span>💸 Gemeinsamer Topf</span><strong id="totalPot">0 €</strong><small>Jahressumme</small></article>
+</section>
 <section class="card">
-          <div class="section-heading"><div><p class="eyebrow">Gewicht</p><h2>Verlauf eintragen</h2></div></div>
-          <div class="inline-form">
-            <label>Datum<input id="weightDate" type="date" /></label>
-            <label>Gewicht (kg)<input id="weightValue" type="number" min="20" max="300" step="0.1" placeholder="z. B. 92.4" /></label>
-            <button id="addWeightBtn" class="primary-btn" type="button">Speichern</button>
-          </div>
-          <div class="weight-summary">
-            <div><span>Start</span><strong id="weightStart">–</strong></div>
-            <div><span>Aktuell</span><strong id="weightCurrent">–</strong></div>
-            <div><span>Veränderung</span><strong id="weightDelta">–</strong></div>
-          </div>
-          <div class="weight-chart-settings">
-            <label><span>Y-Achse</span>
-              <select id="weightScaleMode">
-                <option value="auto">Automatisch (25-kg-Fenster)</option>
-                <option value="custom">Eigener Bereich</option>
-              </select>
-            </label>
-            <label id="weightScaleMinWrap" class="hidden"><span>Minimum (kg)</span><input id="weightScaleMin" type="number" step="1" value="85" /></label>
-            <label id="weightScaleMaxWrap" class="hidden"><span>Maximum (kg)</span><input id="weightScaleMax" type="number" step="1" value="100" /></label>
-          </div>
-          <div class="chart-wrap"><canvas id="weightChart" width="900" height="360" aria-label="Gewichtsverlauf"></canvas></div>
-          <div id="weightTimeline" class="weight-timeline" aria-label="Gewichtsmesspunkte"></div>
-          <div id="weightCursorInfo" class="weight-cursor-info"><strong>Messpunkt auswählen</strong><span>Tippe auf einen Punkt unter dem Graphen.</span></div>
-          <p class="helper">Die Punkte unter dem Graphen sind deine echten Messungen. Wähle einen Punkt, um Datum und Gewicht zu sehen; die rote Linie markiert ihn im Graphen.</p>
-          <div class="section-heading weight-history-heading"><div><p class="eyebrow">Messwerte</p><h3>Gewichtshistorie</h3></div></div>
-          <div id="weightEntryList" class="weight-entry-list"></div>
-        </section>
-      </section>
+<div class="section-heading">
+<div><p class="eyebrow">Als Nächstes</p><h2>Nächste Termine</h2></div>
+<button class="primary-btn" id="quickAddBtn" type="button">+ Termin</button>
+</div>
+<div class="list" id="nextEvents"></div>
+</section>
+</section>
+<section class="panel" id="calendar">
+<section class="calendar-board">
+<div class="calendar-appbar">
+<button aria-label="Vorheriger Monat" class="calendar-arrow" id="prevMonthBtn" type="button">‹</button>
+<button class="calendar-month-button" id="todayBtn" title="Zum heutigen Monat" type="button">
+<span id="calendarMonthTitle">August 2026</span>
+</button>
+<button aria-label="Nächster Monat" class="calendar-arrow" id="nextMonthBtn" type="button">›</button>
+</div>
+<div aria-hidden="true" class="calendar-weekdays">
+<span>MO.</span><span>DI.</span><span>MI.</span><span>DO.</span><span>FR.</span><span>SA.</span><span>SO.</span>
+</div>
+<div aria-label="Monatskalender" class="month-grid" id="monthGrid"></div>
+<button class="calendar-fab" id="addSelectedDayBtn" type="button">+ Termin hinzufügen</button>
+</section>
+<section class="card" id="eventFormCard">
+<div class="section-heading"><div><p class="eyebrow">Neuer Eintrag</p><h2>Termin eintragen</h2></div></div>
+<div class="form-grid">
+<label>Titel<input id="eventTitle" placeholder="z. B. Gym, Schwimmen, Spaziergang" type="text"/></label>
+<label>Datum<input id="eventDate" type="date"/></label>
+<label>Von<input id="eventStart" type="time" value="18:00"/></label>
+<label>Bis<input id="eventEnd" type="time" value="19:30"/></label>
+<label>Teilnehmer<select id="eventOwner"><option value="all">Alle Gruppenmitglieder</option><option value="self">Nur ich</option></select></label>
+<label>Farbe<select id="eventColor"><option value="violet">Lila</option><option value="blue">Blau</option><option value="green">Grün</option><option value="orange">Orange</option><option value="pink">Pink</option></select></label>
+<label>Strafe bei Verpassen (€)<input id="eventPenalty" min="0" step="0.5" type="number" value="2"/></label>
+<label>Wiederholung<select id="eventRepeat"><option value="none">Keine</option><option value="weekly">Wöchentlich</option><option value="monthly">Monatlich</option><option value="yearly">Jährlich</option></select></label>
+<label class="hidden" id="eventRepeatUntilWrap">Wiederholen bis (optional)<input id="eventRepeatUntil" type="date"/></label>
+<label>Erinnerung<select id="eventReminder"><option value="60">1 Stunde vorher</option><option value="15">15 Minuten vorher</option><option value="0">Keine</option></select></label>
+</div>
+<label>Notiz<textarea id="eventNote" placeholder="Optional" rows="3"></textarea></label>
+<button class="primary-btn full" id="addEventBtn" type="button">Termin speichern</button>
+<p class="helper">Wiederholungen werden automatisch im Kalender angezeigt. Jede einzelne Wiederholung hat ihren eigenen Status und zählt separat für Streaks und Strafgeld.</p>
+</section>
+<section class="card">
+<div class="section-heading"><div><p class="eyebrow">Liste</p><h2>Alle Termine</h2></div></div>
+<div class="list" id="eventList"></div>
+</section>
+</section>
+<section class="panel" id="weight"><section class="card">
+<div class="section-heading"><div><p class="eyebrow">Gewicht</p><h2>Verlauf eintragen</h2></div></div>
+<div class="inline-form">
+<label>Datum<input id="weightDate" type="date"/></label>
+<label>Gewicht (kg)<input id="weightValue" max="300" min="20" placeholder="z. B. 92.4" step="0.1" type="number"/></label>
+<button class="primary-btn" id="addWeightBtn" type="button">Speichern</button>
+</div>
+<div class="weight-summary">
+<div><span>Start</span><strong id="weightStart">–</strong></div>
+<div><span>Aktuell</span><strong id="weightCurrent">–</strong></div>
+<div><span>Veränderung</span><strong id="weightDelta">–</strong></div>
+</div>
+<div class="weight-chart-settings">
+<label><span>Y-Achse</span>
+<select id="weightScaleMode">
+<option value="auto">Automatisch (25-kg-Fenster)</option>
+<option value="custom">Eigener Bereich</option>
+</select>
+</label>
+<label class="hidden" id="weightScaleMinWrap"><span>Minimum (kg)</span><input id="weightScaleMin" step="1" type="number" value="85"/></label>
+<label class="hidden" id="weightScaleMaxWrap"><span>Maximum (kg)</span><input id="weightScaleMax" step="1" type="number" value="100"/></label>
+</div>
+<div class="chart-wrap"><canvas aria-label="Gewichtsverlauf" height="360" id="weightChart" width="900"></canvas></div>
+<div aria-label="Gewichtsmesspunkte" class="weight-timeline" id="weightTimeline"></div>
+<div class="weight-cursor-info" id="weightCursorInfo"><strong>Messpunkt auswählen</strong><span>Tippe auf einen Punkt unter dem Graphen.</span></div>
+<p class="helper">Die Punkte unter dem Graphen sind deine echten Messungen. Wähle einen Punkt, um Datum und Gewicht zu sehen; die rote Linie markiert ihn im Graphen.</p>
+<div class="section-heading weight-history-heading"><div><p class="eyebrow">Messwerte</p><h3>Gewichtshistorie</h3></div></div>
+<div class="weight-entry-list" id="weightEntryList"></div>
+</section></section><section class="panel" id="achievements">
+<section class="card achievement-card">
+<div class="section-heading">
+<div>
+<p class="eyebrow">Medaillen</p>
+<h2>Achievements</h2>
+</div>
+<span class="badge" id="achievementSummaryBadge">0 Gold</span>
+</div>
+<p class="helper">Jedes Achievement hat Bronze, Silber und Gold. Erreichte Medaillen bleiben erhalten; die Leiste zeigt deinen aktuellen Fortschritt zur nächsten Stufe.</p>
+<div class="achievement-grid" id="achievementGrid"></div>
+</section>
+<section class="card">
+<div class="section-heading">
+<div><p class="eyebrow">Deine letzten 30 Tage</p><h2>Trainingsstatistik</h2></div>
+</div>
+<div class="advanced-stats-grid" id="advancedStatsGrid"></div>
+</section>
+<section class="card" id="yearEndCard">
+<div class="section-heading">
+<div><p class="eyebrow">Jahresabschluss</p><h2>Gemeinsamer Geldtopf</h2></div>
+<select class="compact-select" id="yearEndSelect"></select>
+</div>
+<div class="year-end-summary" id="yearEndSummary"></div>
+<div class="year-end-members" id="yearEndMembers"></div>
+<div class="year-end-decision" id="yearEndDecision"></div>
+</section>
 
-      <section id="photos" class="panel">
-        <section id="photoReminderCard" class="card photo-reminder hidden">
-          <div class="section-heading"><div><p class="eyebrow">📸 Fortschrittsfoto</p><h2>Zeit für ein Fortschrittsbild</h2></div></div>
-          <p id="photoReminderText" class="helper">Dein letztes Fortschrittsbild ist mindestens 14 Tage her.</p>
-          <div class="dialog-actions"><button id="photoReminderNowBtn" class="primary-btn" type="button">Jetzt aufnehmen</button><button id="photoReminderLaterBtn" class="ghost-btn" type="button">In 7 Tagen erinnern</button></div>
-        </section>
+</section>
+<section class="panel" id="photos">
+<section class="card photo-reminder hidden" id="photoReminderCard">
+<div class="section-heading"><div><p class="eyebrow">📸 Fortschrittsfoto</p><h2>Zeit für ein Fortschrittsbild</h2></div></div>
+<p class="helper" id="photoReminderText">Dein letztes Fortschrittsbild ist mindestens 14 Tage her.</p>
+<div class="dialog-actions"><button class="primary-btn" id="photoReminderNowBtn" type="button">Jetzt aufnehmen</button><button class="ghost-btn" id="photoReminderLaterBtn" type="button">In 7 Tagen erinnern</button></div>
+</section>
+<section class="card">
+<div class="section-heading"><div><p class="eyebrow">Vorher / Nachher</p><h2>Fortschrittsbilder</h2></div></div>
+<div class="form-grid">
+<label>Datum<input id="photoDate" type="date"/></label>
+<label>Sichtbarkeit<select id="photoVisibility"><option value="private">🔒 Privat</option><option value="shared">👥 Mit Gruppe teilen</option></select></label>
+</div>
+<label>Bild<input accept="image/*" id="photoInput" type="file"/></label>
+<button class="primary-btn full" id="addPhotoBtn" type="button">Bild hinzufügen</button>
+<p class="helper">Bilder werden sicher in Supabase Storage gespeichert. Private Bilder siehst nur du; geteilte Bilder können Mitglieder deiner Gruppe sehen.</p>
+</section>
+<section class="card" id="progressSlideshowCard">
+<div class="section-heading"><div><p class="eyebrow">Veränderung ansehen</p><h2>Fortschritts-Slideshow</h2></div><span class="badge" id="slideCounter">0 / 0</span></div>
+<div class="progress-slideshow" id="progressSlideshow"><div class="empty">Noch nicht genug Bilder für eine Slideshow.</div></div>
+<div class="slideshow-controls"><button class="ghost-btn" id="slidePrevBtn" type="button">‹ Zurück</button><button class="primary-btn" id="slidePlayBtn" type="button">▶ Abspielen</button><button class="ghost-btn" id="slideNextBtn" type="button">Weiter ›</button></div>
+</section>
+<section class="card">
+<div class="section-heading"><div><p class="eyebrow">Galerie</p><h2>Fortschrittsbilder</h2></div></div>
+<section class="photo-grid" id="photoGrid"></section>
+</section>
+<section class="card">
+<div class="section-heading"><div><p class="eyebrow">🏋️ Trainingsnachweise</p><h2>Gym-Bilder</h2></div></div>
+<p class="helper">Diese Bilder gehören zu bestätigten Trainings und sind für Mitglieder der jeweiligen Gruppe sichtbar. Sie bleiben getrennt von deinen Fortschrittsbildern.</p>
+<section class="photo-grid" id="proofGrid"></section>
+</section>
+</section>
+<section class="panel" id="groups"><section class="card group-card">
+<div class="section-heading">
+<div><p class="eyebrow">Gemeinsam trainieren</p><h2>Gruppen</h2></div>
+<span class="badge" id="groupMemberCount">0 Mitglieder</span>
+</div>
+<div class="current-group hidden" id="currentGroupBox">
+<div>
+<span class="helper">Aktive Gruppe</span>
+<strong id="currentGroupName">–</strong>
+</div>
+<div class="invite-row">
+<span class="invite-code" id="inviteCodeLabel">–</span>
+<button class="ghost-btn" id="copyInviteBtn" type="button">Einladungslink kopieren</button>
+</div>
+<div class="invite-qr-wrap">
+<img alt="QR-Code für den Gruppenbeitritt" class="invite-qr" id="inviteQr"/>
+<span class="helper">QR-Code scannen und direkt der Gruppe beitreten.</span>
+</div>
+</div>
+<div class="member-list" id="groupMemberList"></div>
+<div class="group-actions-grid">
+<div class="group-action-box">
+<h3>Neue Gruppe</h3>
+<label>Gruppenname<input id="newGroupName" maxlength="40" placeholder="z. B. Janek &amp; Estelle" type="text"/></label>
+<button class="primary-btn full" id="createGroupBtn" type="button">Gruppe erstellen</button>
+</div>
+<div class="group-action-box">
+<h3>Gruppe beitreten</h3>
+<label>Einladungscode<input autocomplete="off" id="joinGroupCode" maxlength="20" placeholder="z. B. A1B2C3D4" type="text"/></label>
+<button class="primary-btn full" id="joinGroupBtn" type="button">Beitreten</button>
+</div>
+</div>
+<p aria-live="polite" class="helper" id="groupMessage"></p>
+</section></section><section class="panel" id="profiles">
 
-        <section class="card">
-          <div class="section-heading"><div><p class="eyebrow">Vorher / Nachher</p><h2>Fortschrittsbilder</h2></div></div>
-          <div class="form-grid">
-            <label>Datum<input id="photoDate" type="date" /></label>
-            <label>Sichtbarkeit<select id="photoVisibility"><option value="private">🔒 Privat</option><option value="shared">👥 Mit Gruppe teilen</option></select></label>
-          </div>
-          <label>Bild<input id="photoInput" type="file" accept="image/*" /></label>
-          <button id="addPhotoBtn" class="primary-btn full" type="button">Bild hinzufügen</button>
-          <p class="helper">Bilder werden sicher in Supabase Storage gespeichert. Private Bilder siehst nur du; geteilte Bilder können Mitglieder deiner Gruppe sehen.</p>
-        </section>
-        <section class="card" id="progressSlideshowCard">
-          <div class="section-heading"><div><p class="eyebrow">Veränderung ansehen</p><h2>Fortschritts-Slideshow</h2></div><span id="slideCounter" class="badge">0 / 0</span></div>
-          <div id="progressSlideshow" class="progress-slideshow"><div class="empty">Noch nicht genug Bilder für eine Slideshow.</div></div>
-          <div class="slideshow-controls"><button id="slidePrevBtn" class="ghost-btn" type="button">‹ Zurück</button><button id="slidePlayBtn" class="primary-btn" type="button">▶ Abspielen</button><button id="slideNextBtn" class="ghost-btn" type="button">Weiter ›</button></div>
-        </section>
-        <section class="card">
-          <div class="section-heading"><div><p class="eyebrow">Galerie</p><h2>Fortschrittsbilder</h2></div></div>
-          <section class="photo-grid" id="photoGrid"></section>
-        </section>
-        <section class="card">
-          <div class="section-heading"><div><p class="eyebrow">🏋️ Trainingsnachweise</p><h2>Gym-Bilder</h2></div></div>
-          <p class="helper">Diese Bilder gehören zu bestätigten Trainings und sind für Mitglieder der jeweiligen Gruppe sichtbar. Sie bleiben getrennt von deinen Fortschrittsbildern.</p>
-          <section class="photo-grid" id="proofGrid"></section>
-        </section>
-      </section>
-
-      <section id="profiles" class="panel">
-        <section class="card group-card">
-          <div class="section-heading">
-            <div><p class="eyebrow">Gemeinsam trainieren</p><h2>Gruppen</h2></div>
-            <span id="groupMemberCount" class="badge">0 Mitglieder</span>
-          </div>
-          <div id="currentGroupBox" class="current-group hidden">
-            <div>
-              <span class="helper">Aktive Gruppe</span>
-              <strong id="currentGroupName">–</strong>
-            </div>
-            <div class="invite-row">
-              <span id="inviteCodeLabel" class="invite-code">–</span>
-              <button id="copyInviteBtn" class="ghost-btn" type="button">Einladungslink kopieren</button>
-            </div>
-            <div class="invite-qr-wrap">
-              <img id="inviteQr" class="invite-qr" alt="QR-Code für den Gruppenbeitritt" />
-              <span class="helper">QR-Code scannen und direkt der Gruppe beitreten.</span>
-            </div>
-          </div>
-          <div id="groupMemberList" class="member-list"></div>
-          <div class="group-actions-grid">
-            <div class="group-action-box">
-              <h3>Neue Gruppe</h3>
-              <label>Gruppenname<input id="newGroupName" type="text" maxlength="40" placeholder="z. B. Janek & Estelle" /></label>
-              <button id="createGroupBtn" class="primary-btn full" type="button">Gruppe erstellen</button>
-            </div>
-            <div class="group-action-box">
-              <h3>Gruppe beitreten</h3>
-              <label>Einladungscode<input id="joinGroupCode" type="text" maxlength="20" autocomplete="off" placeholder="z. B. A1B2C3D4" /></label>
-              <button id="joinGroupBtn" class="primary-btn full" type="button">Beitreten</button>
-            </div>
-          </div>
-          <p id="groupMessage" class="helper" aria-live="polite"></p>
-        </section>
-
-        <section class="profile-grid">
-          <article class="card profile-card">
-            <div class="avatar avatar-red" id="ownAvatar">J</div>
-            <p class="eyebrow">Dein Profil</p>
-            <h2 id="ownProfileName">Ich</h2>
-            <p class="helper">Dieses Profil kannst nur du bearbeiten.</p>
-            <label>Anzeigename<input id="ownNameInput" type="text" maxlength="30" /></label>
-            <button id="saveOwnProfileBtn" class="primary-btn full" type="button">Profil speichern</button>
-            <div class="profile-stats">
-              <div><span>Schulden</span><strong id="ownProfileDebt">0 €</strong></div>
-              <div><span>Trainings</span><strong id="ownProfileDone">0</strong></div>
-            </div>
-          </article>
-
-          <article class="card profile-card partner-profile">
-            <div class="avatar avatar-blue" id="partnerAvatar">P</div>
-            <p class="eyebrow">Partnerprofil</p>
-            <h2 id="partnerProfileName">Partner</h2>
-            <p class="helper">Hier siehst du später alles, was sie für dich freigibt.</p>
-            <div class="profile-stats">
-              <div><span>Schulden</span><strong id="partnerProfileDebt">0 €</strong></div>
-              <div><span>Trainings</span><strong id="partnerProfileDone">0</strong></div>
-            </div>
-            <div class="privacy-note">🔒 Private Gewichte und Bilder bleiben verborgen. Geteilte Fortschritte erscheinen später hier.</div>
-          </article>
-        </section>
-      </section>
-
-      <section id="settings" class="panel">
-        <section class="card locale-settings-card">
-          <div class="section-heading"><div><p class="eyebrow" data-i18n="display">Anzeige</p><h2 data-i18n="languageRegion">Sprache & Format</h2></div><span class="badge">🌐</span></div>
-          <div class="form-grid two">
-            <label><span data-i18n="language">Sprache</span><select id="languageSelect"><option value="de">🇩🇪 Deutsch</option><option value="en">🇬🇧 English</option></select></label>
-            <label><span data-i18n="dateFormat">Datumsformat</span>
-              <select id="dateFormatSelect">
-                <option value="dmy">DD.MM.YYYY</option>
-                <option value="mdy">MM/DD/YYYY</option>
-              </select>
-            </label>
-            <label><span data-i18n="timeFormat">Zeitformat</span>
-              <select id="timeFormatSelect">
-                <option value="24">24h</option>
-                <option value="12">12h · AM/PM</option>
-              </select>
-            </label>
-            <label><span data-i18n="weightUnit">Gewichtseinheit</span>
-              <select id="weightUnitSelect">
-                <option value="kg">kg</option>
-                <option value="lb">lb</option>
-              </select>
-            </label>
-          </div>
-          <p class="helper" data-i18n="formatHint">Sprache, Datum, Uhrzeit und Gewichtseinheit können unabhängig voneinander eingestellt werden. Gewichte werden intern weiterhin in kg gespeichert.</p>
-        </section>
-        <section class="card notification-settings-card">
-          <div class="section-heading">
-            <div><p class="eyebrow">App</p><h2>Benachrichtigungen</h2></div>
-            <span id="notificationBadge" class="badge">Nicht eingerichtet</span>
-          </div>
-          <div class="notification-state-box">
-            <p id="notificationStatus" class="helper">Benachrichtigungen sind noch nicht aktiviert.</p>
-            <p id="pushStatus" class="helper">Push bei geschlossener App ist noch nicht eingerichtet.</p>
-          </div>
-          <div class="form-grid two">
-            <label><span>Standard-Erinnerung</span>
-              <select id="defaultReminderSelect">
-                <option value="15">15 Minuten vorher</option>
-                <option value="60" selected>1 Stunde vorher</option>
-                <option value="120">2 Stunden vorher</option>
-                <option value="1440">1 Tag vorher</option>
-              </select>
-            </label>
-            <label class="toggle-label"><span>Nur eigene Termine</span><input id="ownNotificationsOnly" type="checkbox" checked /></label>
-          </div>
-          <p class="helper">Die Einstellungen werden automatisch gespeichert. Geschlossene-App-Pushs werden aktuell serverseitig 1 Stunde vor dem Training gesendet.</p>
-          <div class="dialog-actions">
-            <button id="settingsNotifyBtn" class="primary-btn" type="button">🔔 Push aktivieren</button>
-            <button id="disablePushBtn" class="ghost-btn" type="button">🔕 Push deaktivieren</button>
-            <button id="testNotifyBtn" class="ghost-btn" type="button">Test senden</button>
-          </div>
-        </section>
-      </section>
-    </main>
-  </div>
-
-  <dialog id="statusDialog">
-    <form method="dialog" class="dialog-card">
-      <h3>Termin aktualisieren</h3>
-      <p id="dialogEventName"></p>
-      <div class="proof-box">
-        <strong>📷 Trainingsnachweis</strong>
-        <p id="proofStatus" class="helper">Für „Erledigt“ ist ein Trainingsfoto erforderlich.</p>
-        <img id="proofPreview" class="proof-preview hidden" alt="Trainingsnachweis" />
-        <input id="proofInput" type="file" accept="image/*" class="hidden-file-input" />
-        <div class="proof-source-actions">
-          <button id="proofCameraBtn" type="button" class="ghost-btn">📷 Bild aufnehmen</button>
-          <button id="proofGalleryBtn" type="button" class="ghost-btn">🖼️ Bild auswählen</button>
-        </div>
-        <p id="proofSelectedFile" class="helper">Noch kein neues Bild ausgewählt.</p>
-        <button id="uploadProofBtn" type="button" class="ghost-btn">Nachweis vorab hochladen</button>
-      </div>
-      <div class="dialog-actions">
-        <button id="statusDoneBtn" type="button" class="primary-btn">✅ Erledigt</button>
-        <button id="statusMissedBtn" type="button" class="danger-btn">❌ Verpasst</button>
-        <button id="statusExcusedBtn" type="button" class="ghost-btn">🩹 Entschuldigt</button>
-        <button value="cancel" class="ghost-btn">Abbrechen</button>
-      </div>
-    </form>
-  </dialog>
-
-  <script type="module" src="app.js?v=0.19.2"></script>
-
-  <dialog id="seriesActionDialog" class="status-dialog">
-    <form method="dialog" class="dialog-card">
-      <p class="eyebrow" id="seriesActionEyebrow">Wiederholung</p>
-      <h3 id="seriesActionTitle">Termin bearbeiten</h3>
-      <p id="seriesActionText" class="helper">Möchtest du nur diesen Termin oder die gesamte Serie ändern?</p>
-      <div class="dialog-actions stacked-actions">
-        <button id="seriesOnlyBtn" type="button" class="ghost-btn">Nur diesen Termin</button>
-        <button id="seriesAllBtn" type="button" class="primary-btn">Gesamte Serie</button>
-        <button value="cancel" class="ghost-btn">Abbrechen</button>
-      </div>
-    </form>
-  </dialog>
-
-  <dialog id="notificationOnboardingDialog" class="status-dialog">
-    <div class="dialog-card">
-      <p class="eyebrow">🔔 Erinnerungen</p>
-      <h3>Trainingserinnerungen aktivieren?</h3>
-      <p class="helper">FitTogether kann dich vor deinen geplanten Trainings erinnern – auch wenn die App geschlossen ist.</p>
-      <div class="dialog-actions stacked-actions">
-        <button id="notificationOnboardingEnableBtn" type="button" class="primary-btn">Benachrichtigungen aktivieren</button>
-        <button id="notificationOnboardingLaterBtn" type="button" class="ghost-btn">Später</button>
-      </div>
-    </div>
-  </dialog>
-
-
-  <dialog id="proofCameraDialog" class="camera-dialog">
-    <div class="dialog-card camera-card">
-      <div class="section-heading">
-        <div><p class="eyebrow">Trainingsnachweis</p><h3>Kamera</h3></div>
-        <button id="proofCameraCloseBtn" type="button" class="ghost-btn">✕</button>
-      </div>
-      <div class="camera-stage">
-        <video id="proofCameraVideo" autoplay playsinline muted></video>
-      </div>
-      <p id="proofCameraMessage" class="helper">Kamera wird gestartet …</p>
-      <div class="dialog-actions">
-        <button id="proofCameraCaptureBtn" type="button" class="primary-btn">📸 Foto aufnehmen</button>
-        <button id="proofCameraCancelBtn" type="button" class="ghost-btn">Abbrechen</button>
-      </div>
-    </div>
-  </dialog>
-
+<section class="profile-grid">
+<article class="card profile-card">
+<div class="avatar avatar-red" id="ownAvatar">J</div>
+<p class="eyebrow">Dein Profil</p>
+<h2 id="ownProfileName">Ich</h2>
+<p class="helper">Dieses Profil kannst nur du bearbeiten.</p>
+<label>Anzeigename<input id="ownNameInput" maxlength="30" type="text"/></label>
+<button class="primary-btn full" id="saveOwnProfileBtn" type="button">Profil speichern</button>
+<div class="profile-stats">
+<div><span>Schulden</span><strong id="ownProfileDebt">0 €</strong></div>
+<div><span>Trainings</span><strong id="ownProfileDone">0</strong></div>
+</div>
+</article>
+<article class="card profile-card partner-profile">
+<div class="avatar avatar-blue" id="partnerAvatar">P</div>
+<p class="eyebrow">Partnerprofil</p>
+<h2 id="partnerProfileName">Partner</h2>
+<p class="helper">Hier siehst du später alles, was sie für dich freigibt.</p>
+<div class="profile-stats">
+<div><span>Schulden</span><strong id="partnerProfileDebt">0 €</strong></div>
+<div><span>Trainings</span><strong id="partnerProfileDone">0</strong></div>
+</div>
+<div class="privacy-note">🔒 Private Gewichte und Bilder bleiben verborgen. Geteilte Fortschritte erscheinen später hier.</div>
+</article>
+</section>
+</section>
+<section class="panel" id="settings">
+<section class="card locale-settings-card">
+<div class="section-heading"><div><p class="eyebrow" data-i18n="display">Anzeige</p><h2 data-i18n="languageRegion">Sprache &amp; Format</h2></div><span class="badge">🌐</span></div>
+<div class="form-grid two">
+<label><span data-i18n="language">Sprache</span><select id="languageSelect"><option value="de">🇩🇪 Deutsch</option><option value="en">🇬🇧 English</option></select></label>
+<label><span data-i18n="dateFormat">Datumsformat</span>
+<select id="dateFormatSelect">
+<option value="dmy">DD.MM.YYYY</option>
+<option value="mdy">MM/DD/YYYY</option>
+</select>
+</label>
+<label><span data-i18n="timeFormat">Zeitformat</span>
+<select id="timeFormatSelect">
+<option value="24">24h</option>
+<option value="12">12h · AM/PM</option>
+</select>
+</label>
+<label><span data-i18n="weightUnit">Gewichtseinheit</span>
+<select id="weightUnitSelect">
+<option value="kg">kg</option>
+<option value="lb">lb</option>
+</select>
+</label>
+</div>
+<p class="helper" data-i18n="formatHint">Sprache, Datum, Uhrzeit und Gewichtseinheit können unabhängig voneinander eingestellt werden. Gewichte werden intern weiterhin in kg gespeichert.</p>
+</section>
+<section class="card notification-settings-card">
+<div class="section-heading">
+<div><p class="eyebrow">App</p><h2>Benachrichtigungen</h2></div>
+<span class="badge" id="notificationBadge">Nicht eingerichtet</span>
+</div>
+<div class="notification-state-box">
+<p class="helper" id="notificationStatus">Benachrichtigungen sind noch nicht aktiviert.</p>
+<p class="helper" id="pushStatus">Push bei geschlossener App ist noch nicht eingerichtet.</p>
+</div>
+<div class="form-grid two">
+<label><span>Standard-Erinnerung</span>
+<select id="defaultReminderSelect">
+<option value="15">15 Minuten vorher</option>
+<option selected="" value="60">1 Stunde vorher</option>
+<option value="120">2 Stunden vorher</option>
+<option value="1440">1 Tag vorher</option>
+</select>
+</label>
+<label class="toggle-label"><span>Nur eigene Termine</span><input checked="" id="ownNotificationsOnly" type="checkbox"/></label>
+</div>
+<p class="helper">Die Einstellungen werden automatisch gespeichert. Geschlossene-App-Pushs werden aktuell serverseitig 1 Stunde vor dem Training gesendet.</p>
+<div class="dialog-actions">
+<button class="primary-btn" id="settingsNotifyBtn" type="button">🔔 Push aktivieren</button>
+<button class="ghost-btn" id="disablePushBtn" type="button">🔕 Push deaktivieren</button>
+<button class="ghost-btn" id="testNotifyBtn" type="button">Test senden</button>
+</div>
+</section>
+</section>
+</main>
+</div>
+<dialog id="statusDialog">
+<form class="dialog-card" method="dialog">
+<h3>Termin aktualisieren</h3>
+<p id="dialogEventName"></p>
+<div class="proof-box">
+<strong>📷 Trainingsnachweis</strong>
+<p class="helper" id="proofStatus">Für „Erledigt“ ist ein Trainingsfoto erforderlich.</p>
+<img alt="Trainingsnachweis" class="proof-preview hidden" id="proofPreview"/>
+<input accept="image/*" class="hidden-file-input" id="proofInput" type="file"/>
+<div class="proof-source-actions">
+<button class="ghost-btn" id="proofCameraBtn" type="button">📷 Bild aufnehmen</button>
+<button class="ghost-btn" id="proofGalleryBtn" type="button">🖼️ Bild auswählen</button>
+</div>
+<p class="helper" id="proofSelectedFile">Noch kein neues Bild ausgewählt.</p>
+<button class="ghost-btn" id="uploadProofBtn" type="button">Nachweis vorab hochladen</button>
+</div>
+<div class="dialog-actions">
+<button class="primary-btn" id="statusDoneBtn" type="button">✅ Erledigt</button>
+<button class="danger-btn" id="statusMissedBtn" type="button">❌ Verpasst</button>
+<button class="ghost-btn" id="statusExcusedBtn" type="button">🩹 Entschuldigt</button>
+<button class="ghost-btn" value="cancel">Abbrechen</button>
+</div>
+</form>
+</dialog>
+<script src="app.js?v=0.19.6" type="module"></script>
+<dialog class="status-dialog" id="seriesActionDialog">
+<form class="dialog-card" method="dialog">
+<p class="eyebrow" id="seriesActionEyebrow">Wiederholung</p>
+<h3 id="seriesActionTitle">Termin bearbeiten</h3>
+<p class="helper" id="seriesActionText">Möchtest du nur diesen Termin oder die gesamte Serie ändern?</p>
+<div class="dialog-actions stacked-actions">
+<button class="ghost-btn" id="seriesOnlyBtn" type="button">Nur diesen Termin</button>
+<button class="primary-btn" id="seriesAllBtn" type="button">Gesamte Serie</button>
+<button class="ghost-btn" value="cancel">Abbrechen</button>
+</div>
+</form>
+</dialog>
+<dialog class="status-dialog" id="notificationOnboardingDialog">
+<div class="dialog-card">
+<p class="eyebrow">🔔 Erinnerungen</p>
+<h3>Trainingserinnerungen aktivieren?</h3>
+<p class="helper">FitTogether kann dich vor deinen geplanten Trainings erinnern – auch wenn die App geschlossen ist.</p>
+<div class="dialog-actions stacked-actions">
+<button class="primary-btn" id="notificationOnboardingEnableBtn" type="button">Benachrichtigungen aktivieren</button>
+<button class="ghost-btn" id="notificationOnboardingLaterBtn" type="button">Später</button>
+</div>
+</div>
+</dialog>
+<dialog class="camera-dialog" id="proofCameraDialog">
+<div class="dialog-card camera-card">
+<div class="section-heading">
+<div><p class="eyebrow">Trainingsnachweis</p><h3>Kamera</h3></div>
+<button class="ghost-btn" id="proofCameraCloseBtn" type="button">✕</button>
+</div>
+<div class="camera-stage">
+<video autoplay="" id="proofCameraVideo" muted="" playsinline=""></video>
+</div>
+<p class="helper" id="proofCameraMessage">Kamera wird gestartet …</p>
+<div class="dialog-actions">
+<button class="primary-btn" id="proofCameraCaptureBtn" type="button">📸 Foto aufnehmen</button>
+<button class="ghost-btn" id="proofCameraCancelBtn" type="button">Abbrechen</button>
+</div>
+</div>
+</dialog>
 </body>
 </html>

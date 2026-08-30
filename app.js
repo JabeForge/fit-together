@@ -1,7 +1,7 @@
-const APP_VERSION = "0.19.5";
+const APP_VERSION = "0.19.6";
 const I18N={
- de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise'},
- en:{display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof'}
+ de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise',groups:'Gruppe',achievements:'Erfolge'},
+ en:{display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof',groups:'Group',achievements:'Achievements'}
 };
 let appLanguage=localStorage.getItem('fitTogether_language')||((navigator.language||'').toLowerCase().startsWith('de')?'de':'en');
 let dateFormat=localStorage.getItem('fitTogether_dateFormat')||(((navigator.language||'').toLowerCase()==='en-us')?'mdy':'dmy');
@@ -15,7 +15,7 @@ function applyLocale(){
  const ds=document.querySelector('#dateFormatSelect'),ts=document.querySelector('#timeFormatSelect'),ws=document.querySelector('#weightUnitSelect');
  if(ls)ls.value=appLanguage;if(ds)ds.value=dateFormat;if(ts)ts.value=timeFormat;if(ws)ws.value=weightUnit;
  // main navigation
- const map={calendar:'calendar',progress:'stats',photos:'photos',profiles:'profiles',settings:'settings'};
+ const map={calendar:'calendar',weight:'weight',achievements:'achievements',photos:'photos',groups:'groups',profiles:'profiles',settings:'settings'};
  document.querySelectorAll('[data-tab]').forEach(b=>{const k=map[b.dataset.tab];if(k){const icon=(b.textContent.match(/^\s*[^\wÄÖÜäöü]+/)||[''])[0].trim();b.textContent=(icon?icon+' ':'')+t(k);}});
  renderAll();
 }
@@ -29,6 +29,7 @@ function dateLabel(iso){if(!iso)return'';const [y,m,d]=String(iso).slice(0,10).s
 function timeLabel(hm){if(!hm)return'';if(timeFormat!=='12')return hm.slice(0,5);let [h,m]=hm.slice(0,5).split(':').map(Number);const ap=h>=12?'PM':'AM';h=h%12||12;return `${h}:${String(m).padStart(2,'0')} ${ap}`;}
 
 console.info(`FitTogether V${APP_VERSION}`);
+const versionEl=document.querySelector('.app-version');if(versionEl)versionEl.textContent=`V${APP_VERSION}`;
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm";
 
 const SUPABASE_URL = "https://iixnjrxvdpqvkjoizify.supabase.co";
@@ -158,7 +159,7 @@ function bindActions(){
   $('#createGroupBtn').addEventListener('click',createGroup);
   $('#joinGroupBtn').addEventListener('click',()=>joinGroup($('#joinGroupCode').value));
   $('#copyInviteBtn').addEventListener('click',copyInviteLink);
-  $('#openGroupsBtn').addEventListener('click',()=>showTab('profiles'));
+  $('#openGroupsBtn').addEventListener('click',()=>showTab('groups'));
   $('#activeGroupSelect').addEventListener('change',async e=>{
     const found=groups.find(g=>g.id===e.target.value);
     if(found){ activeGroup=found; try{localStorage.setItem('fitTogether_activeGroup',found.id);}catch{} await loadActiveGroupData(); }
