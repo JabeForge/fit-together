@@ -1,4 +1,4 @@
-const APP_VERSION = "0.19.4";
+const APP_VERSION = "0.19.5";
 const I18N={
  de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise'},
  en:{display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof'}
@@ -477,7 +477,15 @@ function renderGroupUI(){
   else{select.disabled=false;groups.forEach(g=>{const o=document.createElement('option');o.value=g.id;o.textContent=g.name;o.selected=activeGroup?.id===g.id;select.appendChild(o);});}
   $('#noGroupBanner').classList.toggle('hidden',!!activeGroup);
   $('#currentGroupBox').classList.toggle('hidden',!activeGroup);
-  if(activeGroup){$('#currentGroupName').textContent=activeGroup.name;$('#inviteCodeLabel').textContent=activeGroup.invite_code||'–';}
+  if(activeGroup){
+    $('#currentGroupName').textContent=activeGroup.name;$('#inviteCodeLabel').textContent=activeGroup.invite_code||'–';
+    const qr=$('#inviteQr');
+    if(qr&&activeGroup.invite_code){
+      const link=`${APP_URL}?join=${encodeURIComponent(activeGroup.invite_code)}`;
+      qr.src=`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(link)}`;
+      qr.classList.remove('hidden');
+    }
+  }
   renderMembers();
 }
 function renderMembers(){
@@ -946,11 +954,15 @@ function renderEvents(){
   if(!upcoming.length)next.innerHTML='<div class="empty">Keine kommenden Termine.</div>';upcoming.forEach(ev=>next.appendChild(eventNode(ev,false,ev.date)));
 }
 function statusLabel(s){return {planned:'Geplant',completed:'Erledigt',missed:'Verpasst',excused:'Entschuldigt'}[s]||s;}
+function eventCreatorName(ev){
+  if(ev.created_by===currentUser?.id)return currentProfile?.name||'Du';
+  return groupMembers.find(m=>m.id===ev.created_by)?.name||'Mitglied';
+}
 function eventNode(ev,withDelete,occurrenceDateOverride=null){
   const wrap=document.createElement('div');wrap.className='event-item';
   const occurrenceDate=occurrenceDateOverride||ev.date;
   const statuses=ev.participants.map(p=>{const st=occurrenceStatus(ev,p.profile_id,occurrenceDate);const icon=st==='completed'?'✅':st==='missed'?'❌':st==='excused'?'🩹':'🕒';return `<span class="status ${st}">${icon} ${escapeHtml(p.name)}: ${statusLabel(st)}${st==='missed'&&ev.penalty?` · ${euro(ev.penalty)}`:''}</span>`;}).join('');
-  wrap.innerHTML=`<div class="event-main"><strong>${escapeHtml(ev.title)} <span class="event-sync-badge">● synchronisiert</span></strong><div class="event-meta">${formatDate(occurrenceDate)}${recurrenceText(ev)} · ${ev.start||'–'}${ev.end?`–${ev.end}`:''} · ${euro(ev.penalty)} Strafe</div><div class="status-row participant-status-row">${statuses}</div></div><div class="event-actions"><button class="small-btn status-btn" type="button">Status</button>${withDelete&&ev.created_by===currentUser.id?'<button class="small-btn delete-btn" type="button">🗑</button>':''}</div>`;
+  wrap.innerHTML=`<div class="event-main"><strong>${escapeHtml(ev.title)} <span class="event-sync-badge">● synchronisiert</span></strong><div class="event-meta">${formatDate(occurrenceDate)}${recurrenceText(ev)} · ${ev.start||'–'}${ev.end?`–${ev.end}`:''} · ${euro(ev.penalty)} Strafe</div><div class="event-creator">Erstellt von: ${escapeHtml(eventCreatorName(ev))}</div><div class="status-row participant-status-row">${statuses}</div></div><div class="event-actions"><button class="small-btn status-btn" type="button">Status</button>${withDelete&&ev.created_by===currentUser.id?'<button class="small-btn delete-btn" type="button">🗑</button>':''}</div>`;
   wrap.querySelector('.status-btn').addEventListener('click',()=>{openStatusDialog(ev,occurrenceDate);});
   const del=wrap.querySelector('.delete-btn');if(del)del.addEventListener('click',async()=>{if(confirm(`„${ev.title}“${ev.recurrence!=='none'?' und die ganze Serie':''} löschen?`)){const {error}=await supabase.from('events').delete().eq('id',ev.id);if(error)alert(error.message);else{await loadEvents();await loadOccurrenceStatuses();renderAll();}}});
   return wrap;
