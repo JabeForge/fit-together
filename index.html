@@ -8,7 +8,7 @@
 <title>FitTogether</title>
 <link href="manifest.webmanifest" rel="manifest"/>
 <style>.hidden{display:none!important}</style>
-<link href="styles.css?v=0.19.6" rel="stylesheet"/>
+<link href="styles.css?v=0.19.7" rel="stylesheet"/>
 <meta content="no-cache, no-store, must-revalidate" http-equiv="Cache-Control"/><meta content="no-cache" http-equiv="Pragma"/><meta content="0" http-equiv="Expires"/></head>
 <body>
 <section aria-labelledby="authTitle" aria-modal="true" class="auth-screen" id="authScreen" role="dialog">
@@ -16,6 +16,7 @@
 <p class="eyebrow">FitTogether Online</p>
 <h1 id="authTitle">Willkommen bei FitTogether</h1>
 <p class="helper">Melde dich an oder erstelle einmalig deinen Account.</p>
+<label class="auth-language">🌐 <select aria-label="Sprache" id="authLanguageSelect"><option value="de">Deutsch</option><option value="en">English</option></select></label>
 <div class="auth-tabs">
 <button class="auth-tab active" id="showLoginBtn" type="button">Anmelden</button>
 <button class="auth-tab" id="showRegisterBtn" type="button">Registrieren</button>
@@ -24,6 +25,7 @@
 <label>E-Mail<input autocomplete="email" id="loginEmail" placeholder="name@beispiel.de" type="email"/></label>
 <label>Passwort<input autocomplete="current-password" id="loginPassword" placeholder="Passwort" type="password"/></label>
 <button class="primary-btn full" id="loginBtn" type="button">Anmelden</button>
+<button class="ghost-btn full" id="forgotPasswordBtn" type="button">Passwort vergessen?</button>
 </div>
 <div class="auth-form hidden" id="registerForm">
 <label>Anzeigename<input autocomplete="nickname" id="registerName" maxlength="30" placeholder="Dein Name" type="text"/></label>
@@ -38,7 +40,7 @@
 <header class="topbar">
 <div>
 <p class="eyebrow">Gemeinsam durchziehen</p>
-<h1>FitTogether <span class="app-version">V0.19.6</span></h1>
+<h1>FitTogether <span class="app-version">V0.19.7</span></h1>
 </div>
 <div class="top-actions">
 <select aria-label="Aktive Gruppe" class="group-select" id="activeGroupSelect"></select>
@@ -164,7 +166,7 @@
 </div>
 <span class="badge" id="achievementSummaryBadge">0 Gold</span>
 </div>
-<p class="helper">Jedes Achievement hat Bronze, Silber und Gold. Erreichte Medaillen bleiben erhalten; die Leiste zeigt deinen aktuellen Fortschritt zur nächsten Stufe.</p>
+<p class="helper">Jedes Achievement hat Bronze, Silber und Gold. Die Medaillen werden aus deinen gespeicherten Daten berechnet; die Leiste zeigt deinen aktuellen Fortschritt zur nächsten Stufe.</p>
 <div class="achievement-grid" id="achievementGrid"></div>
 </section>
 <section class="card">
@@ -277,6 +279,11 @@
 </section>
 </section>
 <section class="panel" id="settings">
+<section class="card">
+<div class="section-heading"><div><p class="eyebrow">Account</p><h2>Passwort &amp; Anmeldung</h2></div></div>
+<p class="helper">Ändere dein Passwort. Wenn du es vergessen hast, kannst du auf dem Anmeldebildschirm einen Link zum Zurücksetzen anfordern.</p>
+<button class="primary-btn" id="changePasswordBtn" type="button">Passwort ändern</button>
+</section>
 <section class="card locale-settings-card">
 <div class="section-heading"><div><p class="eyebrow" data-i18n="display">Anzeige</p><h2 data-i18n="languageRegion">Sprache &amp; Format</h2></div><span class="badge">🌐</span></div>
 <div class="form-grid two">
@@ -332,6 +339,16 @@
 </section>
 </main>
 </div>
+<dialog id="passwordDialog" aria-labelledby="passwordDialogTitle">
+<form class="dialog-card auth-form" id="passwordForm">
+<h3 id="passwordDialogTitle">Passwort ändern</h3>
+<label id="currentPasswordLabel">Aktuelles Passwort<input id="currentPassword" type="password" autocomplete="current-password"/></label>
+<label>Neues Passwort<input id="newPassword" type="password" autocomplete="new-password" minlength="6" required/></label>
+<label>Neues Passwort wiederholen<input id="confirmPassword" type="password" autocomplete="new-password" minlength="6" required/></label>
+<p class="helper" id="passwordMessage" role="status" aria-live="polite"></p>
+<div class="dialog-actions"><button class="primary-btn" id="savePasswordBtn" type="submit">Passwort speichern</button><button class="ghost-btn" id="passwordCancelBtn" type="button">Abbrechen</button></div>
+</form>
+</dialog>
 <dialog id="statusDialog">
 <form class="dialog-card" method="dialog">
 <h3>Termin aktualisieren</h3>
@@ -356,7 +373,7 @@
 </div>
 </form>
 </dialog>
-<script src="app.js?v=0.19.6" type="module"></script>
+<script src="app.js?v=0.19.7" type="module"></script>
 <dialog class="status-dialog" id="seriesActionDialog">
 <form class="dialog-card" method="dialog">
 <p class="eyebrow" id="seriesActionEyebrow">Wiederholung</p>

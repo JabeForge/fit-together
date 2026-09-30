@@ -1,7 +1,7 @@
-const APP_VERSION = "0.19.6";
+const APP_VERSION = "0.19.7";
 const I18N={
- de:{display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise',groups:'Gruppe',achievements:'Erfolge'},
- en:{display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof',groups:'Group',achievements:'Achievements'}
+ de:{home:'Übersicht',display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise',groups:'Gruppe',achievements:'Erfolge'},
+ en:{home:'Overview',display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof',groups:'Group',achievements:'Achievements'}
 };
 let appLanguage=localStorage.getItem('fitTogether_language')||((navigator.language||'').toLowerCase().startsWith('de')?'de':'en');
 let dateFormat=localStorage.getItem('fitTogether_dateFormat')||(((navigator.language||'').toLowerCase()==='en-us')?'mdy':'dmy');
@@ -15,7 +15,7 @@ function applyLocale(){
  const ds=document.querySelector('#dateFormatSelect'),ts=document.querySelector('#timeFormatSelect'),ws=document.querySelector('#weightUnitSelect');
  if(ls)ls.value=appLanguage;if(ds)ds.value=dateFormat;if(ts)ts.value=timeFormat;if(ws)ws.value=weightUnit;
  // main navigation
- const map={calendar:'calendar',weight:'weight',achievements:'achievements',photos:'photos',groups:'groups',profiles:'profiles',settings:'settings'};
+ const map={home:'home',calendar:'calendar',weight:'weight',achievements:'achievements',photos:'photos',groups:'groups',profiles:'profiles',settings:'settings'};
  document.querySelectorAll('[data-tab]').forEach(b=>{const k=map[b.dataset.tab];if(k){const icon=(b.textContent.match(/^\s*[^\wÄÖÜäöü]+/)||[''])[0].trim();b.textContent=(icon?icon+' ':'')+t(k);}});
  renderAll();
 }
@@ -43,9 +43,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const euro = v => `${Number(v || 0).toFixed(Number(v || 0) % 1 ? 1 : 0)} €`;
-const todayISO = () => new Date().toISOString().slice(0,10);
+const todayISO = () => localISO(new Date());
 const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-const formatDate = iso => new Intl.DateTimeFormat('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'}).format(new Date(`${iso}T12:00:00`));
+const formatDate = iso => `${new Intl.DateTimeFormat(appLanguage==='en'?'en-GB':'de-DE',{weekday:'short'}).format(new Date(`${iso}T12:00:00`))}, ${dateLabel(iso)}`;
 const escapeHtml = s => String(s ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 
 let currentUser = null;
@@ -98,13 +98,20 @@ async function init(){
   if($('#defaultReminderSelect'))$('#defaultReminderSelect').value=String(localStorage.getItem('fitTogether_defaultReminder')||60);
   if($('#ownNotificationsOnly'))$('#ownNotificationsOnly').checked=localStorage.getItem('fitTogether_ownNotificationsOnly')!=='false';
   updateNotificationStatus();updatePushStatus();scheduleReminderChecks(); bindAuth(); toggleRepeatUntil();
+  applyLocale();
+  // Register before getSession: recovery events may fire while the SDK reads the URL.
+  supabase.auth.onAuthStateChange((event,session)=>setTimeout(async()=>{
+    if(event==='PASSWORD_RECOVERY') passwordRecovery=true;
+    if(event==='TOKEN_REFRESHED'||event==='USER_UPDATED') {currentUser=session?.user||null;return;}
+    try{await applySession(session);if(passwordRecovery&&session)openPasswordDialog(true);}catch(err){console.error(err);}
+  },0));
   await removeLegacyCache();
   try {
     const { data:{session}, error } = await supabase.auth.getSession();
     if(error) throw error;
     await applySession(session);
+    if(passwordRecovery&&session)openPasswordDialog(true);
   } catch(err){ console.error(err); await applySession(null); }
-  supabase.auth.onAuthStateChange((_event,session)=>setTimeout(()=>applySession(session).catch(console.error),0));
   setInterval(checkDueReminders,30000);
 }
 
@@ -117,6 +124,9 @@ function showTab(id){
 }
 function bindActions(){
   $('#languageSelect')?.addEventListener('change',e=>setLanguage(e.target.value));
+  $('#dateFormatSelect')?.addEventListener('change',e=>setDateFormat(e.target.value));
+  $('#timeFormatSelect')?.addEventListener('change',e=>setTimeFormat(e.target.value));
+  $('#weightUnitSelect')?.addEventListener('change',e=>setWeightUnit(e.target.value));
   $('#regionSelect')?.addEventListener('change',e=>setRegion(e.target.value));
   $('#quickAddBtn').addEventListener('click',()=>showTab('calendar'));
   $('#addEventBtn').addEventListener('click',addEvent);
@@ -168,6 +178,14 @@ function bindActions(){
 }
 
 function bindAuth(){
+  $('#authLanguageSelect').value=appLanguage;
+  $('#authLanguageSelect').addEventListener('change',e=>setLanguage(e.target.value));
+  $('#forgotPasswordBtn').addEventListener('click',sendPasswordReset);
+  $('#changePasswordBtn').addEventListener('click',()=>openPasswordDialog(false));
+  $('#passwordForm').addEventListener('submit',savePassword);
+  $('#passwordCancelBtn').addEventListener('click',()=>$('#passwordDialog').close());
+  $('#passwordDialog').addEventListener('close',()=>{$('#passwordForm').reset();$('#savePasswordBtn').disabled=false;});
+  $('#passwordDialog').addEventListener('cancel',e=>{if(passwordBusy)e.preventDefault();});
   $('#showLoginBtn').addEventListener('click',()=>showAuthMode('login'));
   $('#showRegisterBtn').addEventListener('click',()=>showAuthMode('register'));
   $('#loginBtn').addEventListener('click',signIn);
@@ -181,7 +199,56 @@ function showAuthMode(mode){
   $('#showLoginBtn').classList.toggle('active',login); $('#showRegisterBtn').classList.toggle('active',!login);
   setAuthMessage('');
 }
-function setAuthMessage(text,isError=false){ const el=$('#authMessage');el.textContent=text;el.classList.toggle('error',isError); }
+function setAuthMessage(text,isError=false){ const el=$('#authMessage');el.textContent=translateDynamic(text);el.classList.toggle('error',isError); }
+// The URL marker only selects the recovery UI; Supabase must still supply a valid session.
+let passwordRecovery=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery';
+let passwordBusy=false;
+async function sendPasswordReset(){
+  const input=$('#loginEmail'),email=input.value.trim();
+  if(!email||!input.checkValidity())return setAuthMessage(appLanguage==='en'?'Please enter a valid email address first.':'Bitte zuerst eine gültige E-Mail-Adresse eingeben.',true);
+  const btn=$('#forgotPasswordBtn');if(btn.disabled)return;btn.disabled=true;
+  setAuthMessage(appLanguage==='en'?'Sending reset link …':'Link wird gesendet …');
+  try{
+    const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:APP_URL});
+    if(error)throw error;
+    setAuthMessage(appLanguage==='en'?'If an account exists for this email, you will receive a reset link. Please check your spam folder too.':'Wenn ein Account zu dieser E-Mail existiert, erhältst du einen Link zum Zurücksetzen. Prüfe auch deinen Spam-Ordner.');
+  }catch(err){setAuthMessage(`${appLanguage==='en'?'Reset link could not be sent':'Link konnte nicht gesendet werden'}: ${err.message||err}`,true);}
+  finally{btn.disabled=false;}
+}
+function openPasswordDialog(recovery){
+  if(!currentUser)return;
+  const dlg=$('#passwordDialog');if(dlg.open)return;
+  passwordRecovery=recovery;$('#passwordForm').reset();$('#savePasswordBtn').disabled=false;
+  $('#currentPasswordLabel').classList.toggle('hidden',recovery);
+  $('#currentPassword').required=!recovery;
+  $('#passwordDialogTitle').textContent=appLanguage==='en'?(recovery?'Set a new password':'Change password'):(recovery?'Neues Passwort festlegen':'Passwort ändern');
+  $('#passwordMessage').textContent='';dlg.showModal();
+  (recovery?$('#newPassword'):$('#currentPassword')).focus();
+}
+async function savePassword(event){
+  event.preventDefault();if(passwordBusy)return;
+  const message=$('#passwordMessage'),btn=$('#savePasswordBtn');
+  const password=$('#newPassword').value,confirmation=$('#confirmPassword').value;
+  message.textContent='';
+  if(!currentUser){message.textContent=appLanguage==='en'?'Please sign in again or request a new reset link.':'Bitte erneut anmelden oder einen neuen Link anfordern.';return;}
+  if(password.length<6){message.textContent=appLanguage==='en'?'Use at least 6 characters.':'Verwende mindestens 6 Zeichen.';return;}
+  if(password!==confirmation){message.textContent=appLanguage==='en'?'The new passwords do not match.':'Die neuen Passwörter stimmen nicht überein.';return;}
+  if(!passwordRecovery&&!$('#currentPassword').value){message.textContent=appLanguage==='en'?'Enter your current password.':'Gib dein aktuelles Passwort ein.';return;}
+  let saved=false;passwordBusy=true;btn.disabled=true;$('#passwordCancelBtn').disabled=true;
+  try{
+    if(!passwordRecovery){
+      const {error}=await supabase.auth.signInWithPassword({email:currentUser.email,password:$('#currentPassword').value});
+      if(error)throw new Error(appLanguage==='en'?'Your current password could not be verified.':'Dein aktuelles Passwort konnte nicht bestätigt werden.');
+    }
+    const {error}=await supabase.auth.updateUser({password});if(error)throw error;
+    passwordRecovery=false;saved=true;$('#passwordForm').reset();
+    // Remove recovery credentials/markers from the address bar after a successful update.
+    if(location.hash)history.replaceState({},'',location.pathname+location.search);
+    message.textContent=appLanguage==='en'?'Password updated. You can close this window.':'Passwort geändert. Du kannst dieses Fenster schließen.';
+  }catch(err){message.textContent=`${appLanguage==='en'?'Password could not be changed':'Passwort konnte nicht geändert werden'}: ${err.message||err}`;}
+  finally{passwordBusy=false;btn.disabled=saved;$('#passwordCancelBtn').disabled=false;}
+}
+
 async function signUp(){
   const name=$('#registerName').value.trim(), email=$('#registerEmail').value.trim(), password=$('#registerPassword').value;
   if(!name||!email||password.length<6) return setAuthMessage('Bitte Name, E-Mail und ein Passwort mit mindestens 6 Zeichen eingeben.',true);
@@ -208,6 +275,7 @@ async function signIn(){
 async function applySession(session){
   currentUser=session?.user||null;
   if(!currentUser){
+    passwordRecovery=false;$('#passwordDialog')?.close();
     currentProfile=null; groups=[]; activeGroup=null; groupMembers=[]; events=[]; weights=[]; occurrenceStatuses=[]; progressPhotos=[]; trainingProofs=[];
     $('#authScreen').classList.remove('hidden'); $('#appShell').classList.add('hidden'); document.body.classList.add('auth-open');
     return;
@@ -302,8 +370,8 @@ function safeExt(file){
 async function addProgressPhoto(){
   if(!currentUser)return;
   const file=$('#photoInput').files?.[0],date=$('#photoDate').value||todayISO(),visibility=$('#photoVisibility').value;
-  if(!file)return alert('Bitte zuerst ein Bild auswählen.');
-  if(file.size>12*1024*1024)return alert('Das Bild ist größer als 12 MB. Bitte ein kleineres Bild verwenden.');
+  if(!file)return showAlert('Bitte zuerst ein Bild auswählen.');
+  if(file.size>12*1024*1024)return showAlert('Das Bild ist größer als 12 MB. Bitte ein kleineres Bild verwenden.');
   const path=`${currentUser.id}/${date}/${crypto.randomUUID()}.${safeExt(file)}`;
   $('#addPhotoBtn').disabled=true;$('#addPhotoBtn').textContent='Wird hochgeladen …';
   try{
@@ -312,14 +380,14 @@ async function addProgressPhoto(){
     const {error:dbError}=await supabase.from('progress_photos').insert({profile_id:currentUser.id,image_url:path,visibility,taken_on:date});
     if(dbError){await supabase.storage.from('progress-photos').remove([path]);throw dbError;}
     $('#photoInput').value='';await loadProgressPhotos();renderPhotos();
-  }catch(err){alert(`Bild konnte nicht gespeichert werden: ${err.message||err}`);}
+  }catch(err){showAlert(`Bild konnte nicht gespeichert werden: ${err.message||err}`);}
   finally{$('#addPhotoBtn').disabled=false;$('#addPhotoBtn').textContent='Bild hinzufügen';}
 }
 async function deleteProgressPhoto(photo){
   if(photo.profile_id!==currentUser.id)return;
-  if(!confirm('Dieses Fortschrittsbild wirklich löschen?'))return;
+  if(!askConfirm('Dieses Fortschrittsbild wirklich löschen?'))return;
   const {error}=await supabase.from('progress_photos').delete().eq('id',photo.id);
-  if(error)return alert(error.message);
+  if(error)return showAlert(error.message);
   await supabase.storage.from('progress-photos').remove([photo.image_url]);
   await loadProgressPhotos();renderPhotos();
 }
@@ -331,7 +399,7 @@ function showSelectedProofFile(){
 }
 async function openProofCamera(){
   const dlg=$('#proofCameraDialog'),video=$('#proofCameraVideo'),msg=$('#proofCameraMessage');
-  if(!navigator.mediaDevices?.getUserMedia){alert('Dieser Browser unterstützt die In-App-Kamera nicht. Nutze „Bild auswählen“.');return;}
+  if(!navigator.mediaDevices?.getUserMedia){showAlert('Dieser Browser unterstützt die In-App-Kamera nicht. Nutze „Bild auswählen“.');return;}
   try{
     dlg.showModal();msg.textContent='Kamera wird gestartet …';
     proofCameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
@@ -352,9 +420,9 @@ async function captureProofCameraFrame(){
   showSelectedProofFile();closeProofCamera();
 }
 async function uploadTrainingProof(){
-  if(!selectedEventId||!selectedOccurrenceDate){alert('Kein Termin ausgewählt.');return false;}
-  const file=$('#proofInput').files?.[0]||proofCapturedFile;if(!file){alert('Bitte zuerst ein Foto aufnehmen oder auswählen.');return false;}
-  if(file.size>12*1024*1024){alert('Das Bild ist größer als 12 MB.');return false;}
+  if(!selectedEventId||!selectedOccurrenceDate){showAlert('Kein Termin ausgewählt.');return false;}
+  const file=$('#proofInput').files?.[0]||proofCapturedFile;if(!file){showAlert('Bitte zuerst ein Foto aufnehmen oder auswählen.');return false;}
+  if(file.size>12*1024*1024){showAlert('Das Bild ist größer als 12 MB.');return false;}
   const path=`${currentUser.id}/${selectedEventId}/${selectedOccurrenceDate}/${crypto.randomUUID()}.${safeExt(file)}`;
   const btn=$('#uploadProofBtn');btn.disabled=true;btn.textContent='Wird hochgeladen …';
   try{
@@ -364,7 +432,7 @@ async function uploadTrainingProof(){
     if(dbError){await supabase.storage.from('training-proofs').remove([path]);throw dbError;}
     $('#proofInput').value='';proofCapturedFile=null;showSelectedProofFile();await loadTrainingProofs();await renderProofInDialog();
     return true;
-  }catch(err){alert(`Nachweis konnte nicht gespeichert werden: ${err.message||err}`);return false;}
+  }catch(err){showAlert(`Nachweis konnte nicht gespeichert werden: ${err.message||err}`);return false;}
   finally{btn.disabled=false;btn.textContent=appLanguage==='en'?'Upload proof':'Nachweis vorab hochladen';}
 }
 async function renderProofInDialog(){
@@ -471,11 +539,11 @@ async function joinPendingInvite(){
   if(!pendingInvite)return;
   await joinGroup(pendingInvite);
 }
-function setGroupMessage(text,isError=false){const el=$('#groupMessage');if(!el)return;el.textContent=text;el.style.color=isError?'#fecaca':'';}
+function setGroupMessage(text,isError=false){const el=$('#groupMessage');if(!el)return;el.textContent=translateDynamic(text);el.style.color=isError?'#fecaca':'';}
 function renderGroupUI(){
   const select=$('#activeGroupSelect');select.innerHTML='';
   if(!groups.length){const o=document.createElement('option');o.textContent='Keine Gruppe';o.value='';select.appendChild(o);select.disabled=true;}
-  else{select.disabled=false;groups.forEach(g=>{const o=document.createElement('option');o.value=g.id;o.textContent=g.name;o.selected=activeGroup?.id===g.id;select.appendChild(o);});}
+  else{select.disabled=false;groups.forEach(g=>{const o=document.createElement('option');o.value=g.id;o.textContent=g.name;o.dataset.userContent='';o.selected=activeGroup?.id===g.id;select.appendChild(o);});}
   $('#noGroupBanner').classList.toggle('hidden',!!activeGroup);
   $('#currentGroupBox').classList.toggle('hidden',!activeGroup);
   if(activeGroup){
@@ -496,7 +564,7 @@ function renderMembers(){
   if(!groupMembers.length){list.innerHTML='<div class="empty">Mitglieder werden geladen …</div>';return;}
   groupMembers.forEach(m=>{
     const chip=document.createElement('div');chip.className=`member-chip ${m.id===currentUser.id?'me':''}`;
-    chip.innerHTML=`<span class="member-avatar">${escapeHtml((m.name||'?')[0].toUpperCase())}</span><span>${escapeHtml(m.name)}${m.id===currentUser.id?' (du)':''}</span>`;
+    chip.innerHTML=`<span class="member-avatar">${escapeHtml((m.name||'?')[0].toUpperCase())}</span><span><span data-user-content>${escapeHtml(m.name)}</span>${m.id===currentUser.id?' (du)':''}</span>`;
     list.appendChild(chip);
   });
 }
@@ -504,23 +572,23 @@ async function copyInviteLink(){
   if(!activeGroup?.invite_code)return;
   const link=`${APP_URL}?join=${encodeURIComponent(activeGroup.invite_code)}`;
   try{await navigator.clipboard.writeText(link);setGroupMessage('Einladungslink kopiert.');}
-  catch{prompt('Diesen Link verschicken:',link);}
+  catch{showPrompt('Diesen Link verschicken:',link);}
 }
 function populateParticipantSelect(){
   const sel=$('#eventOwner');sel.innerHTML='';
   const all=document.createElement('option');all.value='all';all.textContent='Alle Gruppenmitglieder';sel.appendChild(all);
   const self=document.createElement('option');self.value=`profile:${currentUser.id}`;self.textContent='Nur ich';sel.appendChild(self);
-  groupMembers.filter(m=>m.id!==currentUser.id).forEach(m=>{const o=document.createElement('option');o.value=`profile:${m.id}`;o.textContent=m.name;sel.appendChild(o);});
+  groupMembers.filter(m=>m.id!==currentUser.id).forEach(m=>{const o=document.createElement('option');o.value=`profile:${m.id}`;o.textContent=m.name;o.dataset.userContent='';sel.appendChild(o);});
 }
 
 async function addEvent(){
-  if(!activeGroup)return alert(appLanguage==='en'?'Create or select a group first.':'Erstelle oder wähle zuerst eine Gruppe.');
+  if(!activeGroup)return showAlert(appLanguage==='en'?'Create or select a group first.':'Erstelle oder wähle zuerst eine Gruppe.');
   const title=$('#eventTitle').value.trim(),date=$('#eventDate').value;
-  if(!title||!date)return alert(appLanguage==='en'?'Please enter a title and date.':'Bitte Titel und Datum eintragen.');
+  if(!title||!date)return showAlert(appLanguage==='en'?'Please enter a title and date.':'Bitte Titel und Datum eintragen.');
   const selected=$('#eventOwner').value;
   let participantIds=selected==='all'?groupMembers.map(m=>m.id):[selected.replace('profile:','')];
   participantIds=[...new Set(participantIds.filter(Boolean))];
-  if(!participantIds.length)return alert(appLanguage==='en'?'No participants found.':'Keine Teilnehmer gefunden.');
+  if(!participantIds.length)return showAlert(appLanguage==='en'?'No participants found.':'Keine Teilnehmer gefunden.');
   const payload={
     group_id:activeGroup.id,title,event_date:date,start_time:$('#eventStart').value||null,end_time:$('#eventEnd').value||null,
     color:colorHex($('#eventColor').value),penalty:Number($('#eventPenalty').value||0),notes:$('#eventNote').value.trim()||null,created_by:currentUser.id,
@@ -529,17 +597,17 @@ async function addEvent(){
   let eventId=editingSeriesId;
   if(editingSeriesId){
     const {error}=await supabase.from('events').update(payload).eq('id',editingSeriesId);
-    if(error)return alert(`${appLanguage==='en'?'Event could not be updated':'Termin konnte nicht aktualisiert werden'}: ${error.message}`);
+    if(error)return showAlert(`${appLanguage==='en'?'Event could not be updated':'Termin konnte nicht aktualisiert werden'}: ${error.message}`);
     const {error:delPart}=await supabase.from('event_participants').delete().eq('event_id',editingSeriesId);
-    if(delPart)return alert(delPart.message);
+    if(delPart)return showAlert(delPart.message);
   }else{
     const {data,error}=await supabase.from('events').insert(payload).select('id').single();
-    if(error)return alert(`${appLanguage==='en'?'Event could not be saved':'Termin konnte nicht gespeichert werden'}: ${error.message}`);
+    if(error)return showAlert(`${appLanguage==='en'?'Event could not be saved':'Termin konnte nicht gespeichert werden'}: ${error.message}`);
     eventId=data.id;
   }
   const rows=participantIds.map(profile_id=>({event_id:eventId,profile_id,status:'planned'}));
   const {error:partError}=await supabase.from('event_participants').insert(rows);
-  if(partError)return alert(`${appLanguage==='en'?'Participants could not be saved':'Teilnehmer konnten nicht gespeichert werden'}: ${partError.message}`);
+  if(partError)return showAlert(`${appLanguage==='en'?'Participants could not be saved':'Teilnehmer konnten nicht gespeichert werden'}: ${partError.message}`);
   editingSeriesId=null;
   const saveBtn=document.querySelector('#addEventForm button[type="submit"]');if(saveBtn)saveBtn.textContent=appLanguage==='en'?'Save event':'Termin speichern';
   $('#eventTitle').value='';$('#eventNote').value='';$('#eventRepeat').value='none';$('#eventRepeatUntil').value='';toggleRepeatUntil();
@@ -552,7 +620,7 @@ async function finishStatus(status){
     if(!proof){
       const file=$('#proofInput').files?.[0]||proofCapturedFile;
       if(!file){
-        alert(appLanguage==='en'?'A workout photo is required before you can mark this event as done. Take or select a photo first.':'Für „Erledigt“ ist ein Trainingsfoto erforderlich. Nimm zuerst ein Foto auf oder wähle eines aus.');
+        showAlert(appLanguage==='en'?'A workout photo is required before you can mark this event as done. Take or select a photo first.':'Für „Erledigt“ ist ein Trainingsfoto erforderlich. Nimm zuerst ein Foto auf oder wähle eines aus.');
         return;
       }
       await uploadTrainingProof();
@@ -607,12 +675,12 @@ async function suppressSeriesOccurrence(ev,date){
 async function setEventStatus(id,statusUi,date){
   const ev=events.find(e=>e.id===id);if(!ev)return;
   const mine=ev.participants.find(p=>p.profile_id===currentUser.id);
-  if(!mine)return alert('Du bist bei diesem Termin nicht als Teilnehmer eingetragen.');
+  if(!mine)return showAlert('Du bist bei diesem Termin nicht als Teilnehmer eingetragen.');
   date=date||ev.date;
   const dbStatus={done:'completed',missed:'missed',excused:'excused'}[statusUi]||statusUi;
   const row={event_id:id,occurrence_date:date,profile_id:currentUser.id,status:dbStatus,completed_at:dbStatus==='completed'?new Date().toISOString():null};
   const {error}=await supabase.from('event_occurrence_status').upsert(row,{onConflict:'event_id,occurrence_date,profile_id'});
-  if(error)return alert(`Status konnte nicht gespeichert werden: ${error.message}`);
+  if(error)return showAlert(`Status konnte nicht gespeichert werden: ${error.message}`);
   await loadOccurrenceStatuses();renderAll();
 }
 async function autoMarkOwnMissed(){
@@ -658,42 +726,43 @@ async function editOccurrenceOrSeries(ev,date){
     const saveBtn=document.querySelector('#addEventForm button[type="submit"]');if(saveBtn)saveBtn.textContent=appLanguage==='en'?'Update series':'Serie aktualisieren';
   }else{
     try{await suppressSeriesOccurrence(ev,date);const copy=await createOccurrenceOverride(ev,date);events.push(copy);renderAll();}
-    catch(err){alert(err.message||err);}
+    catch(err){showAlert(err.message||err);}
   }
 }
 async function deleteOccurrenceOrSeries(ev,date){
   const choice=await askSeriesChoice(ev,date,'delete');if(!choice)return;
   if(choice==='all'){
-    if(!confirm(appLanguage==='en'?'Delete the entire series?':'Die gesamte Serie wirklich löschen?'))return;
-    const {error}=await supabase.from('events').delete().eq('id',ev.id);if(error)return alert(error.message);
+    if(!askConfirm(appLanguage==='en'?'Delete the entire series?':'Die gesamte Serie wirklich löschen?'))return;
+    const {error}=await supabase.from('events').delete().eq('id',ev.id);if(error)return showAlert(error.message);
     await loadEvents();await loadOccurrenceStatuses();renderAll();
   }else{
-    try{await suppressSeriesOccurrence(ev,date);renderAll();}catch(err){alert(err.message||err);}
+    try{await suppressSeriesOccurrence(ev,date);renderAll();}catch(err){showAlert(err.message||err);}
   }
 }
 function renderAll(){renderGroupUI();renderTug();renderEvents();renderMonthCalendar();renderStats();renderAchievements();renderAdvancedStats();renderYearEnd();renderWeights();renderPhotos();renderTrainingProofs();renderPhotoReminder();renderProfiles();setTimeout(enhanceEventSeriesControls,0);}
 function memberDebt(id){return occurrenceStatuses.reduce((sum,r)=>{const ev=events.find(e=>e.id===r.event_id);return sum+(r.profile_id===id&&r.status==='missed'?Number(ev?.penalty||0):0);},0);}
+function tieLabel(){return appLanguage==='en'?'Tie':'Gleichstand';}
 function renderTug(){
   const hero=$('.hero-card'),ranking=$('#multiRanking');hero.classList.remove('solo','multi');ranking.classList.add('hidden');ranking.innerHTML='';
   if(!activeGroup||groupMembers.length<2){
-    hero.classList.add('solo');$('#leadBadge').textContent='Noch solo';$('#tugText').textContent='Für das Tauziehen braucht die Gruppe zwei Mitglieder. Schick deinen Einladungslink weiter.';$('#totalPot').textContent=euro(groupMembers.reduce((s,m)=>s+memberDebt(m.id),0));return;
+    hero.classList.add('solo');$('#leadBadge').textContent=appLanguage==='en'?'Solo for now':'Noch solo';$('#tugText').textContent=appLanguage==='en'?'The tug of war needs two group members. Share your invite link.':'Für das Tauziehen braucht die Gruppe zwei Mitglieder. Schick deinen Einladungslink weiter.';$('#totalPot').textContent=euro(groupMembers.reduce((s,m)=>s+memberDebt(m.id),0));return;
   }
   if(groupMembers.length>2){
     hero.classList.add('multi');
     const ranked=[...groupMembers].map(m=>({...m,debt:memberDebt(m.id)})).sort((a,b)=>a.debt-b.debt||a.name.localeCompare(b.name,'de'));
     const medals=['🥇','🥈','🥉'];
-    ranking.innerHTML=ranked.map((m,i)=>`<div class="rank-row ${m.id===currentUser.id?'me':''}"><span class="rank-place">${medals[i]||`${i+1}.`}</span><span class="rank-name">${escapeHtml(m.name)}${m.id===currentUser.id?' (du)':''}</span><span class="rank-debt">${euro(m.debt)}</span></div>`).join('');
+    ranking.innerHTML=ranked.map((m,i)=>`<div class="rank-row ${m.id===currentUser.id?'me':''}"><span class="rank-place">${medals[i]||`${i+1}.`}</span><span class="rank-name"><span data-user-content>${escapeHtml(m.name)}</span>${m.id===currentUser.id?' (du)':''}</span><span class="rank-debt">${euro(m.debt)}</span></div>`).join('');
     ranking.classList.remove('hidden');
-    $('#leadBadge').textContent=`${ranked[0].name} führt`;
-    $('#tugText').textContent=ranked.every(x=>x.debt===ranked[0].debt)?'Gleichstand – noch ist alles offen.':`${ranked[0].name} hat aktuell die wenigsten Strafschulden.`;
+    $('#leadBadge').textContent=`${ranked[0].name} ${appLanguage==='en'?'leads':'führt'}`;
+    $('#tugText').textContent=ranked.every(x=>x.debt===ranked[0].debt)?(appLanguage==='en'?'Tie — everything is still open.':'Gleichstand – noch ist alles offen.'):`${ranked[0].name} ${appLanguage==='en'?'currently has the lowest penalty debt.':'hat aktuell die wenigsten Strafschulden.'}`;
     $('#totalPot').textContent=euro(ranked.reduce((sum,m)=>sum+m.debt,0));return;
   }
   const [a,b]=groupMembers;const da=memberDebt(a.id),db=memberDebt(b.id),total=da+db;let redPct=50;
   if(total>0)redPct=50+((db-da)/total)*42;redPct=Math.max(8,Math.min(92,redPct));
   $('#redSide').style.width=`${redPct}%`;$('#blueSide').style.width=`${100-redPct}%`;$('#ropeMarker').style.left=`${redPct}%`;
   $('#userANameLabel').textContent=a.name;$('#userBNameLabel').textContent=b.name;$('#debtA').textContent=euro(da);$('#debtB').textContent=euro(db);$('#totalPot').textContent=euro(total);
-  if(da===db){$('#leadBadge').textContent='Gleichstand';$('#tugText').textContent=total===0?'Noch keine Strafgelder. Perfekter Start.':`Gleichstand bei ${euro(da)}.`;}
-  else{const leader=da<db?a:b,diff=Math.abs(da-db);$('#leadBadge').textContent=`${leader.name} führt`;$('#tugText').textContent=`${leader.name} liegt um ${euro(diff)} vorne und würde aktuell über den Topf entscheiden.`;}
+  if(da===db){$('#leadBadge').textContent=tieLabel();$('#tugText').textContent=total===0?(appLanguage==='en'?'No penalties yet. Perfect start.':'Noch keine Strafgelder. Perfekter Start.'):`${appLanguage==='en'?'Tie at':'Gleichstand bei'} ${euro(da)}.`;}
+  else{const leader=da<db?a:b,diff=Math.abs(da-db);$('#leadBadge').textContent=`${leader.name} ${appLanguage==='en'?'leads':'führt'}`;$('#tugText').textContent=appLanguage==='en'?`${leader.name} is ahead by ${euro(diff)} and would currently decide how to use the pot.`:`${leader.name} liegt um ${euro(diff)} vorne und würde aktuell über den Topf entscheiden.`;}
 }
 function myParticipant(ev){return ev.participants.find(p=>p.profile_id===currentUser.id);}
 function renderStats(){
@@ -771,10 +840,10 @@ function weeklyStreakMetrics(items){
 function cleanMonthMetrics(items){
   const by=new Map();
   items.forEach(x=>{const k=monthKey(x.date);if(!by.has(k))by.set(k,[]);by.get(k).push(x);});
-  const months=[...by.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
+  const months=[...by.entries()].filter(([key])=>key<monthKey(todayISO())).sort((a,b)=>a[0].localeCompare(b[0]));
   let cur=0,best=0,last=null;
   for(const [key,rows] of months){
-    const clean=rows.length>0&&!rows.some(r=>r.status==='missed');
+    const clean=rows.length>0&&rows.every(r=>r.status==='completed'||r.status==='excused');
     if(!clean){cur=0;last=key;continue;}
     const consecutive=!last||consecutiveKeys([last,key],'month')===2;
     cur=consecutive?cur+1:1;best=Math.max(best,cur);last=key;
@@ -797,7 +866,7 @@ function reliabilityMetrics(items){
     const good=rows.filter(r=>r.status==='completed'||r.status==='excused').length;
     best=Math.max(best,Math.round(good/rows.length*100));
   }
-  best=Math.max(best,current);
+  if(eligible.length>=3)best=Math.max(best,current);
   return {current,best,decided:eligible.length};
 }
 function weightLossMetrics(){
@@ -904,7 +973,7 @@ function renderAchievements(){
       </div>
       <div class="achievement-tier-table">
         <span class="${unlocked>=1?'tier-earned':''}"><b>Bronze</b>${escapeHtml(a.bronze)}</span>
-        <span class="${unlocked>=2?'tier-earned':''}"><b>Silber</b>${escapeHtml(a.silver)}</span>
+        <span class="${unlocked>=2?'tier-earned':''}"><b>${appLanguage==='en'?'Silver':'Silber'}</b>${escapeHtml(a.silver)}</span>
         <span class="${unlocked>=3?'tier-earned':''}"><b>Gold</b>${escapeHtml(a.gold)}</span>
       </div>
       <div class="achievement-value"><strong>${currentText}</strong><span>${bestText}</span></div>
@@ -954,7 +1023,7 @@ function renderEvents(){
     .sort((a,b)=>`${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`)).slice(0,4);
   if(!upcoming.length)next.innerHTML='<div class="empty">Keine kommenden Termine.</div>';upcoming.forEach(ev=>next.appendChild(eventNode(ev,false,ev.date)));
 }
-function statusLabel(s){return {planned:'Geplant',completed:'Erledigt',missed:'Verpasst',excused:'Entschuldigt'}[s]||s;}
+function statusLabel(s){return t({planned:'planned',completed:'done',done:'done',missed:'missed',excused:'excused'}[s]||s);}
 function eventCreatorName(ev){
   if(ev.created_by===currentUser?.id)return currentProfile?.name||'Du';
   return groupMembers.find(m=>m.id===ev.created_by)?.name||'Mitglied';
@@ -962,25 +1031,25 @@ function eventCreatorName(ev){
 function eventNode(ev,withDelete,occurrenceDateOverride=null){
   const wrap=document.createElement('div');wrap.className='event-item';
   const occurrenceDate=occurrenceDateOverride||ev.date;
-  const statuses=ev.participants.map(p=>{const st=occurrenceStatus(ev,p.profile_id,occurrenceDate);const icon=st==='completed'?'✅':st==='missed'?'❌':st==='excused'?'🩹':'🕒';return `<span class="status ${st}">${icon} ${escapeHtml(p.name)}: ${statusLabel(st)}${st==='missed'&&ev.penalty?` · ${euro(ev.penalty)}`:''}</span>`;}).join('');
-  wrap.innerHTML=`<div class="event-main"><strong>${escapeHtml(ev.title)} <span class="event-sync-badge">● synchronisiert</span></strong><div class="event-meta">${formatDate(occurrenceDate)}${recurrenceText(ev)} · ${ev.start||'–'}${ev.end?`–${ev.end}`:''} · ${euro(ev.penalty)} Strafe</div><div class="event-creator">Erstellt von: ${escapeHtml(eventCreatorName(ev))}</div><div class="status-row participant-status-row">${statuses}</div></div><div class="event-actions"><button class="small-btn status-btn" type="button">Status</button>${withDelete&&ev.created_by===currentUser.id?'<button class="small-btn delete-btn" type="button">🗑</button>':''}</div>`;
+  const statuses=ev.participants.map(p=>{const st=occurrenceStatus(ev,p.profile_id,occurrenceDate);const icon=st==='completed'?'✅':st==='missed'?'❌':st==='excused'?'🩹':'🕒';return `<span class="status ${st}">${icon} <span data-user-content>${escapeHtml(p.name)}</span>: ${statusLabel(st)}${st==='missed'&&ev.penalty?` · ${euro(ev.penalty)}`:''}</span>`;}).join('');
+  wrap.innerHTML=`<div class="event-main"><strong><span data-user-content>${escapeHtml(ev.title)}</span> <span class="event-sync-badge">● synchronisiert</span></strong><div class="event-meta">${formatDate(occurrenceDate)}${recurrenceText(ev)} · ${timeLabel(ev.start)||'–'}${ev.end?`–${timeLabel(ev.end)}`:''} · ${euro(ev.penalty)} Strafe</div><div class="event-creator">${appLanguage==='en'?'Created by':'Erstellt von'}: <span data-user-content>${escapeHtml(eventCreatorName(ev))}</span></div><div class="status-row participant-status-row">${statuses}</div></div><div class="event-actions"><button class="small-btn status-btn" type="button">Status</button>${withDelete&&ev.created_by===currentUser.id?'<button class="small-btn delete-btn" type="button">🗑</button>':''}</div>`;
   wrap.querySelector('.status-btn').addEventListener('click',()=>{openStatusDialog(ev,occurrenceDate);});
-  const del=wrap.querySelector('.delete-btn');if(del)del.addEventListener('click',async()=>{if(confirm(`„${ev.title}“${ev.recurrence!=='none'?' und die ganze Serie':''} löschen?`)){const {error}=await supabase.from('events').delete().eq('id',ev.id);if(error)alert(error.message);else{await loadEvents();await loadOccurrenceStatuses();renderAll();}}});
+  const del=wrap.querySelector('.delete-btn');if(del)del.addEventListener('click',async()=>{if(askConfirm(`„${ev.title}“${ev.recurrence!=='none'?' und die ganze Serie':''} löschen?`)){const {error}=await supabase.from('events').delete().eq('id',ev.id);if(error)showAlert(error.message);else{await loadEvents();await loadOccurrenceStatuses();renderAll();}}});
   return wrap;
 }
 function renderMonthCalendar(){
-  const grid=$('#monthGrid');grid.innerHTML='';const y=calendarCursor.getFullYear(),m=calendarCursor.getMonth();$('#calendarMonthTitle').textContent=new Intl.DateTimeFormat('de-DE',{month:'long',year:'numeric'}).format(calendarCursor);
+  const grid=$('#monthGrid');grid.innerHTML='';const y=calendarCursor.getFullYear(),m=calendarCursor.getMonth();$('#calendarMonthTitle').textContent=new Intl.DateTimeFormat(appLanguage==='en'?'en-GB':'de-DE',{month:'long',year:'numeric'}).format(calendarCursor);
   const first=new Date(y,m,1),offset=(first.getDay()+6)%7,start=new Date(y,m,1-offset);const today=todayISO(),selected=$('#eventDate').value;
   for(let i=0;i<42;i++){
     const d=new Date(start);d.setDate(start.getDate()+i);const iso=localISO(d),cell=document.createElement('button');cell.type='button';cell.className='calendar-day';
     if(d.getMonth()!==m)cell.classList.add('other-month');if(iso===today)cell.classList.add('today');if(iso===selected)cell.classList.add('selected');
     const dayEvents=events.filter(e=>eventOccursOn(e,iso)).sort((a,b)=>(a.start||'').localeCompare(b.start||''));
     const visibleEvents=dayEvents.slice(0,3);
-    cell.innerHTML=`<span class="day-number">${d.getDate()}</span><span class="calendar-events">${visibleEvents.map(e=>`<span class="calendar-event ${e.color} ${calendarEventStatus(e,iso)}" title="Status für ${escapeHtml(e.title)} ändern"><span class="calendar-event-time">${escapeHtml(e.start||'')}</span><span class="calendar-event-title">${calendarStatusSymbol(e,iso)}${escapeHtml(e.title)}</span></span>`).join('')}${dayEvents.length>3?`<span class="calendar-more">+${dayEvents.length-3} mehr</span>`:''}</span>`;
+    cell.innerHTML=`<span class="day-number">${d.getDate()}</span><span class="calendar-events">${visibleEvents.map(e=>`<span class="calendar-event ${e.color} ${calendarEventStatus(e,iso)}" title="Status für ${escapeHtml(e.title)} ändern"><span class="calendar-event-time">${escapeHtml(e.start||'')}</span><span data-user-content class="calendar-event-title">${calendarStatusSymbol(e,iso)}${escapeHtml(e.title)}</span></span>`).join('')}${dayEvents.length>3?`<span class="calendar-more">+${dayEvents.length-3} mehr</span>`:''}</span>`;
     cell.querySelectorAll('.calendar-event').forEach((chip,index)=>chip.addEventListener('click',event=>{
       event.stopPropagation();
       const ev=visibleEvents[index];
-      if(!ev?.participants.some(p=>p.profile_id===currentUser.id))return alert('Du bist bei diesem Termin nicht als Teilnehmer eingetragen.');
+      if(!ev?.participants.some(p=>p.profile_id===currentUser.id))return showAlert('Du bist bei diesem Termin nicht als Teilnehmer eingetragen.');
       openStatusDialog(ev,iso);
     }));
     cell.addEventListener('click',()=>{$('#eventDate').value=iso;renderMonthCalendar();});cell.addEventListener('dblclick',()=>showEventForm(iso));grid.appendChild(cell);
@@ -997,8 +1066,8 @@ function calendarEventStatus(ev,date){
 function showEventForm(iso){$('#eventDate').value=iso;$('#eventFormCard').scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>$('#eventTitle').focus(),250);}
 
 async function saveOwnProfile(){
-  const name=$('#ownNameInput').value.trim();if(!name)return alert('Bitte einen Namen eintragen.');
-  const {error}=await supabase.from('profiles').update({name}).eq('id',currentUser.id);if(error)return alert(error.message);
+  const name=$('#ownNameInput').value.trim();if(!name)return showAlert('Bitte einen Namen eintragen.');
+  const {error}=await supabase.from('profiles').update({name}).eq('id',currentUser.id);if(error)return showAlert(error.message);
   currentProfile={...currentProfile,name};await loadGroupMembers();renderAll();
 }
 function renderProfiles(){
@@ -1010,17 +1079,17 @@ function renderProfiles(){
 
 async function addWeight(){
   const date=$('#weightDate').value,weight=inputWeightToKg($('#weightValue').value);
-  if(!date||!weight)return alert('Bitte Datum und Gewicht eintragen.');
-  if(date>todayISO())return alert('Gewicht kann nicht für einen zukünftigen Tag eingetragen werden.');
+  if(!date||!weight)return showAlert('Bitte Datum und Gewicht eintragen.');
+  if(date>todayISO())return showAlert('Gewicht kann nicht für einen zukünftigen Tag eingetragen werden.');
   const {error}=await supabase.from('weight_entries').upsert({profile_id:currentUser.id,weight,measured_on:date},{onConflict:'profile_id,measured_on'});
-  if(error)return alert(`Gewicht konnte nicht gespeichert werden: ${error.message}`);
+  if(error)return showAlert(`Gewicht konnte nicht gespeichert werden: ${error.message}`);
   $('#weightValue').value='';await loadWeights();renderWeights();renderAchievements();renderAdvancedStats();
 }
 async function deleteWeightEntry(date){
   const entry=weights.find(w=>w.date===date);if(!entry)return;
-  if(!confirm(`Gewichtseintrag vom ${formatDate(date)} (${entry.weight.toFixed(1)} kg) wirklich löschen?`))return;
+  if(!askConfirm(`Gewichtseintrag vom ${formatDate(date)} (${entry.weight.toFixed(1)} kg) wirklich löschen?`))return;
   const {error}=await supabase.from('weight_entries').delete().eq('profile_id',currentUser.id).eq('measured_on',date);
-  if(error)return alert(`Eintrag konnte nicht gelöscht werden: ${error.message}`);
+  if(error)return showAlert(`Eintrag konnte nicht gelöscht werden: ${error.message}`);
   await loadWeights();weightChartSelectedIndex=null;renderWeights();renderAchievements();renderAdvancedStats();
 }
 function movingAverage(arr,days=7){return arr.map((x,i)=>{const slice=arr.slice(Math.max(0,i-days+1),i+1);return slice.reduce((s,v)=>s+v.weight,0)/slice.length;});}
@@ -1062,16 +1131,16 @@ function renderYearEnd(){
   </div>`;
   membersBox.innerHTML=rows.map(r=>`<article class="year-member">
     <div class="avatar small">${escapeHtml((r.member.name||'?')[0].toUpperCase())}</div>
-    <div class="year-member-main"><strong>${escapeHtml(r.member.name||'')}</strong><span>${r.done} ${appLanguage==='en'?'done':'erledigt'} · ${r.missed} ${appLanguage==='en'?'missed':'verpasst'} · ${r.excused} ${appLanguage==='en'?'excused':'entschuldigt'}</span></div>
+    <div class="year-member-main"><strong data-user-content>${escapeHtml(r.member.name||'')}</strong><span>${r.done} ${appLanguage==='en'?'done':'erledigt'} · ${r.missed} ${appLanguage==='en'?'missed':'verpasst'} · ${r.excused} ${appLanguage==='en'?'excused':'entschuldigt'}</span></div>
     <strong>${euro(r.debt)}</strong>
   </article>`).join('');
   const minMiss=Math.min(...rows.map(r=>r.missed)),winners=rows.filter(r=>r.missed===minMiss);
   if(rows.length<2){
     decision.innerHTML=`<div class="info-banner">${appLanguage==='en'?'The decision rule becomes relevant once the group has at least two members.':'Die Entscheidungsregel wird relevant, sobald die Gruppe mindestens zwei Mitglieder hat.'}</div>`;
   }else if(winners.length===1){
-    decision.innerHTML=`<div class="winner-banner">🏆 <strong>${escapeHtml(winners[0].member.name)}</strong> ${appLanguage==='en'?`had the fewest missed events in ${year} and decides how the ${euro(pot)} pot is used.`:`hatte ${year} die wenigsten verpassten Termine und entscheidet, wofür der Topf von ${euro(pot)} verwendet wird.`}</div>`;
+    decision.innerHTML=`<div class="winner-banner">🏆 <strong data-user-content>${escapeHtml(winners[0].member.name)}</strong> ${appLanguage==='en'?`had the fewest missed events in ${year} and decides how the ${euro(pot)} pot is used.`:`hatte ${year} die wenigsten verpassten Termine und entscheidet, wofür der Topf von ${euro(pot)} verwendet wird.`}</div>`;
   }else{
-    decision.innerHTML=`<div class="info-banner">🤝 ${appLanguage==='en'?`Tie: ${winners.map(r=>escapeHtml(r.member.name)).join(', ')} share the fewest missed events. Decide together what happens to the ${euro(pot)} pot.`:`Gleichstand: ${winners.map(r=>escapeHtml(r.member.name)).join(', ')} haben gleich wenige Termine verpasst. Ihr entscheidet gemeinsam über den Topf von ${euro(pot)}.`}</div>`;
+    decision.innerHTML=`<div class="info-banner">🤝 ${appLanguage==='en'?`Tie: ${winners.map(r=>`<span data-user-content>${escapeHtml(r.member.name)}</span>`).join(', ')} share the fewest missed events. Decide together what happens to the ${euro(pot)} pot.`:`Gleichstand: ${winners.map(r=>`<span data-user-content>${escapeHtml(r.member.name)}</span>`).join(', ')} haben gleich wenige Termine verpasst. Ihr entscheidet gemeinsam über den Topf von ${euro(pot)}.`}</div>`;
   }
 }
 let weightChartSelectedIndex=null;
@@ -1094,7 +1163,7 @@ function updateWeightScaleControls(){
 function saveWeightScaleSettings(){
   const mode=$('#weightScaleMode')?.value||'auto';
   const min=Number($('#weightScaleMin')?.value||85),max=Number($('#weightScaleMax')?.value||100);
-  if(mode==='custom'&&(!Number.isFinite(min)||!Number.isFinite(max)||max<=min)){alert('Das Maximum muss größer als das Minimum sein.');return;}
+  if(mode==='custom'&&(!Number.isFinite(min)||!Number.isFinite(max)||max<=min)){showAlert('Das Maximum muss größer als das Minimum sein.');return;}
   localStorage.setItem('fitTogether_weightScaleMode',mode);
   localStorage.setItem('fitTogether_weightScaleMin',String(min));
   localStorage.setItem('fitTogether_weightScaleMax',String(max));
@@ -1163,7 +1232,7 @@ function renderPhotos(){
   progressPhotos.forEach(photo=>{
     const card=document.createElement('article');card.className='photo-card';
     const visibility=photo.visibility==='shared'?'👥 Gruppe':'🔒 Privat';
-    card.innerHTML=`${photo.signed_url?`<img src="${photo.signed_url}" alt="Fortschrittsbild von ${escapeHtml(photo.owner_name)}" />`:'<div class="empty">Bild konnte nicht geladen werden.</div>'}<div class="photo-info"><span><span class="photo-owner">${escapeHtml(photo.owner_name)}</span><br>${formatDate(photo.taken_on)}</span><span>${visibility}</span></div>${photo.profile_id===currentUser.id?'<div class="photo-actions"><button class="small-btn delete-photo-btn" type="button">🗑 Löschen</button></div>':''}`;
+    card.innerHTML=`${photo.signed_url?`<img src="${photo.signed_url}" alt="Fortschrittsbild von ${escapeHtml(photo.owner_name)}" />`:'<div class="empty">Bild konnte nicht geladen werden.</div>'}<div class="photo-info"><span><span data-user-content class="photo-owner">${escapeHtml(photo.owner_name)}</span><br>${formatDate(photo.taken_on)}</span><span>${visibility}</span></div>${photo.profile_id===currentUser.id?'<div class="photo-actions"><button class="small-btn delete-photo-btn" type="button">🗑 Löschen</button></div>':''}`;
     card.querySelector('.delete-photo-btn')?.addEventListener('click',()=>deleteProgressPhoto(photo));grid.appendChild(card);
   });
 }
@@ -1179,14 +1248,14 @@ function changeSlide(step){const n=myProgressPhotos().length;if(!n)return;slideI
 function toggleSlideshow(){
   const btn=$('#slidePlayBtn');
   if(slideTimer){clearInterval(slideTimer);slideTimer=null;btn.textContent='▶ Abspielen';return;}
-  if(myProgressPhotos().length<2)return alert('Für die Slideshow brauchst du mindestens zwei Fortschrittsbilder.');
+  if(myProgressPhotos().length<2)return showAlert('Für die Slideshow brauchst du mindestens zwei Fortschrittsbilder.');
   btn.textContent='⏸ Pause';slideTimer=setInterval(()=>changeSlide(1),1800);
 }
 function renderTrainingProofs(){
   const grid=$('#proofGrid');if(!grid)return;grid.innerHTML='';
   const sorted=[...trainingProofs].sort((a,b)=>String(b.occurrence_date).localeCompare(String(a.occurrence_date)));
   if(!sorted.length){grid.innerHTML='<div class="empty">Noch keine Trainingsnachweise vorhanden.</div>';return;}
-  sorted.forEach(proof=>{const ev=events.find(e=>e.id===proof.event_id);const card=document.createElement('article');card.className='photo-card';card.innerHTML=`${proof.signed_url?`<img src="${proof.signed_url}" alt="Trainingsnachweis von ${escapeHtml(proof.owner_name)}" />`:'<div class="empty">Bild konnte nicht geladen werden.</div>'}<div class="photo-info"><span><span class="photo-owner">${escapeHtml(proof.owner_name)}</span><br>${formatDate(proof.occurrence_date)}</span><span>🏋️ ${escapeHtml(ev?.title||'Training')}</span></div>`;grid.appendChild(card);});
+  sorted.forEach(proof=>{const ev=events.find(e=>e.id===proof.event_id);const card=document.createElement('article');card.className='photo-card';card.innerHTML=`${proof.signed_url?`<img src="${proof.signed_url}" alt="Trainingsnachweis von ${escapeHtml(proof.owner_name)}" />`:'<div class="empty">Bild konnte nicht geladen werden.</div>'}<div class="photo-info"><span><span data-user-content class="photo-owner">${escapeHtml(proof.owner_name)}</span><br>${formatDate(proof.occurrence_date)}</span><span data-user-content>🏋️ ${escapeHtml(ev?.title||'Training')}</span></div>`;grid.appendChild(card);});
 }
 function renderPhotoReminder(){
   const card=$('#photoReminderCard');if(!card||!currentUser)return;
@@ -1239,9 +1308,9 @@ async function disableClosedAppPush(){
     }
     await updatePushStatus();
     updateNotificationStatus();
-    alert(appLanguage==='en'?'Closed-app push was disabled on this device.':'Push wurde auf diesem Gerät deaktiviert.');
+    showAlert(appLanguage==='en'?'Closed-app push was disabled on this device.':'Push wurde auf diesem Gerät deaktiviert.');
   }catch(err){
-    alert(`${appLanguage==='en'?'Push could not be disabled':'Push konnte nicht deaktiviert werden'}: ${err.message||err}`);
+    showAlert(`${appLanguage==='en'?'Push could not be disabled':'Push konnte nicht deaktiviert werden'}: ${err.message||err}`);
   }
 }
 async function ensurePushSubscription(showSuccess=true){
@@ -1286,7 +1355,7 @@ async function ensurePushSubscription(showSuccess=true){
   const {error}=await supabase.from('push_subscriptions').upsert(row,{onConflict:'profile_id,endpoint'});
   if(error)throw error;
   await updatePushStatus();
-  if(showSuccess)alert(appLanguage==='en'?'Push is enabled on this device.':'Push ist auf diesem Gerät aktiviert.');
+  if(showSuccess)showAlert(appLanguage==='en'?'Push is enabled on this device.':'Push ist auf diesem Gerät aktiviert.');
   return sub;
 }
 
@@ -1296,7 +1365,7 @@ async function enableClosedAppPush(){
     if(permission!=='granted'){updatePushStatus();return;}
     await ensurePushSubscription(true);
   }catch(err){
-    alert(`${appLanguage==='en'?'Push setup failed':'Push-Einrichtung fehlgeschlagen'}: ${err.message||err}`);
+    showAlert(`${appLanguage==='en'?'Push setup failed':'Push-Einrichtung fehlgeschlagen'}: ${err.message||err}`);
   }
 }
 
@@ -1319,7 +1388,7 @@ async function maybeOfferNotificationOnboarding(){
   if(dlg?.showModal)dlg.showModal();
 }
 async function requestNotifications(){
-  if(!('Notification' in window))return alert(appLanguage==='en'?'This browser does not support notifications.':'Dieser Browser unterstützt keine Benachrichtigungen.');
+  if(!('Notification' in window))return showAlert(appLanguage==='en'?'This browser does not support notifications.':'Dieser Browser unterstützt keine Benachrichtigungen.');
   const permission=await Notification.requestPermission();
   updateNotificationStatus();
   if(permission==='granted'){
@@ -1386,8 +1455,7 @@ function testNotification(){
 function checkDueReminders(){/* Push/Background-Erinnerungen folgen später. */}
 window.addEventListener('resize',()=>drawWeightChart(weights));
 
-init();
-setTimeout(()=>maybeOfferNotificationOnboarding(),1200);
+
 
 
 
@@ -1398,16 +1466,118 @@ const EN_TEXT = new Map(Object.entries({
 'Strafgeld-Tauziehen':'Penalty tug of war','Wer hält besser durch?':'Who keeps going better?','Gleichstand':'Tie','Ich':'Me','Partner':'Partner','Noch keine Strafgelder. Perfekter Start.':'No penalties yet. Perfect start.','🔥 Aktuelle Streak':'🔥 Current streak','erledigte Termine':'completed events','🏆 Beste Streak':'🏆 Best streak','am Stück':'in a row','✅ Geschafft':'✅ Completed','Trainings':'Workouts','💸 Gemeinsamer Topf':'💸 Shared pot','Jahressumme':'Year total','Als Nächstes':'Up next','Nächste Termine':'Upcoming events','+ Termin':'+ Event',
 'MO.':'MON','DI.':'TUE','MI.':'WED','DO.':'THU','FR.':'FRI','SA.':'SAT','SO.':'SUN','+ Termin hinzufügen':'+ Add event','Neuer Eintrag':'New entry','Termin eintragen':'Add event','Titel':'Title','Datum':'Date','Von':'From','Bis':'To','Teilnehmer':'Participants','Alle Gruppenmitglieder':'All group members','Nur ich':'Only me','Farbe':'Color','Lila':'Purple','Blau':'Blue','Grün':'Green','Orange':'Orange','Pink':'Pink','Strafe bei Verpassen (€)':'Penalty if missed (€)','Wiederholung':'Repeat','Keine':'None','Wöchentlich':'Weekly','Monatlich':'Monthly','Jährlich':'Yearly','Wiederholen bis (optional)':'Repeat until (optional)','Erinnerung':'Reminder','1 Stunde vorher':'1 hour before','15 Minuten vorher':'15 minutes before','Notiz':'Note','Termin speichern':'Save event','Wiederholungen werden automatisch im Kalender angezeigt. Jede einzelne Wiederholung hat ihren eigenen Status und zählt separat für Streaks und Strafgeld.':'Repeating events are shown automatically in the calendar. Each occurrence has its own status and counts separately for streaks and penalties.','Liste':'List','Alle Termine':'All events',
 'Gewicht':'Weight','Verlauf eintragen':'Add weight entry','Gewicht (kg)':'Weight','Speichern':'Save','Start':'Start','Aktuell':'Current','Veränderung':'Change','Die Linie zeigt deine Einträge; zusätzlich wird ein 7-Tage-Trend geglättet dargestellt.':'The line shows your entries; a smoothed 7-day trend is shown as well.',
-'📸 Monatsfoto':'📸 Monthly photo','Zeit für ein Fortschrittsbild':'Time for a progress photo','Dein letztes Fortschrittsbild ist mindestens 14 Tage her.':'Your last progress photo is at least 30 days old.','Jetzt aufnehmen':'Take one now','In 7 Tagen erinnern':'Remind me in 7 days','Vorher / Nachher':'Before / after','Fortschrittsbilder':'Progress photos','Sichtbarkeit':'Visibility','🔒 Privat':'🔒 Private','👥 Mit Gruppe teilen':'👥 Share with group','Bild':'Photo','Bild hinzufügen':'Add photo','Bilder werden sicher in Supabase Storage gespeichert. Private Bilder siehst nur du; geteilte Bilder können Mitglieder deiner Gruppe sehen.':'Photos are stored securely in Supabase Storage. Only you can see private photos; shared photos are visible to members of your group.','Veränderung ansehen':'View progress','Fortschritts-Slideshow':'Progress slideshow','Noch nicht genug Bilder für eine Slideshow.':'Not enough photos for a slideshow yet.','‹ Zurück':'‹ Back','▶ Abspielen':'▶ Play','Weiter ›':'Next ›','Galerie':'Gallery','🏋️ Trainingsnachweise':'🏋️ Workout proof','Gym-Bilder':'Gym photos','Diese Bilder gehören zu bestätigten Trainings und sind für Mitglieder der jeweiligen Gruppe sichtbar. Sie bleiben getrennt von deinen Fortschrittsbildern.':'These photos belong to confirmed workouts and are visible to members of the respective group. They stay separate from your progress photos.',
+'📸 Monatsfoto':'📸 Monthly photo','Zeit für ein Fortschrittsbild':'Time for a progress photo','Dein letztes Fortschrittsbild ist mindestens 14 Tage her.':'Your last progress photo is at least 14 days old.','Jetzt aufnehmen':'Take one now','In 7 Tagen erinnern':'Remind me in 7 days','Vorher / Nachher':'Before / after','Fortschrittsbilder':'Progress photos','Sichtbarkeit':'Visibility','🔒 Privat':'🔒 Private','👥 Mit Gruppe teilen':'👥 Share with group','Bild':'Photo','Bild hinzufügen':'Add photo','Bilder werden sicher in Supabase Storage gespeichert. Private Bilder siehst nur du; geteilte Bilder können Mitglieder deiner Gruppe sehen.':'Photos are stored securely in Supabase Storage. Only you can see private photos; shared photos are visible to members of your group.','Veränderung ansehen':'View progress','Fortschritts-Slideshow':'Progress slideshow','Noch nicht genug Bilder für eine Slideshow.':'Not enough photos for a slideshow yet.','‹ Zurück':'‹ Back','▶ Abspielen':'▶ Play','Weiter ›':'Next ›','Galerie':'Gallery','🏋️ Trainingsnachweise':'🏋️ Workout proof','Gym-Bilder':'Gym photos','Diese Bilder gehören zu bestätigten Trainings und sind für Mitglieder der jeweiligen Gruppe sichtbar. Sie bleiben getrennt von deinen Fortschrittsbildern.':'These photos belong to confirmed workouts and are visible to members of the respective group. They stay separate from your progress photos.',
 'Gemeinsam trainieren':'Train together','Gruppen':'Groups','Mitglieder':'Members','Aktive Gruppe':'Active group','Einladungslink kopieren':'Copy invite link','Neue Gruppe':'New group','Gruppenname':'Group name','Gruppe erstellen':'Create group','Gruppe beitreten':'Join group','Einladungscode':'Invite code','Beitreten':'Join','Dein Profil':'Your profile','Dieses Profil kannst nur du bearbeiten.':'Only you can edit this profile.','Profil speichern':'Save profile','Schulden':'Debt','Partnerprofil':'Partner profile','Hier siehst du später alles, was sie für dich freigibt.':'You will see everything they share with you here.','🔒 Private Gewichte und Bilder bleiben verborgen. Geteilte Fortschritte erscheinen später hier.':'🔒 Private weights and photos stay hidden. Shared progress will appear here later.',
 'Anzeige':'Display','Sprache & Format':'Language & format','Sprache':'Language','Datumsformat':'Date format','Zeitformat':'Time format','Gewichtseinheit':'Weight unit','Sprache, Datum, Uhrzeit und Gewichtseinheit können unabhängig voneinander eingestellt werden. Gewichte werden intern weiterhin in kg gespeichert.':'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.','App':'App','Benachrichtigungen':'Notifications','Trainingserinnerungen kannst du über die Glocke oben aktivieren. Weitere Push-Einstellungen bauen wir im nächsten Benachrichtigungs-Schritt aus.':'You can enable workout reminders using the bell at the top.','🔔 Benachrichtigungen aktivieren':'🔔 Enable notifications','Standard-Erinnerung':'Default reminder','2 Stunden vorher':'2 hours before','1 Tag vorher':'1 day before','Nur eigene Termine':'Only my events','Test senden':'Send test','Benachrichtigungen sind noch nicht aktiviert.':'Notifications are not enabled yet.','Hinweis: Browser-Benachrichtigungen funktionieren zuverlässig, solange die App geöffnet ist. Echte Push-Nachrichten bei komplett geschlossener App benötigen später einen Server/Push-Dienst.':'Note: Browser notifications work reliably while the app is open. True push notifications when the app is completely closed will later require a server/push service.',
 'Trainingsnachweis':'Workout proof','Noch kein Nachweis hochgeladen.':'No proof uploaded yet.','Foto':'Photo','Nachweis hochladen':'Upload proof','✅ Erledigt':'✅ Done','❌ Verpasst':'❌ Missed','🩹 Entschuldigt':'🩹 Excused','Abbrechen':'Cancel','Status':'Status','Geplant':'Planned','Erledigt':'Done','Verpasst':'Missed','Entschuldigt':'Excused','🗑 Löschen':'🗑 Delete','Gruppe':'Group','Privat':'Private','Training':'Workout','Mitglied':'Member','Noch niemand':'No one yet','Optional':'Optional','📲 Push bei geschlossener App einrichten':'📲 Set up closed-app push','🔔 Push aktivieren':'🔔 Enable push','🔕 Push deaktivieren':'🔕 Disable push','Nicht eingerichtet':'Not set up','Aktiv':'Active','Die Einstellungen werden automatisch gespeichert. Geschlossene-App-Pushs werden aktuell serverseitig 1 Stunde vor dem Training gesendet.':'Settings are saved automatically. Closed-app push is currently sent server-side 1 hour before the workout.','Nachweis vorab hochladen':'Upload proof early','Push bei geschlossener App ist noch nicht eingerichtet.':'Closed-app push is not set up yet.','Jahresabschluss':'Annual settlement','Gemeinsamer Geldtopf':'Shared money pot','Gemeinsamer Topf':'Shared pot','Nur diesen Termin':'Only this occurrence','Gesamte Serie':'Entire series','Wiederholten Termin löschen':'Delete repeating event','Wiederholten Termin bearbeiten':'Edit repeating event','Möchtest du nur diesen Termin oder die gesamte Serie ändern?':'Do you want to change only this occurrence or the entire series?'
 }));
-const DE_TEXT = new Map([...EN_TEXT].map(([de,en])=>[en,de]));
+EN_TEXT.set("Erfolge","Achievements");
+EN_TEXT.set("E-Mail","Email");
+EN_TEXT.set("Passwort vergessen?","Forgot password?");
+EN_TEXT.set("Passwort & Anmeldung","Password & sign-in");
+EN_TEXT.set("Passwort ändern","Change password");
+EN_TEXT.set("Aktuelles Passwort","Current password");
+EN_TEXT.set("Neues Passwort","New password");
+EN_TEXT.set("Neues Passwort wiederholen","Confirm new password");
+EN_TEXT.set("Passwort speichern","Save password");
+EN_TEXT.set("Ändere dein Passwort. Wenn du es vergessen hast, kannst du auf dem Anmeldebildschirm einen Link zum Zurücksetzen anfordern.","Change your password. If you have forgotten it, request a reset link on the sign-in screen.");
+EN_TEXT.set("Y-Achse","Y-axis");
+EN_TEXT.set("Automatisch (25-kg-Fenster)","Automatic (25 kg range)");
+EN_TEXT.set("Eigener Bereich","Custom range");
+EN_TEXT.set("Minimum (kg)","Minimum (kg)");
+EN_TEXT.set("Maximum (kg)","Maximum (kg)");
+EN_TEXT.set("Messpunkt auswählen","Select a measurement");
+EN_TEXT.set("Tippe auf einen Punkt unter dem Graphen.","Tap a point below the chart.");
+EN_TEXT.set("Die Punkte unter dem Graphen sind deine echten Messungen. Wähle einen Punkt, um Datum und Gewicht zu sehen; die rote Linie markiert ihn im Graphen.","The points below the chart are your measurements. Select a point to see its date and weight; the red line marks it on the chart.");
+EN_TEXT.set("Messwerte","Measurements");
+EN_TEXT.set("Gewichtshistorie","Weight history");
+EN_TEXT.set("Medaillen","Medals");
+EN_TEXT.set("Jedes Achievement hat Bronze, Silber und Gold. Erreichte Medaillen bleiben erhalten; die Leiste zeigt deinen aktuellen Fortschritt zur nächsten Stufe.","Each achievement has bronze, silver and gold levels. The bar shows your current progress towards the next level.");
+EN_TEXT.set("Jedes Achievement hat Bronze, Silber und Gold. Die Medaillen werden aus deinen gespeicherten Daten berechnet; die Leiste zeigt deinen aktuellen Fortschritt zur nächsten Stufe.","Each achievement has bronze, silver and gold levels. Medals are calculated from your saved data; the bar shows progress towards the next level.");
+EN_TEXT.set("Deine letzten 30 Tage","Your last 30 days");
+EN_TEXT.set("Trainingsstatistik","Workout statistics");
+EN_TEXT.set("📸 Fortschrittsfoto","📸 Progress photo");
+EN_TEXT.set("QR-Code scannen und direkt der Gruppe beitreten.","Scan the QR code to join the group.");
+EN_TEXT.set("Termin aktualisieren","Update event");
+EN_TEXT.set("Termin bearbeiten","Edit event");
+EN_TEXT.set("📷 Trainingsnachweis","📷 Workout proof");
+EN_TEXT.set("Für „Erledigt“ ist ein Trainingsfoto erforderlich.","A workout photo is required to mark an event as done.");
+EN_TEXT.set("📷 Bild aufnehmen","📷 Take photo");
+EN_TEXT.set("🖼️ Bild auswählen","🖼️ Choose photo");
+EN_TEXT.set("Noch kein neues Bild ausgewählt.","No new photo selected.");
+EN_TEXT.set("Trainingserinnerungen aktivieren?","Enable workout reminders?");
+EN_TEXT.set("FitTogether kann dich vor deinen geplanten Trainings erinnern – auch wenn die App geschlossen ist.","FitTogether can remind you before scheduled workouts, even when the app is closed.");
+EN_TEXT.set("Benachrichtigungen aktivieren","Enable notifications");
+EN_TEXT.set("Später","Later");
+EN_TEXT.set("Kamera","Camera");
+EN_TEXT.set("Kamera wird gestartet …","Starting camera …");
+EN_TEXT.set("Kamera bereit.","Camera ready.");
+EN_TEXT.set("Kamera konnte nicht geöffnet werden.","Could not open the camera.");
+EN_TEXT.set("📸 Foto aufnehmen","📸 Take photo");
+EN_TEXT.set("Durchgezogen","Showing up");
+EN_TEXT.set("Zuverlässig","Reliable");
+EN_TEXT.set("Auf Kurs","On track");
+EN_TEXT.set("Keine Ausreden","Consistent months");
+EN_TEXT.set("Zeitraffer","Time lapse");
+EN_TEXT.set("Zählt nur Trainings, die wirklich als „Erledigt“ bestätigt wurden.","Counts only workouts confirmed as done.");
+EN_TEXT.set("Erfolgsquote aus Erledigt + Entschuldigt gegenüber entschiedenen Terminen. Für historische Medaillen zählt nur ein Monat mit mindestens 3 Terminen.","Completed and excused workouts count as successful. Medals require at least 3 decided workouts in the measured period.");
+EN_TEXT.set("Eine perfekte Woche zählt nur, wenn alle eigenen geplanten Trainings erledigt oder entschuldigt sind. „Verpasst“ setzt die aktuelle Serie zurück.","A perfect week counts when all your scheduled workouts are completed or excused. A missed workout resets the current streak.");
+EN_TEXT.set("Gewichtsfortschritt wird aus einem geglätteten Trend der letzten Messungen berechnet. Ein einzelner niedriger Wert durch Wasser oder leeren Magen reicht nicht.","Weight progress uses a smoothed trend of recent measurements. One low reading from water fluctuations or an empty stomach is not enough.");
+EN_TEXT.set("Ein kompletter Monat ohne einen einzigen als „Verpasst“ gewerteten eigenen Termin. Mehrere saubere Monate müssen direkt aufeinander folgen.","A completed month in which all your workouts were completed or excused. Multiple qualifying months must be consecutive.");
+EN_TEXT.set("Zählt nur deine Fortschrittsbilder. Bei einem Foto alle 14 Tage entsprechen 26 Bilder ungefähr einem kompletten Jahr.","Counts your progress photos. At one photo every 14 days, 26 photos cover roughly a year.");
+EN_TEXT.set("Silber","Silver");
+EN_TEXT.set("Noch keine Medaille","No medal yet");
+EN_TEXT.set("Gold erreicht","Gold achieved");
+EN_TEXT.set("Bis Gold","Until gold");
+EN_TEXT.set("Bis Silber","Until silver");
+EN_TEXT.set("Bis Bronze","Until bronze");
+EN_TEXT.set("Bitte Name, E-Mail und ein Passwort mit mindestens 6 Zeichen eingeben.","Please enter your name, email and a password of at least 6 characters.");
+EN_TEXT.set("Account wird erstellt …","Creating account …");
+EN_TEXT.set("Account erstellt. Bitte E-Mail bestätigen und danach anmelden.","Account created. Confirm your email, then sign in.");
+EN_TEXT.set("Bitte E-Mail und Passwort eingeben.","Please enter your email and password.");
+EN_TEXT.set("Anmeldung läuft …","Signing in …");
+EN_TEXT.set("Keine Sitzung erhalten.","No session received.");
+EN_TEXT.set("Bitte zuerst ein Bild auswählen.","Please select a photo first.");
+EN_TEXT.set("Das Bild ist größer als 12 MB. Bitte ein kleineres Bild verwenden.","The image exceeds 12 MB. Please select a smaller image.");
+EN_TEXT.set("Dieses Fortschrittsbild wirklich löschen?","Delete this progress photo?");
+EN_TEXT.set("Dieser Browser unterstützt die In-App-Kamera nicht. Nutze „Bild auswählen“.","This browser does not support the in-app camera. Use Choose photo instead.");
+EN_TEXT.set("Kein Termin ausgewählt.","No event selected.");
+EN_TEXT.set("Bitte zuerst ein Foto aufnehmen oder auswählen.","Take or select a photo first.");
+EN_TEXT.set("Das Bild ist größer als 12 MB.","The image exceeds 12 MB.");
+EN_TEXT.set("Wird hochgeladen …","Uploading …");
+EN_TEXT.set("Bitte einen Gruppennamen eingeben.","Please enter a group name.");
+EN_TEXT.set("Bitte einen Einladungscode eingeben.","Please enter an invite code.");
+EN_TEXT.set("Bitte einen Namen eintragen.","Please enter a name.");
+EN_TEXT.set("Bitte Datum und Gewicht eintragen.","Please enter a date and weight.");
+EN_TEXT.set("Gewicht kann nicht für einen zukünftigen Tag eingetragen werden.","You cannot enter a weight for a future date.");
+EN_TEXT.set("Das Maximum muss größer als das Minimum sein.","The maximum must be greater than the minimum.");
+EN_TEXT.set("Löschen","Delete");
+EN_TEXT.set("Für die Slideshow brauchst du mindestens zwei Fortschrittsbilder.","You need at least two progress photos for the slideshow.");
+EN_TEXT.set("Service Worker werden nicht unterstützt.","Service workers are not supported.");
+EN_TEXT.set("Push bei geschlossener App wird von diesem Browser nicht unterstützt.","This browser does not support closed-app push.");
+EN_TEXT.set("Nicht unterstützt","Not supported");
+EN_TEXT.set("Push bei geschlossener App ist auf diesem Gerät aktiviert.","Closed-app push is enabled on this device.");
+EN_TEXT.set("Push wurde auf diesem Gerät deaktiviert.","Push has been disabled on this device.");
+EN_TEXT.set("Bitte zuerst anmelden.","Please sign in first.");
+EN_TEXT.set("Push wird von diesem Browser nicht unterstützt.","This browser does not support push.");
+EN_TEXT.set("Diesen Link verschicken:","Share this link:");
+EN_TEXT.set("Vorheriger Monat","Previous month");
+EN_TEXT.set("Nächster Monat","Next month");
+EN_TEXT.set("Zum heutigen Monat","Go to the current month");
+EN_TEXT.set("Monatskalender","Monthly calendar");
+EN_TEXT.set("Hauptnavigation","Main navigation");
+EN_TEXT.set("Vergleich des Strafgelds","Penalty comparison");
+EN_TEXT.set("Strafgeld-Rangliste","Penalty ranking");
+EN_TEXT.set('name@beispiel.de','name@example.com');
+EN_TEXT.set('Dein Name','Your name');
+EN_TEXT.set('Mindestens 6 Zeichen','At least 6 characters');
+EN_TEXT.set('z. B. Gym, Schwimmen, Spaziergang','e.g. Gym, swimming, walk');
+EN_TEXT.set('z. B. Janek & Estelle','e.g. Alex & Sam');
+EN_TEXT.set('z. B. A1B2C3D4','e.g. A1B2C3D4');
+EN_TEXT.set('z. B. 92.4','e.g. 92.4');
 function translateExact(text){
- const trimmed=String(text??'').trim(); if(!trimmed)return text;
- const dict=appLanguage==='en'?EN_TEXT:DE_TEXT;
- return dict.has(trimmed)?String(text).replace(trimmed,dict.get(trimmed)):text;
+ const trimmed=String(text??'').trim();if(!trimmed||appLanguage!=='en')return text;
+ return EN_TEXT.has(trimmed)?String(text).replace(trimmed,EN_TEXT.get(trimmed)):text;
 }
 function translateDynamic(text){
  let x=String(text??''); if(appLanguage!=='en')return translateExact(x);
@@ -1424,21 +1594,54 @@ function translateDynamic(text){
  x=x.replace(/Dein letztes Fortschrittsbild ist (\d+) Tage her\. Zeit für ein neues Monatsfoto\./g,'Your last progress photo was $1 days ago. Time for your next 14-day photo.').replace(/Du hast noch kein Fortschrittsbild\. Starte heute deine Vorher-\/Nachher-Reihe\./g,'You do not have a progress photo yet. Start your before/after series today.');
  x=x.replace(/Für das Tauziehen braucht die Gruppe zwei Mitglieder\. Schick deinen Einladungslink weiter\./g,'The tug of war needs two group members. Share your invite link.').replace(/Gleichstand – noch ist alles offen\./g,'Tie — everything is still open.').replace(/ hat aktuell die wenigsten Strafschulden\./g,' currently has the lowest penalty debt.').replace(/ führt/g,' leads').replace(/Gleichstand bei /g,'Tie at ').replace(/ liegt um (.+) vorne und würde aktuell über den Topf entscheiden\./g,' is ahead by $1 and would currently decide how to use the pot.');
  x=x.replace(/wöchentlich/g,'weekly').replace(/monatlich/g,'monthly').replace(/jährlich/g,'yearly');
+
+ x=x.replace(/(\d+) erledigte Trainings/g,'$1 completed workouts').replace(/(\d+) perfekte Wochen/g,'$1 perfect weeks').replace(/(\d+) kg Trend-Fortschritt/g,'$1 kg trend progress').replace(/(\d+) sauberer Monat/g,'$1 completed month').replace(/(\d+) Monate in Folge/g,'$1 consecutive months').replace(/(\d+) Fortschrittsbilder/g,'$1 progress photos').replace(/(\d+) % zuverlässig/g,'$1% reliable');
+ x=x.replace(/(\d+) Trainings\b/g,'$1 workouts').replace(/(\d+) Wochen\b/g,'$1 weeks').replace(/(\d+) Monate\b/g,'$1 months').replace(/(\d+) Bilder\b/g,'$1 photos').replace(/Bestwert /g,'Best ').replace(/Silber/g,'Silver').replace(/ \(du\)/g,' (you)');
+ x=x.replace(/^(Technischer Fehler|Gruppen konnten nicht geladen werden|Kalender konnte nicht geladen werden|Gruppe konnte nicht erstellt werden|Beitritt fehlgeschlagen|Nachweis konnte nicht gespeichert werden|Gewicht konnte nicht gespeichert werden|Eintrag konnte nicht gelöscht werden|Fortschrittsbild konnte nicht gespeichert werden):/,m=>({'Technischer Fehler:':'Technical error:','Gruppen konnten nicht geladen werden:':'Could not load groups:','Kalender konnte nicht geladen werden:':'Could not load calendar:','Gruppe konnte nicht erstellt werden:':'Could not create group:','Beitritt fehlgeschlagen:':'Could not join group:','Nachweis konnte nicht gespeichert werden:':'Could not save proof:','Gewicht konnte nicht gespeichert werden:':'Could not save weight:','Eintrag konnte nicht gelöscht werden:':'Could not delete entry:','Fortschrittsbild konnte nicht gespeichert werden:':'Could not save progress photo:'}[m]||m));
+ x=x.replace(/^Gewichtseintrag vom (.+) wirklich löschen\?$/,'Delete the weight entry from $1?');
  return x;
 }
+// Keep source text instead of reversing English strings (several labels share a translation).
+const translationSources=new WeakMap();
+const translationAttributes=new WeakMap();
+const USER_CONTENT='#currentGroupName,#inviteCodeLabel,#ownProfileName,#partnerProfileName,#ownAvatar,#partnerAvatar,#userANameLabel,#userBNameLabel,#dialogEventName,#leadBadge,#tugText,[data-user-content],.photo-owner';
 function translateVisibleUI(root=document.body){
  if(!root)return;
- const nodes=[];const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);while(walker.nextNode())nodes.push(walker.currentNode);
- nodes.forEach(n=>{if(!n.parentElement?.closest('script,style'))n.nodeValue=translateDynamic(n.nodeValue);});
- const placeholders={
-  'name@beispiel.de':'name@example.com','Passwort':'Password','Dein Name':'Your name','Mindestens 6 Zeichen':'At least 6 characters','z. B. Gym, Schwimmen, Spaziergang':'e.g. Gym, swimming, walk','z. B. 92.4':'e.g. 92.4','z. B. Janek & Estelle':'e.g. Alex & Sam','z. B. A1B2C3D4':'e.g. A1B2C3D4','Optional':'Optional','📲 Push bei geschlossener App einrichten':'📲 Set up closed-app push','Push bei geschlossener App ist noch nicht eingerichtet.':'Closed-app push is not set up yet.','Jahresabschluss':'Annual settlement','Gemeinsamer Geldtopf':'Shared money pot','Gemeinsamer Topf':'Shared pot','Nur diesen Termin':'Only this occurrence','Gesamte Serie':'Entire series','Wiederholten Termin löschen':'Delete repeating event','Wiederholten Termin bearbeiten':'Edit repeating event','Möchtest du nur diesen Termin oder die gesamte Serie ändern?':'Do you want to change only this occurrence or the entire series?'
- };
- root.querySelectorAll?.('[placeholder]').forEach(el=>{const v=el.getAttribute('placeholder');if(appLanguage==='en'&&placeholders[v])el.setAttribute('placeholder',placeholders[v]);});
- root.querySelectorAll?.('[aria-label],[title]').forEach(el=>{for(const a of ['aria-label','title']){if(el.hasAttribute(a))el.setAttribute(a,translateDynamic(el.getAttribute(a)));}});
- // Weight label follows selected unit.
- const w=document.querySelector('label:has(#weightValue)');if(w){const input=w.querySelector('#weightValue');if(input){for(const n of [...w.childNodes])if(n.nodeType===3&&n.nodeValue.trim())n.nodeValue=(appLanguage==='en'?'Weight':'Gewicht')+` (${weightUnit})`;}}
+ const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+ while(walker.nextNode()){
+  const n=walker.currentNode;
+  if(n.parentElement?.closest(`script,style,[data-i18n],${USER_CONTENT}`))continue;
+  let entry=translationSources.get(n);
+  if(!entry||n.nodeValue!==entry.rendered)entry={source:n.nodeValue};
+  const translated=appLanguage==='en'?translateDynamic(entry.source):entry.source;
+  if(n.nodeValue!==translated)n.nodeValue=translated;
+  entry.rendered=translated;translationSources.set(n,entry);
+ }
+ const els=[...(root.matches?.('[placeholder],[aria-label],[title],[alt]')?[root]:[]),...(root.querySelectorAll?.('[placeholder],[aria-label],[title],[alt]')||[])];
+ for(const el of els){
+  const sources=translationAttributes.get(el)||{};
+  for(const attr of ['placeholder','aria-label','title','alt']){
+   if(!el.hasAttribute(attr))continue;
+   const value=el.getAttribute(attr);let entry=sources[attr];
+   if(!entry||entry.rendered!==value)entry={source:value};
+   const result=appLanguage==='en'?translateDynamic(entry.source):entry.source;
+   if(result!==value)el.setAttribute(attr,result);
+   entry.rendered=result;sources[attr]=entry;
+  }
+  translationAttributes.set(el,sources);
+ }
+ const label=document.querySelector('label:has(#weightValue)');
+ if(label)for(const n of label.childNodes)if(n.nodeType===3&&n.nodeValue.trim()){const text=(appLanguage==='en'?'Weight':'Gewicht')+` (${weightUnit})`;if(n.nodeValue!==text)n.nodeValue=text;}
+ const selector=$('#authLanguageSelect');if(selector)selector.value=appLanguage;
 }
+function showAlert(message){window.alert(translateDynamic(message));}
+function askConfirm(message){return window.confirm(translateDynamic(message));}
+function showPrompt(message,value){return window.prompt(translateDynamic(message),value);}
 const _applyLocaleBase=applyLocale;
-applyLocale=function(){_applyLocaleBase();translateVisibleUI();setTimeout(()=>translateVisibleUI(),0);};
-const uiTranslationObserver=new MutationObserver(muts=>{if(appLanguage!=='en')return;for(const m of muts)for(const n of m.addedNodes){if(n.nodeType===1)translateVisibleUI(n);else if(n.nodeType===3)n.nodeValue=translateDynamic(n.nodeValue);}});
-document.addEventListener('DOMContentLoaded',()=>{uiTranslationObserver.observe(document.body,{childList:true,subtree:true});translateVisibleUI();});
+applyLocale=function(){_applyLocaleBase();translateVisibleUI();};
+// Modules may execute after DOMContentLoaded. Start immediately, and observe text updates too.
+const uiTranslationObserver=new MutationObserver(()=>translateVisibleUI());
+uiTranslationObserver.observe(document.body,{childList:true,characterData:true,subtree:true});
+translateVisibleUI();
+init();
+setTimeout(()=>maybeOfferNotificationOnboarding(),1200);
