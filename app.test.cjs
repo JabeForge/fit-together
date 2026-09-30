@@ -97,8 +97,8 @@ test('partial months and one-workout reliability do not unlock medals',()=>{
   const current=x.run('todayISO()');
   const clean=x.run(`cleanMonthMetrics([{date:'${current}',status:'completed'}])`);
   assert.equal(clean.best,0);
-  const reliability=x.run(`reliabilityMetrics([{date:'${current}',status:'completed'}])`);
-  assert.equal(reliability.current,100);assert.equal(reliability.best,0);
+  const reliability=x.run(`reliabilityMedalMetrics([{date:'${current}',status:'completed'}])`);
+  assert.equal(reliability.rate,100);assert.equal(reliability.level,0);
   const past=x.run(`cleanMonthMetrics([{date:'2025-01-01',status:'planned'}])`);assert.equal(past.best,0);
  }finally{x.close();}
 });
@@ -113,5 +113,69 @@ test('signed-out startup binds password controls and applies English immediately
   x.doc.querySelector('#authLanguageSelect').value='de';
   x.doc.querySelector('#authLanguageSelect').dispatchEvent(new x.w.Event('change'));
   assert.equal(x.doc.querySelector('#forgotPasswordBtn').textContent,'Passwort vergessen?');
+ }finally{x.close();}
+});
+
+test('reliability medals require volume and rate; excused and future events cannot supply volume',()=>{
+ const x=setup();try{
+  const metric=(done,missed=0,excused=0)=>x.run(`reliabilityMedalMetrics([
+   ...Array.from({length:${done}},()=>({date:todayISO(),status:'completed'})),
+   ...Array.from({length:${missed}},()=>({date:todayISO(),status:'missed'})),
+   ...Array.from({length:${excused}},()=>({date:todayISO(),status:'excused'}))])`);
+  assert.equal(metric(6).level,0);assert.equal(metric(6).progress.pct,60);
+  assert.equal(metric(10,2).level,1);assert.equal(metric(10,3).level,0);
+  assert.equal(metric(25,2).level,2);assert.equal(metric(25,3).level,1);
+  assert.equal(metric(50,2).level,3);assert.equal(metric(50,3).level,2);
+  assert.equal(metric(6,0,100).level,0);
+  assert.equal(x.run("reliabilityMedalMetrics([{date:'2099-01-01',status:'completed'}]).completed"),0);
+  const historic=x.run(`reliabilityMedalMetrics([
+   ...Array.from({length:50},()=>({date:'2025-01-01',status:'completed'})),
+   ...Array.from({length:20},()=>({date:'2025-02-01',status:'missed'}))])`);
+  assert.equal(historic.level,3);
+  // Same-day ordering must not briefly award gold before processing misses.
+  assert.equal(metric(50,20).level,0);
+ }finally{x.close();}
+});
+test('six-workout Reliable card shows no medal and translates both directions',()=>{
+ const x=setup();try{
+  x.run(`currentUser={id:'u'};allMyOccurrences=()=>Array.from({length:6},()=>({date:todayISO(),status:'completed'}));setLanguage('en')`);
+  const card=()=>x.doc.querySelectorAll('#achievementGrid article')[1];
+  assert.match(card().textContent,/50 workouts \+ 95% reliable/);
+  assert.match(card().textContent,/6 completed workouts/);
+  assert.ok(card().querySelector('.medal-none'));
+  assert.equal(card().querySelector('.achievement-fill').style.width,'60%');
+  x.run("setLanguage('de')");assert.match(card().textContent,/50 Trainings \+ 95 % zuverlässig/);
+  x.run("setLanguage('en')");assert.doesNotMatch(card().textContent,/Trainings|zuverlässig|Medaillen/);
+ }finally{x.close();}
+});
+test('notification status, visibility and progress photo chooser follow language; filenames stay intact',()=>{
+ const x=setup();try{
+  x.w.Notification={permission:'granted'};
+  x.run(`currentUser={id:'u'};progressPhotos=[{profile_id:'u',owner_name:'Janek',taken_on:todayISO(),visibility:'shared'}];bindActions();setLanguage('en')`);
+  assert.equal(x.doc.querySelector('#notificationStatus').textContent,'Notifications are enabled.');
+  assert.match(x.doc.querySelector('#photoGrid').textContent,/👥 Group/);
+  assert.match(x.doc.querySelector('#progressSlideshow').textContent,/👥 Group/);
+  assert.equal(x.doc.querySelector('#photoChooseBtn').textContent,'🖼️ Choose photo');
+  assert.equal(x.doc.querySelector('#photoSelectedFile').textContent,'No new photo selected.');
+  let clicked=0;x.doc.querySelector('#photoInput').addEventListener('click',e=>{clicked++;e.preventDefault();});
+  x.doc.querySelector('#photoChooseBtn').click();assert.equal(clicked,1);
+  Object.defineProperty(x.doc.querySelector('#photoInput'),'files',{value:[new x.w.File(['x'],'Gewicht.jpg',{type:'image/jpeg'})],configurable:true});
+  x.doc.querySelector('#photoInput').dispatchEvent(new x.w.Event('change'));
+  x.run("setLanguage('de')");assert.equal(x.doc.querySelector('#photoSelectedFile').textContent,'Gewicht.jpg');
+  assert.equal(x.doc.querySelector('#notificationStatus').textContent,'Benachrichtigungen sind aktiviert.');
+  assert.match(x.doc.querySelector('#photoGrid').textContent,/👥 Gruppe/);
+  x.run("setLanguage('en')");assert.equal(x.doc.querySelector('#photoSelectedFile').textContent,'Gewicht.jpg');
+ }finally{x.close();}
+});
+test('leader badge centers text and annual stats have separate label and value layout',()=>{
+ const x=setup();try{
+  const style=x.doc.createElement('style');style.textContent=fs.readFileSync('styles.css','utf8');x.doc.head.append(style);
+  const badge=x.w.getComputedStyle(x.doc.querySelector('#leadBadge'));
+  assert.equal(badge.textAlign,'center');assert.equal(badge.justifyContent,'center');
+  x.run(`currentUser={id:'u'};activeGroup={id:'g'};groupMembers=[{id:'u',name:'Janek'}];renderYearEnd()`);
+  const grid=x.doc.querySelector('.year-stats');assert.ok(grid);
+  assert.equal(x.w.getComputedStyle(grid).display,'grid');
+  assert.equal(x.w.getComputedStyle(grid.firstElementChild).gap,'8px');
+  assert.ok(grid.firstElementChild.querySelector('span'));assert.ok(grid.firstElementChild.querySelector('strong'));
  }finally{x.close();}
 });

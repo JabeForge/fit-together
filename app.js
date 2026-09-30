@@ -1,4 +1,4 @@
-const APP_VERSION = "0.19.7";
+const APP_VERSION = "0.19.8";
 const I18N={
  de:{home:'Übersicht',display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise',groups:'Gruppe',achievements:'Erfolge'},
  en:{home:'Overview',display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof',groups:'Group',achievements:'Achievements'}
@@ -18,6 +18,8 @@ function applyLocale(){
  const map={home:'home',calendar:'calendar',weight:'weight',achievements:'achievements',photos:'photos',groups:'groups',profiles:'profiles',settings:'settings'};
  document.querySelectorAll('[data-tab]').forEach(b=>{const k=map[b.dataset.tab];if(k){const icon=(b.textContent.match(/^\s*[^\wÄÖÜäöü]+/)||[''])[0].trim();b.textContent=(icon?icon+' ':'')+t(k);}});
  renderAll();
+ updateNotificationStatus();
+ showSelectedProgressFile();
 }
 function setLanguage(v){appLanguage=v;localStorage.setItem('fitTogether_language',v);applyLocale();}
 function setDateFormat(v){dateFormat=v;localStorage.setItem('fitTogether_dateFormat',v);renderAll();}
@@ -143,6 +145,8 @@ function bindActions(){
   $('#proofCameraCloseBtn')?.addEventListener('click',closeProofCamera);
   $('#proofCameraCancelBtn')?.addEventListener('click',closeProofCamera);
   $('#proofCameraDialog')?.addEventListener('close',stopProofCamera);
+  $('#photoChooseBtn').addEventListener('click',()=>$('#photoInput').click());
+  $('#photoInput').addEventListener('change',showSelectedProgressFile);
   $('#addPhotoBtn').addEventListener('click',addProgressPhoto);
   $('#uploadProofBtn').addEventListener('click',uploadTrainingProof);
   $('#statusDoneBtn').addEventListener('click',()=>finishStatus('done'));
@@ -151,7 +155,7 @@ function bindActions(){
   $('#slidePrevBtn').addEventListener('click',()=>changeSlide(-1));
   $('#slideNextBtn').addEventListener('click',()=>changeSlide(1));
   $('#slidePlayBtn').addEventListener('click',toggleSlideshow);
-  $('#photoReminderNowBtn').addEventListener('click',()=>{showTab('photos');$('#photoInput').scrollIntoView({behavior:'smooth',block:'center'});});
+  $('#photoReminderNowBtn').addEventListener('click',()=>{showTab('photos');$('#photoChooseBtn').scrollIntoView({behavior:'smooth',block:'center'});$('#photoChooseBtn').focus({preventScroll:true});});
   $('#photoReminderLaterBtn').addEventListener('click',snoozePhotoReminder);
   $('#notifyBtn').addEventListener('click',enableClosedAppPush);
   $('#settingsNotifyBtn')?.addEventListener('click',enableClosedAppPush);
@@ -367,6 +371,13 @@ function safeExt(file){
   const ext=(file?.name?.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'');
   return ['jpg','jpeg','png','webp','heic','heif'].includes(ext)?ext:'jpg';
 }
+function showSelectedProgressFile(){
+  const label=$('#photoSelectedFile'),file=$('#photoInput')?.files?.[0];
+  if(label)label.textContent=file?file.name:(appLanguage==='en'?'No new photo selected.':'Noch kein neues Bild ausgewählt.');
+}
+function photoVisibilityLabel(visibility){
+  return visibility==='shared'?(appLanguage==='en'?'👥 Group':'👥 Gruppe'):(appLanguage==='en'?'🔒 Private':'🔒 Privat');
+}
 async function addProgressPhoto(){
   if(!currentUser)return;
   const file=$('#photoInput').files?.[0],date=$('#photoDate').value||todayISO(),visibility=$('#photoVisibility').value;
@@ -379,7 +390,7 @@ async function addProgressPhoto(){
     if(uploadError)throw uploadError;
     const {error:dbError}=await supabase.from('progress_photos').insert({profile_id:currentUser.id,image_url:path,visibility,taken_on:date});
     if(dbError){await supabase.storage.from('progress-photos').remove([path]);throw dbError;}
-    $('#photoInput').value='';await loadProgressPhotos();renderPhotos();
+    $('#photoInput').value='';showSelectedProgressFile();await loadProgressPhotos();renderPhotos();
   }catch(err){showAlert(`Bild konnte nicht gespeichert werden: ${err.message||err}`);}
   finally{$('#addPhotoBtn').disabled=false;$('#addPhotoBtn').textContent='Bild hinzufügen';}
 }
@@ -850,24 +861,27 @@ function cleanMonthMetrics(items){
   }
   return {current:cur,best};
 }
-function reliabilityMetrics(items){
-  const today=todayISO();
-  const recent=items.filter(x=>dayDiff(x.date,today)>=0&&dayDiff(x.date,today)<=29);
-  const eligible=recent.filter(x=>x.status!=='planned');
-  const success=eligible.filter(x=>x.status==='completed'||x.status==='excused').length;
-  const current=eligible.length?Math.round(success/eligible.length*100):0;
-
-  // Best historic calendar-month reliability; at least 3 decided workouts.
-  const by=new Map();
-  items.forEach(x=>{if(x.status==='planned')return;const k=monthKey(x.date);if(!by.has(k))by.set(k,[]);by.get(k).push(x);});
-  let best=0;
-  for(const rows of by.values()){
-    if(rows.length<3)continue;
-    const good=rows.filter(r=>r.status==='completed'||r.status==='excused').length;
-    best=Math.max(best,Math.round(good/rows.length*100));
+const RELIABILITY_TIERS=[{workouts:10,rate:80},{workouts:25,rate:90},{workouts:50,rate:95}];
+function reliabilityMedalMetrics(items){
+  // Earn medals through actual completed workouts AND reliability. Excused
+  // events support the rate but never add to the workout requirement.
+  const rows=items.filter(x=>x.date<=todayISO()&&['completed','excused','missed'].includes(x.status))
+    .sort((a,b)=>a.date.localeCompare(b.date)||String(a.event_id||'').localeCompare(String(b.event_id||'')));
+  let completed=0,successful=0,decided=0,level=0;
+  for(const row of rows){
+    decided++;if(row.status==='completed')completed++;
+    if(row.status!=='missed')successful++;
+    // Evaluate after a whole day so simultaneous events have no arbitrary order.
+    const next=rows[decided];if(next?.date===row.date)continue;
+    RELIABILITY_TIERS.forEach((tier,i)=>{
+      if(completed>=tier.workouts&&successful*100>=decided*tier.rate)level=Math.max(level,i+1);
+    });
   }
-  if(eligible.length>=3)best=Math.max(best,current);
-  return {current,best,decided:eligible.length};
+  const rate=decided?successful/decided*100:0;
+  const target=RELIABILITY_TIERS[Math.min(level,2)];
+  const pct=level===3?100:Math.min(100,completed/target.workouts*100,rate/target.rate*100);
+  return {completed,rate,level,progress:{pct,label:`${completed} / ${target.workouts}`,next:level===3?(appLanguage==='en'?'Gold achieved':'Gold erreicht'):
+    (appLanguage==='en'?`At least ${target.rate}% reliable`:`Mindestens ${target.rate} % zuverlässig`)}};
 }
 function weightLossMetrics(){
   if(!weights.length)return{current:0,best:0,start:0,trend:0};
@@ -912,7 +926,7 @@ function renderAchievements(){
   const grid=$('#achievementGrid'),badge=$('#achievementSummaryBadge');if(!grid||!badge)return;
   const items=allMyOccurrences();
   const done=items.filter(x=>x.status==='completed').length;
-  const rel=reliabilityMetrics(items);
+  const rel=reliabilityMedalMetrics(items);
   const weeks=weeklyStreakMetrics(items);
   const clean=cleanMonthMetrics(items);
   const loss=weightLossMetrics();
@@ -927,9 +941,12 @@ function renderAchievements(){
     },
     {
       icon:'🎯',name:'Zuverlässig',
-      desc:'Erfolgsquote aus Erledigt + Entschuldigt gegenüber entschiedenen Terminen. Für historische Medaillen zählt nur ein Monat mit mindestens 3 Terminen.',
-      current:rel.current,best:rel.best,thresholds:[80,90,100],unit:'%',
-      bronze:'80 % zuverlässig',silver:'90 % zuverlässig',gold:'100 % zuverlässig'
+      desc:appLanguage==='en'?'Earn medals with completed workouts and a reliable track record. Excused workouts support your rate but do not count towards the workout goal.':'Medaillen brauchen erledigte Trainings und eine gute Erfolgsquote. Entschuldigte Termine helfen der Quote, zählen aber nicht zum Trainingsziel.',
+      current:Math.round(rel.rate),best:Math.round(rel.rate),thresholds:[80,90,95],unit:'%',level:rel.level,progress:rel.progress,
+      detail:appLanguage==='en'?`${rel.completed} completed workouts`:`${rel.completed} erledigte Trainings`,
+      bronze:appLanguage==='en'?'10 workouts + 80% reliable':'10 Trainings + 80 % zuverlässig',
+      silver:appLanguage==='en'?'25 workouts + 90% reliable':'25 Trainings + 90 % zuverlässig',
+      gold:appLanguage==='en'?'50 workouts + 95% reliable':'50 Trainings + 95 % zuverlässig'
     },
     {
       icon:'🔥',name:'Streak',
@@ -958,10 +975,10 @@ function renderAchievements(){
   ];
 
   grid.innerHTML=defs.map(a=>{
-    const unlocked=achievementLevel(a.best,a.thresholds);
-    const prog=achievementProgress(a.current,a.thresholds);
+    const unlocked=a.level??achievementLevel(a.best,a.thresholds);
+    const prog=a.progress??achievementProgress(a.current,a.thresholds);
     const currentText=`${a.current}${a.unit}`;
-    const bestText=a.best!==a.current?` · Bestwert ${a.best}${a.unit}`:'';
+    const bestText=a.detail||(a.best!==a.current?` · Bestwert ${a.best}${a.unit}`:'');
     return `<article class="achievement-item medal-${unlocked}">
       <div class="achievement-top">
         <span class="achievement-icon">${a.icon}</span>
@@ -982,9 +999,9 @@ function renderAchievements(){
     </article>`;
   }).join('');
 
-  const gold=defs.filter(a=>achievementLevel(a.best,a.thresholds)>=3).length;
-  const silver=defs.filter(a=>achievementLevel(a.best,a.thresholds)===2).length;
-  const bronze=defs.filter(a=>achievementLevel(a.best,a.thresholds)===1).length;
+  const gold=defs.filter(a=>(a.level??achievementLevel(a.best,a.thresholds))>=3).length;
+  const silver=defs.filter(a=>(a.level??achievementLevel(a.best,a.thresholds))===2).length;
+  const bronze=defs.filter(a=>(a.level??achievementLevel(a.best,a.thresholds))===1).length;
   badge.textContent=`Gold ${gold} · Silber ${silver} · Bronze ${bronze}`;
 }
 function renderAdvancedStats(){
@@ -1231,7 +1248,7 @@ function renderPhotos(){
   if(!progressPhotos.length){grid.innerHTML='<div class="empty">Noch keine Fortschrittsbilder. Lade dein erstes Monatsbild hoch.</div>';return;}
   progressPhotos.forEach(photo=>{
     const card=document.createElement('article');card.className='photo-card';
-    const visibility=photo.visibility==='shared'?'👥 Gruppe':'🔒 Privat';
+    const visibility=photoVisibilityLabel(photo.visibility);
     card.innerHTML=`${photo.signed_url?`<img src="${photo.signed_url}" alt="Fortschrittsbild von ${escapeHtml(photo.owner_name)}" />`:'<div class="empty">Bild konnte nicht geladen werden.</div>'}<div class="photo-info"><span><span data-user-content class="photo-owner">${escapeHtml(photo.owner_name)}</span><br>${formatDate(photo.taken_on)}</span><span>${visibility}</span></div>${photo.profile_id===currentUser.id?'<div class="photo-actions"><button class="small-btn delete-photo-btn" type="button">🗑 Löschen</button></div>':''}`;
     card.querySelector('.delete-photo-btn')?.addEventListener('click',()=>deleteProgressPhoto(photo));grid.appendChild(card);
   });
@@ -1242,7 +1259,7 @@ function renderSlideshow(){
   if(!box||!counter)return;
   if(!photos.length){box.innerHTML='<div class="empty">Noch keine eigenen Fortschrittsbilder.</div>';counter.textContent='0 / 0';return;}
   slideIndex=Math.max(0,Math.min(slideIndex,photos.length-1));const p=photos[slideIndex];counter.textContent=`${slideIndex+1} / ${photos.length}`;
-  box.innerHTML=`${p.signed_url?`<img src="${p.signed_url}" alt="Fortschrittsbild ${slideIndex+1}" />`:''}<div class="slide-caption"><strong>${formatDate(p.taken_on)}</strong><span>${p.visibility==='shared'?'👥 Gruppe':'🔒 Privat'}</span></div>`;
+  box.innerHTML=`${p.signed_url?`<img src="${p.signed_url}" alt="Fortschrittsbild ${slideIndex+1}" />`:''}<div class="slide-caption"><strong>${formatDate(p.taken_on)}</strong><span>${photoVisibilityLabel(p.visibility)}</span></div>`;
 }
 function changeSlide(step){const n=myProgressPhotos().length;if(!n)return;slideIndex=(slideIndex+step+n)%n;renderSlideshow();}
 function toggleSlideshow(){
@@ -1525,6 +1542,8 @@ EN_TEXT.set("Eine perfekte Woche zählt nur, wenn alle eigenen geplanten Trainin
 EN_TEXT.set("Gewichtsfortschritt wird aus einem geglätteten Trend der letzten Messungen berechnet. Ein einzelner niedriger Wert durch Wasser oder leeren Magen reicht nicht.","Weight progress uses a smoothed trend of recent measurements. One low reading from water fluctuations or an empty stomach is not enough.");
 EN_TEXT.set("Ein kompletter Monat ohne einen einzigen als „Verpasst“ gewerteten eigenen Termin. Mehrere saubere Monate müssen direkt aufeinander folgen.","A completed month in which all your workouts were completed or excused. Multiple qualifying months must be consecutive.");
 EN_TEXT.set("Zählt nur deine Fortschrittsbilder. Bei einem Foto alle 14 Tage entsprechen 26 Bilder ungefähr einem kompletten Jahr.","Counts your progress photos. At one photo every 14 days, 26 photos cover roughly a year.");
+EN_TEXT.set('Benachrichtigungen sind aktiviert.','Notifications are enabled.');
+EN_TEXT.set('Benachrichtigungen sind im Browser blockiert.','Notifications are blocked in the browser.');
 EN_TEXT.set("Silber","Silver");
 EN_TEXT.set("Noch keine Medaille","No medal yet");
 EN_TEXT.set("Gold erreicht","Gold achieved");

@@ -1,4 +1,4 @@
-FitTogether V0.19.7
+FitTogether V0.19.8
 
 Änderungen:
 - Englisch für Achievements, Kalenderstatus, Datumsangaben, Kameratexte,
@@ -11,7 +11,14 @@ FitTogether V0.19.7
   neues Passwort zweimal eingeben.
 - Recovery-Links öffnen nach einer gültigen Supabase-Sitzung den Dialog
   zum Festlegen eines neuen Passworts.
-- Zuverlässigkeitsmedaillen benötigen mindestens 3 entschiedene Trainings.
+- Zuverlässigkeitsmedaillen brauchen erledigte Trainings UND Erfolgsquote:
+  Bronze: 10 / 80 %, Silber: 25 / 90 %, Gold: 50 / 95 %.
+  Entschuldigte Termine helfen der Quote, zählen nicht als erledigte Trainings.
+  Erreichte Stufen bleiben bei späteren verpassten Terminen erhalten; das Löschen
+  oder Ändern historischer Termine führt weiterhin zu einer Neuberechnung.
+- Führungsanzeige im Tauziehen zentriert; Jahresstatistik mit getrennten Zahlen.
+- Benachrichtigungsstatus und Foto-Sichtbarkeit vollständig lokalisiert.
+- Eigener übersetzter Foto-Auswahlbutton statt browserabhängiger Beschriftung.
 - Monatsmedaillen zählen nur abgeschlossene Monate mit erledigten oder
   entschuldigten Terminen, keine laufenden Monate oder offenen Termine.
 - Datum verwendet den lokalen Kalendertag statt UTC.
