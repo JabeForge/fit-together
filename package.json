@@ -4,11 +4,11 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.cjs",
-    "check": "node --check app.js && node --check pwa.js && node --check sw.js && node --check image-upload.js"
+    "check": "node --check app.js && node --check pwa.js && node --check sw.js && node --check image-upload.js && node --check tutorial.js"
   },
   "devDependencies": {
     "@napi-rs/canvas": "0.1.100",
     "jsdom": "26.1.0"
   },
-  "version": "0.21.0"
+  "version": "0.22.0"
 }

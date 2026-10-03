@@ -1,4 +1,4 @@
-FitTogether V0.21.0
+FitTogether V0.22.0
 
 Änderungen:
 - Englisch für Achievements, Kalenderstatus, Datumsangaben, Kameratexte,
@@ -136,3 +136,16 @@ Canvas-Abhängigkeit ist nur für lokale Tests, nicht Teil der laufenden App.
 Auf dem Handy prüfen: ein neues Fortschrittsbild und einen Trainingsnachweis
 hochladen, Darstellung und Größenanzeige kontrollieren. Logo und echter
 Passwortänderungstest sind weiterhin für später vorgesehen.
+
+V0.22.0 – kurzes Tutorial
+- Vier manuell weitergeschaltete Schritte auf Deutsch und Englisch.
+- Einmal pro Konto und Gerät nach dem Anmelden angezeigt. Bestehende Konten
+  sehen es nach diesem Update ebenfalls einmal. Abschluss/Überspringen wird
+  lokal gespeichert; bei gelöschten App-Daten oder auf einem neuen Gerät erneut.
+- Erneut öffnen: Einstellungen > So funktioniert’s > Tutorial öffnen.
+- Abschluss führt ohne Gruppe zur Gruppenseite, sonst zum Kalender.
+- Trainingserinnerungen werden erst nach dem Tutorial angeboten.
+- Keine automatischen Abbuchungen: Strafgeld wird nur festgehalten.
+- Neue Datei tutorial.js zusammen mit den übrigen Dateien hochladen.
+- Handy-Check: Tutorial vor/zurück/überspringen, später erneut öffnen und
+  Englisch prüfen. Es werden beim Tutorial keine Termine oder Bilder erstellt.

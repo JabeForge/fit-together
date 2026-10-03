@@ -267,3 +267,24 @@ test('compression failure blocks storage writes and allows retry with localized 
   assert.equal(x.doc.querySelector('#addPhotoBtn').disabled,false);
  }finally{x.close();}
 });
+
+test('tutorial runs before reminder onboarding and finishes at the appropriate tab',async()=>{
+ const x=setup();try{
+  x.w.eval(fs.readFileSync('tutorial.js','utf8'));
+  x.w.Notification={permission:'default'};
+  x.run(`loadOnlineProfile=async()=>{};loadGroups=async()=>{groups=[];activeGroup=null;};`);
+  await x.run("applySession({user:{id:'tutorial-user'}})");
+  assert.equal(x.doc.querySelector('#tutorialDialog').open,true);
+  assert.equal(x.doc.querySelector('#notificationOnboardingDialog').open,false);
+  for(let i=0;i<4;i++)x.doc.querySelector('#tutorialNextBtn').click();
+  assert.equal(x.doc.querySelector('#groups').classList.contains('active'),true);
+  assert.equal(x.doc.querySelector('#notificationOnboardingDialog').open,true);
+  x.doc.querySelector('#notificationOnboardingDialog').close();
+  x.run("activeGroup={id:'g'}");
+  x.doc.querySelector('#openTutorialBtn').click();
+  for(let i=0;i<4;i++)x.doc.querySelector('#tutorialNextBtn').click();
+  assert.equal(x.doc.querySelector('#calendar').classList.contains('active'),true);
+  x.doc.querySelector('#openTutorialBtn').click();
+  await x.run('applySession(null)');assert.equal(x.doc.querySelector('#tutorialDialog').open,false);
+ }finally{x.close();}
+});

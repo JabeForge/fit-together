@@ -23,7 +23,7 @@ Die Funktion anschließend mit einem entbehrlichen Testaccount prüfen.
 - Push-Sprache serverseitig pro Nutzer berücksichtigen. Der vorhandene
   Reminder-Server sendet noch deutsche Texte und braucht dafür eine gespeicherte
   Sprachpräferenz mit passender Migration.
-- Fotos vor dem Upload komprimieren und persönliche Speicherlimits festlegen.
+- Persönliche Speicherlimits festlegen; Foto-Komprimierung ist seit V0.21.0 umgesetzt.
 - Android-Paket, native Benachrichtigungen, Kamera, App-Links und Store-Testphase.
 - Datenschutz-/Löschinformationen, Store-Beschreibung und Marketing vorbereiten.
 - Preis und Zahlungsabwicklung nach einem Nutzungstest festlegen.

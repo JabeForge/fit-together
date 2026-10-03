@@ -7,21 +7,22 @@
 <meta content="#111827" name="theme-color"/>
 <title>FitTogether</title>
 <link href="manifest.webmanifest" rel="manifest"/>
-<link href="icon.svg?v=0.21.0" rel="icon" type="image/svg+xml"/>
-<link href="icon-180.png?v=0.21.0" rel="apple-touch-icon"/>
+<link href="icon.svg?v=0.22.0" rel="icon" type="image/svg+xml"/>
+<link href="icon-180.png?v=0.22.0" rel="apple-touch-icon"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="FitTogether"/>
-<script src="image-upload.js?v=0.21.0" defer></script>
-<script src="pwa.js?v=0.21.0" defer></script>
+<script src="image-upload.js?v=0.22.0" defer></script>
+<script src="tutorial.js?v=0.22.0" defer></script>
+<script src="pwa.js?v=0.22.0" defer></script>
 <style>.hidden{display:none!important}</style>
-<link href="styles.css?v=0.21.0" rel="stylesheet"/>
+<link href="styles.css?v=0.22.0" rel="stylesheet"/>
 <meta content="no-cache, no-store, must-revalidate" http-equiv="Cache-Control"/><meta content="no-cache" http-equiv="Pragma"/><meta content="0" http-equiv="Expires"/></head>
 <body class="install-only">
 <dialog id="installLandingDialog" aria-labelledby="installLandingTitle" data-user-content>
 <div class="dialog-card install-landing-card">
 <label class="install-language"><span id="installLanguageLabel">Sprache</span><select id="installLanguageSelect"><option value="de">Deutsch</option><option value="en">English</option></select></label>
-<img src="icon-192.png?v=0.21.0" class="install-landing-icon" width="88" height="88" alt="FitTogether"/>
+<img src="icon-192.png?v=0.22.0" class="install-landing-icon" width="88" height="88" alt="FitTogether"/>
 <p class="eyebrow">FIT TOGETHER</p>
 <h2 id="installLandingTitle">Dein Training. Eure Motivation.</h2>
 <p class="helper" id="installLandingDescription">Installiere FitTogether und starte dein Training direkt vom Homescreen.</p>
@@ -59,7 +60,7 @@
 <header class="topbar">
 <div>
 <p class="eyebrow">Gemeinsam durchziehen</p>
-<h1>FitTogether <span class="app-version">V0.21.0</span></h1>
+<h1>FitTogether <span class="app-version">V0.22.0</span></h1>
 </div>
 <div class="top-actions">
 <select aria-label="Aktive Gruppe" class="group-select" id="activeGroupSelect"></select>
@@ -304,8 +305,13 @@
 </section>
 </section>
 <section class="panel" id="settings">
+<section class="card" data-user-content>
+<div class="section-heading"><h2 id="tutorialSettingsTitle">So funktioniert’s</h2></div>
+<p class="helper" id="tutorialSettingsText">Gruppe, Trainings und Nachweise – die wichtigsten Schritte kurz erklärt.</p>
+<button class="ghost-btn" id="openTutorialBtn" type="button">Tutorial öffnen</button>
+</section>
 <section class="card install-card" id="installCard" data-user-content>
-<div class="install-heading"><img src="icon-192.png?v=0.21.0" width="64" height="64" alt="FitTogether"/><div><p class="eyebrow">FIT TOGETHER</p><h2 id="installTitle">FitTogether installieren</h2></div></div>
+<div class="install-heading"><img src="icon-192.png?v=0.22.0" width="64" height="64" alt="FitTogether"/><div><p class="eyebrow">FIT TOGETHER</p><h2 id="installTitle">FitTogether installieren</h2></div></div>
 <p class="helper" id="installDescription">Dein Training direkt vom Homescreen öffnen – mit eigenem Icon und ohne Browserleiste.</p>
 <button class="primary-btn full hidden" id="installAppBtn" type="button">App installieren</button>
 <p class="helper" id="installHelp" aria-live="polite"></p>
@@ -405,7 +411,7 @@
 </div>
 </form>
 </dialog>
-<script src="app.js?v=0.21.0" type="module"></script>
+<script src="app.js?v=0.22.0" type="module"></script>
 <dialog class="status-dialog" id="seriesActionDialog">
 <form class="dialog-card" method="dialog">
 <p class="eyebrow" id="seriesActionEyebrow">Wiederholung</p>
@@ -417,6 +423,18 @@
 <button class="ghost-btn" value="cancel">Abbrechen</button>
 </div>
 </form>
+</dialog>
+<dialog id="tutorialDialog" class="tutorial-dialog" data-user-content aria-labelledby="tutorialTitle" aria-describedby="tutorialText tutorialTip">
+<div class="dialog-card tutorial-card">
+<div class="tutorial-top"><span class="eyebrow" id="tutorialLabel">KURZ ERKLÄRT</span><button class="tutorial-skip" id="tutorialSkipBtn" type="button">Überspringen</button></div>
+<p class="helper" id="tutorialCount" aria-live="polite">Schritt 1 von 4</p>
+<progress id="tutorialProgress" max="4" value="1" aria-label="Schritt 1 von 4"></progress>
+<div class="tutorial-icon" id="tutorialIcon" aria-hidden="true">🤝</div>
+<h2 id="tutorialTitle" tabindex="-1">Gemeinsam starten</h2>
+<p id="tutorialText"></p>
+<p class="tutorial-tip" id="tutorialTip"></p>
+<div class="tutorial-actions"><button class="ghost-btn" id="tutorialBackBtn" type="button" disabled>Zurück</button><button class="primary-btn" id="tutorialNextBtn" type="button" autofocus>Weiter</button></div>
+</div>
 </dialog>
 <dialog class="status-dialog" id="notificationOnboardingDialog">
 <div class="dialog-card">

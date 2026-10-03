@@ -1,4 +1,4 @@
-const APP_VERSION = "0.21.0";
+const APP_VERSION = "0.22.0";
 const I18N={
  de:{home:'Übersicht',display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise',groups:'Gruppe',achievements:'Erfolge'},
  en:{home:'Overview',display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof',groups:'Group',achievements:'Achievements'}
@@ -302,7 +302,7 @@ async function applySession(session){
     return;
   }
   if(!currentUser){
-    passwordRecovery=false;$('#passwordDialog')?.close();
+    passwordRecovery=false;window.FitTogetherTutorial?.reset();$('#passwordDialog')?.close();
     currentProfile=null; groups=[]; activeGroup=null; groupMembers=[]; events=[]; weights=[]; occurrenceStatuses=[]; progressPhotos=[]; trainingProofs=[];
     $('#authScreen').classList.remove('hidden'); $('#appShell').classList.add('hidden'); document.body.classList.add('auth-open');
     return;
@@ -312,7 +312,12 @@ async function applySession(session){
   await loadGroups();
   if(pendingInvite) await joinPendingInvite();
   if(activeGroup) await loadActiveGroupData(); else renderAll();
-  if(!passwordRecovery)maybeOfferNotificationOnboarding();
+  if(!passwordRecovery){
+    window.FitTogetherTutorial?.showIfNeeded(currentUser.id,()=>{
+      showTab(activeGroup?'calendar':'groups');
+    });
+    maybeOfferNotificationOnboarding();
+  }
 }
 async function loadOnlineProfile(){
   const {data,error}=await supabase.from('profiles').select('id,name,avatar_url,created_at').eq('id',currentUser.id).single();
@@ -1436,7 +1441,7 @@ async function enableClosedAppPush(){
 }
 
 async function maybeOfferNotificationOnboarding(){
-  if(!currentUser || !('Notification' in window)||document.querySelector('dialog[open]'))return;
+  if(!currentUser || passwordRecovery || window.FitTogetherTutorial?.isPending(currentUser.id) || !('Notification' in window)||document.querySelector('dialog[open]'))return;
 
   // Permission was already granted (for example via the old bell button):
   // silently finish the real Push subscription and save it to Supabase.
@@ -1713,3 +1718,5 @@ uiTranslationObserver.observe(document.body,{childList:true,characterData:true,s
 translateVisibleUI();
 init();
 setTimeout(()=>maybeOfferNotificationOnboarding(),1200);
+
+window.addEventListener('fittogether:tutorialfinished',()=>maybeOfferNotificationOnboarding());
