@@ -311,3 +311,22 @@ body.install-only{background:#101827}
 .tutorial-actions{display:grid;grid-template-columns:1fr 1.5fr;gap:12px;margin-top:22px}
 .tutorial-actions button:disabled{opacity:.4;cursor:default}
 @media(max-height:650px){.tutorial-card{padding:18px}.tutorial-icon{margin:12px 0;width:48px;height:48px;font-size:28px}.tutorial-actions{margin-top:14px}}
+
+/* Phone navigation: a small floating button and a dismissible menu. */
+.mobile-menu-button{display:none}
+.mobile-menu-dialog{position:fixed;inset:auto max(12px,env(safe-area-inset-right)) calc(82px + env(safe-area-inset-bottom)) auto;margin:0;padding:12px;width:min(280px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:calc(100dvh - 106px - env(safe-area-inset-bottom));overflow:auto;background:#10192c;border:1px solid #354464;border-radius:20px;box-shadow:0 16px 48px rgba(0,0,0,.5)}
+.mobile-menu-dialog::backdrop{background:rgba(3,7,18,.55)}
+.mobile-menu-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 4px 8px}
+.mobile-menu-header h2{font-size:20px;margin:0}
+.mobile-menu-header button{display:grid;place-items:center;min-width:44px;min-height:44px;border:0;border-radius:12px;background:transparent;color:var(--text);font-size:20px;cursor:pointer}
+.mobile-menu-item{display:flex;align-items:center;gap:14px;width:100%;min-height:48px;text-align:left;border:0;border-radius:12px;background:transparent;color:var(--text);padding:10px 12px;font:inherit;cursor:pointer}
+.mobile-menu-item.active{background:linear-gradient(120deg,#2346a2,#493092);font-weight:700}
+.mobile-menu-icon{display:inline-grid;place-items:center;width:26px;flex-shrink:0;font-size:24px;line-height:1}
+.mobile-menu-item:focus-visible,.mobile-menu-header button:focus-visible,.mobile-menu-button:focus-visible{outline:2px solid #a5b4fc;outline-offset:2px}
+body.mobile-menu-open{overflow:hidden}
+@media(max-width:760px){
+ .tabs{display:none}
+ .app-shell{padding-bottom:calc(92px + env(safe-area-inset-bottom))}
+ .mobile-menu-button{display:grid;place-items:center;position:fixed;right:max(16px,env(safe-area-inset-right));bottom:calc(18px + env(safe-area-inset-bottom));width:56px;height:56px;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);color:white;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:30;cursor:pointer}
+ body.auth-open .mobile-menu-button,body.install-only .mobile-menu-button{display:none}
+}

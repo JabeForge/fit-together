@@ -7,22 +7,23 @@
 <meta content="#111827" name="theme-color"/>
 <title>FitTogether</title>
 <link href="manifest.webmanifest" rel="manifest"/>
-<link href="icon.svg?v=0.22.0" rel="icon" type="image/svg+xml"/>
-<link href="icon-180.png?v=0.22.0" rel="apple-touch-icon"/>
+<link href="icon.svg?v=0.23.0" rel="icon" type="image/svg+xml"/>
+<link href="icon-180.png?v=0.23.0" rel="apple-touch-icon"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="FitTogether"/>
-<script src="image-upload.js?v=0.22.0" defer></script>
-<script src="tutorial.js?v=0.22.0" defer></script>
-<script src="pwa.js?v=0.22.0" defer></script>
+<script src="image-upload.js?v=0.23.0" defer></script>
+<script src="tutorial.js?v=0.23.0" defer></script>
+<script src="mobile-nav.js?v=0.23.0" defer></script>
+<script src="pwa.js?v=0.23.0" defer></script>
 <style>.hidden{display:none!important}</style>
-<link href="styles.css?v=0.22.0" rel="stylesheet"/>
+<link href="styles.css?v=0.23.0" rel="stylesheet"/>
 <meta content="no-cache, no-store, must-revalidate" http-equiv="Cache-Control"/><meta content="no-cache" http-equiv="Pragma"/><meta content="0" http-equiv="Expires"/></head>
 <body class="install-only">
 <dialog id="installLandingDialog" aria-labelledby="installLandingTitle" data-user-content>
 <div class="dialog-card install-landing-card">
 <label class="install-language"><span id="installLanguageLabel">Sprache</span><select id="installLanguageSelect"><option value="de">Deutsch</option><option value="en">English</option></select></label>
-<img src="icon-192.png?v=0.22.0" class="install-landing-icon" width="88" height="88" alt="FitTogether"/>
+<img src="icon-192.png?v=0.23.0" class="install-landing-icon" width="88" height="88" alt="FitTogether"/>
 <p class="eyebrow">FIT TOGETHER</p>
 <h2 id="installLandingTitle">Dein Training. Eure Motivation.</h2>
 <p class="helper" id="installLandingDescription">Installiere FitTogether und starte dein Training direkt vom Homescreen.</p>
@@ -60,7 +61,7 @@
 <header class="topbar">
 <div>
 <p class="eyebrow">Gemeinsam durchziehen</p>
-<h1>FitTogether <span class="app-version">V0.22.0</span></h1>
+<h1>FitTogether <span class="app-version">V0.23.0</span></h1>
 </div>
 <div class="top-actions">
 <select aria-label="Aktive Gruppe" class="group-select" id="activeGroupSelect"></select>
@@ -69,6 +70,9 @@
 <button class="ghost-btn" id="logoutBtn" type="button">Abmelden</button>
 </div>
 </header>
+<button id="mobileMenuBtn" class="mobile-menu-button" type="button" aria-label="Navigationsmenü öffnen" aria-haspopup="dialog" aria-controls="mobileMenuDialog" aria-expanded="false">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+</button>
 <nav aria-label="Hauptnavigation" class="tabs"><button class="tab active" data-tab="home">Übersicht</button><button class="tab" data-tab="calendar">Kalender</button><button class="tab" data-tab="weight">Gewicht</button><button class="tab" data-tab="achievements">Erfolge</button><button class="tab" data-tab="photos">Bilder</button><button class="tab" data-tab="groups">Gruppe</button><button class="tab" data-tab="profiles">Profile</button><button class="tab" data-tab="settings">⚙️ Einstellungen</button></nav>
 <main>
 <section class="card group-empty hidden" id="noGroupBanner">
@@ -311,7 +315,7 @@
 <button class="ghost-btn" id="openTutorialBtn" type="button">Tutorial öffnen</button>
 </section>
 <section class="card install-card" id="installCard" data-user-content>
-<div class="install-heading"><img src="icon-192.png?v=0.22.0" width="64" height="64" alt="FitTogether"/><div><p class="eyebrow">FIT TOGETHER</p><h2 id="installTitle">FitTogether installieren</h2></div></div>
+<div class="install-heading"><img src="icon-192.png?v=0.23.0" width="64" height="64" alt="FitTogether"/><div><p class="eyebrow">FIT TOGETHER</p><h2 id="installTitle">FitTogether installieren</h2></div></div>
 <p class="helper" id="installDescription">Dein Training direkt vom Homescreen öffnen – mit eigenem Icon und ohne Browserleiste.</p>
 <button class="primary-btn full hidden" id="installAppBtn" type="button">App installieren</button>
 <p class="helper" id="installHelp" aria-live="polite"></p>
@@ -411,7 +415,7 @@
 </div>
 </form>
 </dialog>
-<script src="app.js?v=0.22.0" type="module"></script>
+<script src="app.js?v=0.23.0" type="module"></script>
 <dialog class="status-dialog" id="seriesActionDialog">
 <form class="dialog-card" method="dialog">
 <p class="eyebrow" id="seriesActionEyebrow">Wiederholung</p>
@@ -423,6 +427,10 @@
 <button class="ghost-btn" value="cancel">Abbrechen</button>
 </div>
 </form>
+</dialog>
+<dialog id="mobileMenuDialog" class="mobile-menu-dialog" data-user-content aria-labelledby="mobileMenuTitle">
+<div class="mobile-menu-header"><h2 id="mobileMenuTitle">Menü</h2><button id="mobileMenuCloseBtn" type="button" aria-label="Menü schließen">✕</button></div>
+<nav id="mobileMenuItems" aria-label="Hauptnavigation"></nav>
 </dialog>
 <dialog id="tutorialDialog" class="tutorial-dialog" data-user-content aria-labelledby="tutorialTitle" aria-describedby="tutorialText tutorialTip">
 <div class="dialog-card tutorial-card">

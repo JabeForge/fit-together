@@ -1,4 +1,4 @@
-FitTogether V0.22.0
+FitTogether V0.23.0
 
 Änderungen:
 - Englisch für Achievements, Kalenderstatus, Datumsangaben, Kameratexte,
@@ -149,3 +149,14 @@ V0.22.0 – kurzes Tutorial
 - Neue Datei tutorial.js zusammen mit den übrigen Dateien hochladen.
 - Handy-Check: Tutorial vor/zurück/überspringen, später erneut öffnen und
   Englisch prüfen. Es werden beim Tutorial keine Termine oder Bilder erstellt.
+
+V0.23.0 – kompaktes Handy-Menü
+- Bis 760 Pixel Bildschirmbreite ersetzt ein runder Menübutton rechts unten
+  die bisherige Tab-Leiste. Am Computer bleibt die Leiste erhalten.
+- Alle acht Bereiche im Menü, aktueller Bereich hervorgehoben.
+- Auswahl, Schließen-Button, Escape/Zurück oder Tippen auf den Hintergrund
+  schließen das Menü. Deutsch/Englisch folgt der App-Sprache.
+- Safe-Area-Abstände; auf kleinen Displays kann das Menü gescrollt werden.
+- Neue Datei mobile-nav.js ebenfalls hochladen.
+- Handy-Check: alle Bereiche öffnen, Hintergrund antippen, Menü weit unten
+  auf einer Seite öffnen, Sprache wechseln und Gerät drehen.
