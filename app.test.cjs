@@ -238,3 +238,32 @@ test('recovery link can open only its password form from the download view',asyn
   assert.equal(x.w.fitTogetherRecoveryActive,false);
  }finally{x.close();}
 });
+
+test('both upload paths send the optimized JPEG and keep cleanup on database failure',async()=>{
+ for(const kind of ['progress','proof']){
+  const x=setup();try{
+   const calls=[],prepared=new x.w.File(['compressed'],'optimized.jpg',{type:'image/jpeg'}),original=new x.w.File(['original-big-png'],'original.png',{type:'image/png'});
+   x.w.FitTogetherImages={prepare:async(file,actualKind)=>{calls.push(['prepare',file,actualKind]);return prepared;},errorMessage:()=>''};
+   x.w.recordStorage=bucket=>({upload:async(path,file,options)=>{calls.push(['upload',bucket,path,file,options]);return{error:null};},remove:async paths=>{calls.push(['remove',bucket,paths]);return{error:null};}});
+   x.w.recordTable=table=>({insert:async row=>{calls.push(['insert',table,row]);return{error:{message:'db unavailable'}};}});
+   x.run("currentUser={id:'u'};selectedEventId='e';selectedOccurrenceDate=todayISO();supabase.storage={from:recordStorage};supabase.from=recordTable");
+   const input=x.doc.querySelector(kind==='progress'?'#photoInput':'#proofInput');Object.defineProperty(input,'files',{value:[original]});
+   await x.run(kind==='progress'?'addProgressPhoto()':'uploadTrainingProof()');
+   assert.equal(calls[0][2],kind);const upload=calls.find(c=>c[0]==='upload');assert.equal(upload[3],prepared);assert.notEqual(upload[3],original);
+   assert.match(upload[2],/\.jpg$/);assert.equal(upload[4].contentType,'image/jpeg');assert.equal(upload[4].upsert,false);
+   assert.ok(calls.find(c=>c[0]==='remove'));
+   assert.equal(x.doc.querySelector(kind==='progress'?'#addPhotoBtn':'#uploadProofBtn').disabled,false);
+  }finally{x.close();}
+ }
+});
+test('compression failure blocks storage writes and allows retry with localized feedback',async()=>{
+ const x=setup();try{
+  let uploads=0,feedback='';x.w.alert=text=>feedback=text;
+  x.w.FitTogetherImages={prepare:async()=>{throw{code:'decode'};},errorMessage:(_,language)=>language==='en'?'Could not open photo':'Foto konnte nicht geöffnet werden'};
+  x.w.recordStorage=()=>({upload:async()=>{uploads++;return{error:null};}});
+  x.run("currentUser={id:'u'};supabase.storage={from:recordStorage};setLanguage('en')");
+  Object.defineProperty(x.doc.querySelector('#photoInput'),'files',{value:[new x.w.File(['broken'],'photo.jpg',{type:'image/jpeg'})]});
+  await x.run('addProgressPhoto()');assert.equal(uploads,0);assert.match(feedback,/Could not open photo/);
+  assert.equal(x.doc.querySelector('#addPhotoBtn').disabled,false);
+ }finally{x.close();}
+});

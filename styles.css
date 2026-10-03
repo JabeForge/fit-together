@@ -291,3 +291,5 @@ body.auth-open .app-shell{filter:blur(3px);pointer-events:none;user-select:none}
 body.install-only #authScreen,body.install-only #appShell{display:none!important}
 body.install-only{background:#101827}
 #installLandingDialog::backdrop{background:#101827}
+.install-language{display:flex;flex-direction:row;align-items:center;justify-content:flex-end;gap:10px;margin-bottom:20px;text-align:left}
+.install-language select{width:auto;min-width:115px}

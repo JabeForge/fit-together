@@ -1,4 +1,4 @@
-const APP_VERSION = "0.20.2";
+const APP_VERSION = "0.21.0";
 const I18N={
  de:{home:'Übersicht',display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise',groups:'Gruppe',achievements:'Erfolge'},
  en:{home:'Overview',display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof',groups:'Group',achievements:'Achievements'}
@@ -20,6 +20,7 @@ function applyLocale(){
  renderAll();
  updateNotificationStatus();
  showSelectedProgressFile();
+ refreshUploadSavings();
  window.dispatchEvent(new CustomEvent('fittogether:languagechange',{detail:appLanguage}));
 }
 function setLanguage(v){appLanguage=v;localStorage.setItem('fitTogether_language',v);applyLocale();}
@@ -390,10 +391,6 @@ async function loadTrainingProofs(){
   if(error){console.error(error);trainingProofs=[];return;}
   trainingProofs=await Promise.all((data||[]).map(async r=>({...r,owner_name:r.profiles?.name||'Mitglied',signed_url:await signedImageUrl('training-proofs',r.storage_path)})));
 }
-function safeExt(file){
-  const ext=(file?.name?.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'');
-  return ['jpg','jpeg','png','webp','heic','heif'].includes(ext)?ext:'jpg';
-}
 function showSelectedProgressFile(){
   const label=$('#photoSelectedFile'),file=$('#photoInput')?.files?.[0];
   if(label)label.textContent=file?file.name:(appLanguage==='en'?'No new photo selected.':'Noch kein neues Bild ausgewählt.');
@@ -401,21 +398,41 @@ function showSelectedProgressFile(){
 function photoVisibilityLabel(visibility){
   return visibility==='shared'?(appLanguage==='en'?'👥 Group':'👥 Gruppe'):(appLanguage==='en'?'🔒 Private':'🔒 Privat');
 }
+async function prepareUploadPhoto(file,kind){
+  if(!window.FitTogetherImages)throw new Error(appLanguage==='en'?'Photo processing did not load. Please restart the app.':'Bildverarbeitung wurde nicht geladen. Bitte starte die App neu.');
+  try{return await window.FitTogetherImages.prepare(file,kind);}
+  catch(err){throw new Error(window.FitTogetherImages.errorMessage(err,appLanguage));}
+}
+function showUploadSaving(id,original,prepared){
+  const info=$('#'+id);if(!info)return;
+  info.dataset.originalKb=Math.ceil(original.size/1024);
+  info.dataset.savedKb=Math.ceil(prepared.size/1024);
+  refreshUploadSavings();
+}
+function refreshUploadSavings(){
+  for(const id of ['photoUploadInfo','proofUploadInfo']){
+    const info=$('#'+id);if(!info?.textContent&&!info?.dataset.savedKb)continue;
+    info.textContent=(appLanguage==='en'?'Saved photo: ':'Foto gespeichert: ')+`${info.dataset.originalKb} KB → ${info.dataset.savedKb} KB`;
+  }
+}
 async function addProgressPhoto(){
-  if(!currentUser)return;
+  if(!currentUser||$('#addPhotoBtn').disabled)return;
   const file=$('#photoInput').files?.[0],date=$('#photoDate').value||todayISO(),visibility=$('#photoVisibility').value;
   if(!file)return showAlert('Bitte zuerst ein Bild auswählen.');
-  if(file.size>12*1024*1024)return showAlert('Das Bild ist größer als 12 MB. Bitte ein kleineres Bild verwenden.');
-  const path=`${currentUser.id}/${date}/${crypto.randomUUID()}.${safeExt(file)}`;
-  $('#addPhotoBtn').disabled=true;$('#addPhotoBtn').textContent='Wird hochgeladen …';
+  const userId=currentUser.id;
+  $('#addPhotoBtn').disabled=true;$('#addPhotoBtn').textContent=appLanguage==='en'?'Optimizing photo …':'Foto wird verkleinert …';
   try{
-    const {error:uploadError}=await supabase.storage.from('progress-photos').upload(path,file,{contentType:file.type||'image/jpeg',upsert:false});
+    const prepared=await prepareUploadPhoto(file,'progress');
+    if(currentUser?.id!==userId)throw new Error(appLanguage==='en'?'Account changed. Please try again.':'Account geändert. Bitte erneut versuchen.');
+    const path=`${userId}/${date}/${crypto.randomUUID()}.jpg`;
+    $('#addPhotoBtn').textContent=appLanguage==='en'?'Uploading …':'Wird hochgeladen …';
+    const {error:uploadError}=await supabase.storage.from('progress-photos').upload(path,prepared,{contentType:'image/jpeg',upsert:false});
     if(uploadError)throw uploadError;
-    const {error:dbError}=await supabase.from('progress_photos').insert({profile_id:currentUser.id,image_url:path,visibility,taken_on:date});
+    const {error:dbError}=await supabase.from('progress_photos').insert({profile_id:userId,image_url:path,visibility,taken_on:date});
     if(dbError){await supabase.storage.from('progress-photos').remove([path]);throw dbError;}
-    $('#photoInput').value='';showSelectedProgressFile();await loadProgressPhotos();renderPhotos();
-  }catch(err){showAlert(`Bild konnte nicht gespeichert werden: ${err.message||err}`);}
-  finally{$('#addPhotoBtn').disabled=false;$('#addPhotoBtn').textContent='Bild hinzufügen';}
+    $('#photoInput').value='';showSelectedProgressFile();await loadProgressPhotos();renderPhotos();showUploadSaving('photoUploadInfo',file,prepared);
+  }catch(err){showAlert(`${appLanguage==='en'?'Photo could not be saved':'Bild konnte nicht gespeichert werden'}: ${err.message||err}`);}
+  finally{$('#addPhotoBtn').disabled=false;$('#addPhotoBtn').textContent=appLanguage==='en'?'Add photo':'Bild hinzufügen';}
 }
 async function deleteProgressPhoto(photo){
   if(photo.profile_id!==currentUser.id)return;
@@ -454,18 +471,22 @@ async function captureProofCameraFrame(){
   showSelectedProofFile();closeProofCamera();
 }
 async function uploadTrainingProof(){
+  if(!currentUser||$('#uploadProofBtn').disabled)return false;
   if(!selectedEventId||!selectedOccurrenceDate){showAlert('Kein Termin ausgewählt.');return false;}
   const file=$('#proofInput').files?.[0]||proofCapturedFile;if(!file){showAlert('Bitte zuerst ein Foto aufnehmen oder auswählen.');return false;}
-  if(file.size>12*1024*1024){showAlert('Das Bild ist größer als 12 MB.');return false;}
-  const path=`${currentUser.id}/${selectedEventId}/${selectedOccurrenceDate}/${crypto.randomUUID()}.${safeExt(file)}`;
-  const btn=$('#uploadProofBtn');btn.disabled=true;btn.textContent='Wird hochgeladen …';
+  const userId=currentUser.id,eventId=selectedEventId,occurrenceDate=selectedOccurrenceDate;
+  const btn=$('#uploadProofBtn');btn.disabled=true;btn.textContent=appLanguage==='en'?'Optimizing photo …':'Foto wird verkleinert …';
   try{
-    const {error:uploadError}=await supabase.storage.from('training-proofs').upload(path,file,{contentType:file.type||'image/jpeg',upsert:false});
+    const prepared=await prepareUploadPhoto(file,'proof');
+    if(currentUser?.id!==userId||selectedEventId!==eventId||selectedOccurrenceDate!==occurrenceDate)throw new Error(appLanguage==='en'?'Selected event changed. Please try again.':'Ausgewählter Termin geändert. Bitte erneut versuchen.');
+    const path=`${userId}/${eventId}/${occurrenceDate}/${crypto.randomUUID()}.jpg`;
+    btn.textContent=appLanguage==='en'?'Uploading …':'Wird hochgeladen …';
+    const {error:uploadError}=await supabase.storage.from('training-proofs').upload(path,prepared,{contentType:'image/jpeg',upsert:false});
     if(uploadError)throw uploadError;
-    const {error:dbError}=await supabase.from('training_proofs').insert({event_id:selectedEventId,occurrence_date:selectedOccurrenceDate,profile_id:currentUser.id,storage_path:path});
+    const {error:dbError}=await supabase.from('training_proofs').insert({event_id:eventId,occurrence_date:occurrenceDate,profile_id:userId,storage_path:path});
     if(dbError){await supabase.storage.from('training-proofs').remove([path]);throw dbError;}
     $('#proofInput').value='';proofCapturedFile=null;showSelectedProofFile();await loadTrainingProofs();await renderProofInDialog();
-    return true;
+    showUploadSaving('proofUploadInfo',file,prepared);return true;
   }catch(err){showAlert(`Nachweis konnte nicht gespeichert werden: ${err.message||err}`);return false;}
   finally{btn.disabled=false;btn.textContent=appLanguage==='en'?'Upload proof':'Nachweis vorab hochladen';}
 }
@@ -481,7 +502,7 @@ async function renderProofInDialog(){
   }
 }
 function openStatusDialog(ev,date){
-  selectedEventId=ev.id;selectedOccurrenceDate=date;$('#dialogEventName').textContent=`${ev.title} · ${formatDate(date)}`;$('#proofInput').value='';renderProofInDialog();$('#statusDialog').showModal();
+  selectedEventId=ev.id;selectedOccurrenceDate=date;$('#dialogEventName').textContent=`${ev.title} · ${formatDate(date)}`;$('#proofInput').value='';$('#proofUploadInfo').textContent='';delete $('#proofUploadInfo').dataset.originalKb;delete $('#proofUploadInfo').dataset.savedKb;renderProofInDialog();$('#statusDialog').showModal();
 }
 
 function normalizeColor(c){

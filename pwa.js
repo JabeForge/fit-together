@@ -10,6 +10,9 @@
   window.fitTogetherIsStandalone=isStandalone;
   function render(){
     const en=language==='en',running=isStandalone();
+    document.documentElement.lang=language;
+    el('installLanguageSelect').value=language;
+    el('installLanguageLabel').textContent=en?'Language':'Sprache';
     document.body.classList.toggle('install-only',!running);
     if(!el('installAppBtn'))return;
     el('installTitle').textContent=running?(en?'Your FitTogether app':'Deine FitTogether-App'):(en?'Install FitTogether':'FitTogether installieren');
@@ -56,6 +59,11 @@
   }
   el('installAppBtn')?.addEventListener('click',install);
   el('installLandingBtn')?.addEventListener('click',install);
+  el('installLanguageSelect')?.addEventListener('change',event=>{
+    language=event.target.value==='en'?'en':'de';
+    try{localStorage.setItem('fitTogether_language',language);}catch{}
+    render();
+  });
   const landing=el('installLandingDialog');
   landing?.addEventListener('cancel',event=>{if(!isStandalone())event.preventDefault();});
   landing?.addEventListener('close',()=>{if(!isStandalone()&&!window.fitTogetherRecoveryActive)landing.showModal();});

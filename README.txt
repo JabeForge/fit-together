@@ -1,4 +1,4 @@
-FitTogether V0.20.2
+FitTogether V0.21.0
 
 Änderungen:
 - Englisch für Achievements, Kalenderstatus, Datumsangaben, Kameratexte,
@@ -105,3 +105,34 @@ Neu in V0.20.2:
 Nach Upload: Browser-Link öffnen, Installation anbieten lassen, installieren.
 Die Browserseite darf danach weiterhin nur den Öffnungshinweis zeigen.
 Erst der Start über das Homescreen-Icon zeigt Anmeldung und App-Inhalte.
+
+Neu in V0.20.3:
+Deutsch/English-Auswahl direkt oben auf der Downloadseite. Alle Downloadtexte
+wechseln sofort, auch der Hinweis nach Installation. Die Auswahl wird unter
+der bestehenden Sprachpräferenz gespeichert und von der App übernommen.
+
+Neu in V0.21.0 – sparsame Bild-Uploads:
+- Neue Fortschrittsbilder werden vor Upload als JPEG verkleinert: längste
+  Seite höchstens 1600 px, maximal 512 KiB. Trainingsnachweise höchstens
+  1200 px und 256 KiB. Qualität und bei Bedarf Abmessungen werden angepasst.
+- Seitenverhältnis bleibt erhalten, keine Ausschnitte, kleine Bilder werden
+  nicht hochskaliert. Transparente Bereiche werden auf Weiß dargestellt.
+- Verarbeitung passiert auf dem Gerät vor dem Upload. Originaldateien auf
+  dem Handy bleiben unverändert; bereits gespeicherte Bilder bleiben bestehen.
+- Nach erfolgreichem Upload zeigt die App ursprüngliche und gespeicherte Größe.
+- Eingaben bis 32 MiB / 64 Megapixel. Unlesbare Bilder oder fehlgeschlagene
+  Verarbeitung werden abgewiesen, statt große Originale heimlich hochzuladen.
+- HEIC/HEIF funktioniert nur, wenn der Browser das Bild dekodieren kann;
+  andernfalls erscheint eine verständliche Aufforderung, JPEG zu verwenden.
+- Dateiendung und Content-Type entsprechen immer JPEG. Bestehende
+  Storage-Buckets, Sichtbarkeit und Berechtigungen werden weiterverwendet.
+- Doppel-Uploads und ein Wechsel von Account/Termin während der Verarbeitung
+  werden vor dem Storage-Upload abgefangen. DB-Fehler bereinigen Uploads.
+
+Bereitstellen: ZIP-Inhalt inklusive image-upload.js hochladen. Keine SQL-
+Migration und kein kostenpflichtiger Kompressionsdienst notwendig. Die native
+Canvas-Abhängigkeit ist nur für lokale Tests, nicht Teil der laufenden App.
+
+Auf dem Handy prüfen: ein neues Fortschrittsbild und einen Trainingsnachweis
+hochladen, Darstellung und Größenanzeige kontrollieren. Logo und echter
+Passwortänderungstest sind weiterhin für später vorgesehen.

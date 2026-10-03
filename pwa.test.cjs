@@ -97,3 +97,23 @@ test('opening the link shows installation before login; installed app skips it',
   assert.equal(y.doc.body.classList.contains('install-only'),false);
  }finally{x.close();y.close();}
 });
+
+test('download page language selector translates the whole page and saves the app preference',()=>{
+ const x=setup();try{
+  const selector=x.doc.querySelector('#installLanguageSelect');
+  selector.value='de';selector.dispatchEvent(new x.w.Event('change'));
+  assert.equal(x.doc.documentElement.lang,'de');
+  assert.equal(x.doc.querySelector('#installLanguageLabel').textContent,'Sprache');
+  assert.equal(x.doc.querySelector('#installLandingBtn').textContent,'FitTogether installieren');
+  selector.value='en';selector.dispatchEvent(new x.w.Event('change'));
+  assert.equal(x.doc.documentElement.lang,'en');
+  assert.equal(x.doc.querySelector('#installLanguageLabel').textContent,'Language');
+  assert.equal(x.doc.querySelector('#installLandingBtn').textContent,'Install FitTogether');
+  assert.match(x.doc.querySelector('#installLandingHelp').textContent,/browser menu/);
+  assert.equal(x.w.localStorage.getItem('fitTogether_language'),'en');
+  x.w.dispatchEvent(new x.w.Event('appinstalled'));
+  selector.value='de';selector.dispatchEvent(new x.w.Event('change'));
+  assert.match(x.doc.querySelector('#installLandingHelp').textContent,/Installation abgeschlossen/);
+  assert.equal(x.doc.querySelector('#installLandingDialog').open,true);
+ }finally{x.close();}
+});
