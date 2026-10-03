@@ -1,4 +1,4 @@
-FitTogether V0.24.0
+FitTogether V0.25.0
 
 Änderungen:
 - Englisch für Achievements, Kalenderstatus, Datumsangaben, Kameratexte,
@@ -168,3 +168,15 @@ V0.24.0 – persönliche Akzentfarben
 - Helle eigene Farben werden für lesbare weiße Buttonschrift abgedunkelt.
 - Overview: „Who’s staying on track?“ ersetzt die unnatürliche Übersetzung.
 - Neue Datei theme.js ebenfalls hochladen. Menü bleibt vorerst unverändert.
+
+V0.24.1 – Akzentfarbe für alle allgemeinen Badges
+- Medaillen-Zusammenfassung, Tauziehen-Führung/Gleichstand, Bildzähler,
+  Mitgliederzahl und Benachrichtigungsstatus verwenden die gewählte Farbe.
+
+V0.25.0 – übersichtliche Einstellungen und Farbkreis
+- Alle sechs Einstellungsbereiche sind auf-/zuklappbar und starten geschlossen.
+- Sprache, Farben, Benachrichtigungen, Account, Tutorial und Installation.
+- Farbkreis für Maus/Finger, Helligkeitsregler, optionaler Hex-Farbcode.
+- Pfeiltasten bedienen den Kreis; Standardfarben per Button wiederherstellen.
+- Vorher gespeicherte Farben werden übernommen.
+- Handy-Check: Bereiche aufklappen, Farbe im Kreis ziehen und Helligkeit ändern.

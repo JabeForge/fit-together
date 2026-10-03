@@ -7,24 +7,24 @@
 <meta content="#111827" name="theme-color"/>
 <title>FitTogether</title>
 <link href="manifest.webmanifest" rel="manifest"/>
-<link href="icon.svg?v=0.24.0" rel="icon" type="image/svg+xml"/>
-<link href="icon-180.png?v=0.24.0" rel="apple-touch-icon"/>
+<link href="icon.svg?v=0.25.0" rel="icon" type="image/svg+xml"/>
+<link href="icon-180.png?v=0.25.0" rel="apple-touch-icon"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="FitTogether"/>
-<script src="image-upload.js?v=0.24.0" defer></script>
-<script src="tutorial.js?v=0.24.0" defer></script>
-<script src="mobile-nav.js?v=0.24.0" defer></script>
-<script src="theme.js?v=0.24.0" defer></script>
-<script src="pwa.js?v=0.24.0" defer></script>
+<script src="image-upload.js?v=0.25.0" defer></script>
+<script src="tutorial.js?v=0.25.0" defer></script>
+<script src="mobile-nav.js?v=0.25.0" defer></script>
+<script src="theme.js?v=0.25.0" defer></script>
+<script src="pwa.js?v=0.25.0" defer></script>
 <style>.hidden{display:none!important}</style>
-<link href="styles.css?v=0.24.0" rel="stylesheet"/>
+<link href="styles.css?v=0.25.0" rel="stylesheet"/>
 <meta content="no-cache, no-store, must-revalidate" http-equiv="Cache-Control"/><meta content="no-cache" http-equiv="Pragma"/><meta content="0" http-equiv="Expires"/></head>
 <body class="install-only">
 <dialog id="installLandingDialog" aria-labelledby="installLandingTitle" data-user-content>
 <div class="dialog-card install-landing-card">
 <label class="install-language"><span id="installLanguageLabel">Sprache</span><select id="installLanguageSelect"><option value="de">Deutsch</option><option value="en">English</option></select></label>
-<img src="icon-192.png?v=0.24.0" class="install-landing-icon" width="88" height="88" alt="FitTogether"/>
+<img src="icon-192.png?v=0.25.0" class="install-landing-icon" width="88" height="88" alt="FitTogether"/>
 <p class="eyebrow">FIT TOGETHER</p>
 <h2 id="installLandingTitle">Dein Training. Eure Motivation.</h2>
 <p class="helper" id="installLandingDescription">Installiere FitTogether und starte dein Training direkt vom Homescreen.</p>
@@ -62,7 +62,7 @@
 <header class="topbar">
 <div>
 <p class="eyebrow">Gemeinsam durchziehen</p>
-<h1>FitTogether <span class="app-version">V0.24.0</span></h1>
+<h1>FitTogether <span class="app-version">V0.25.0</span></h1>
 </div>
 <div class="top-actions">
 <select aria-label="Aktive Gruppe" class="group-select" id="activeGroupSelect"></select>
@@ -310,52 +310,38 @@
 </section>
 </section>
 <section class="panel" id="settings">
-<section class="card" data-user-content>
-<div class="section-heading"><h2 id="tutorialSettingsTitle">So funktioniert’s</h2></div>
-<p class="helper" id="tutorialSettingsText">Gruppe, Trainings und Nachweise – die wichtigsten Schritte kurz erklärt.</p>
-<button class="ghost-btn" id="openTutorialBtn" type="button">Tutorial öffnen</button>
-</section>
-<section class="card install-card" id="installCard" data-user-content>
-<div class="install-heading"><img src="icon-192.png?v=0.24.0" width="64" height="64" alt="FitTogether"/><div><p class="eyebrow">FIT TOGETHER</p><h2 id="installTitle">FitTogether installieren</h2></div></div>
-<p class="helper" id="installDescription">Dein Training direkt vom Homescreen öffnen – mit eigenem Icon und ohne Browserleiste.</p>
-<button class="primary-btn full hidden" id="installAppBtn" type="button">App installieren</button>
-<p class="helper" id="installHelp" aria-live="polite"></p>
-</section>
-<section class="card">
-<div class="section-heading"><div><p class="eyebrow">Account</p><h2>Passwort &amp; Anmeldung</h2></div></div>
-<p class="helper">Ändere dein Passwort. Wenn du es vergessen hast, kannst du auf dem Anmeldebildschirm einen Link zum Zurücksetzen anfordern.</p>
-<button class="primary-btn" id="changePasswordBtn" type="button">Passwort ändern</button>
-</section>
-<section class="card theme-card" data-user-content>
-<div class="section-heading"><h2 id="themeTitle">Deine Farben</h2></div>
-<p class="helper" id="themeDescription"></p>
-<div class="theme-options" role="group" aria-labelledby="themeTitle">
-<button class="theme-option" type="button" data-accent="default" aria-pressed="false"><span class="theme-swatch" aria-hidden="true"></span><span class="theme-name">Blau / Lila</span></button>
-<button class="theme-option" type="button" data-accent="ocean" aria-pressed="false"><span class="theme-swatch" aria-hidden="true"></span><span class="theme-name">Ozean</span></button>
-<button class="theme-option" type="button" data-accent="forest" aria-pressed="false"><span class="theme-swatch" aria-hidden="true"></span><span class="theme-name">Wald</span></button>
-<button class="theme-option" type="button" data-accent="sunset" aria-pressed="false"><span class="theme-swatch" aria-hidden="true"></span><span class="theme-name">Sonnenuntergang</span></button>
-<button class="theme-option" type="button" data-accent="rose" aria-pressed="false"><span class="theme-swatch" aria-hidden="true"></span><span class="theme-name">Rose</span></button>
-</div>
-<label class="theme-custom" id="themeCustomWrap"><span id="themeCustomLabel">Eigene Farbe</span><input type="color" id="themeColorInput" value="#2563eb" aria-describedby="themeColorHint"/></label>
-<p class="helper" id="themeColorHint"></p>
-</section>
-<section class="card locale-settings-card">
-<div class="section-heading"><div><p class="eyebrow" data-i18n="display">Anzeige</p><h2 data-i18n="languageRegion">Sprache &amp; Format</h2></div><span class="badge">🌐</span></div>
+
+<details class="card locale-settings-card settings-folder">
+<summary>
+<h2 data-i18n="languageRegion">Sprache &amp; Format</h2>
+<span class="badge">🌐</span>
+</summary>
+<div class="settings-folder-content">
+
 <div class="form-grid two">
-<label><span data-i18n="language">Sprache</span><select id="languageSelect"><option value="de">🇩🇪 Deutsch</option><option value="en">🇬🇧 English</option></select></label>
-<label><span data-i18n="dateFormat">Datumsformat</span>
+<label>
+<span data-i18n="language">Sprache</span>
+<select id="languageSelect">
+<option value="de">🇩🇪 Deutsch</option>
+<option value="en">🇬🇧 English</option>
+</select>
+</label>
+<label>
+<span data-i18n="dateFormat">Datumsformat</span>
 <select id="dateFormatSelect">
 <option value="dmy">DD.MM.YYYY</option>
 <option value="mdy">MM/DD/YYYY</option>
 </select>
 </label>
-<label><span data-i18n="timeFormat">Zeitformat</span>
+<label>
+<span data-i18n="timeFormat">Zeitformat</span>
 <select id="timeFormatSelect">
 <option value="24">24h</option>
 <option value="12">12h · AM/PM</option>
 </select>
 </label>
-<label><span data-i18n="weightUnit">Gewichtseinheit</span>
+<label>
+<span data-i18n="weightUnit">Gewichtseinheit</span>
 <select id="weightUnitSelect">
 <option value="kg">kg</option>
 <option value="lb">lb</option>
@@ -363,18 +349,52 @@
 </label>
 </div>
 <p class="helper" data-i18n="formatHint">Sprache, Datum, Uhrzeit und Gewichtseinheit können unabhängig voneinander eingestellt werden. Gewichte werden intern weiterhin in kg gespeichert.</p>
-</section>
-<section class="card notification-settings-card">
-<div class="section-heading">
-<div><p class="eyebrow">App</p><h2>Benachrichtigungen</h2></div>
-<span class="badge" id="notificationBadge">Nicht eingerichtet</span>
 </div>
+</details>
+<details class="card theme-card settings-folder" data-user-content="">
+<summary>
+<h2 id="themeTitle">Deine Farben</h2>
+</summary>
+<div class="settings-folder-content">
+<p class="helper" id="themeDescription">
+</p>
+<div class="color-wheel-wrap">
+<canvas id="themeWheel" width="280" height="280" tabindex="0" role="slider" aria-valuemin="0" aria-valuemax="359" aria-valuenow="0" aria-describedby="themeWheelHelp">
+</canvas>
+</div>
+<p class="helper" id="themeWheelHelp">
+</p>
+<label>
+<span id="themeBrightnessLabel">Helligkeit</span>
+<input id="themeBrightness" type="range" min="0" max="100" value="100">
+</label>
+<div class="theme-color-row">
+<label>
+<span id="themeCustomLabel">Farbcode</span>
+<input id="themeColorInput" type="text" value="#2563eb" maxlength="7" pattern="#[0-9a-fA-F]{6}" spellcheck="false" autocomplete="off">
+</label>
+<span id="themePreview" aria-hidden="true">
+</span>
+</div>
+<p class="helper" id="themeColorHint">
+</p>
+<button class="ghost-btn" id="themeResetBtn" type="button">Standardfarben</button>
+</div>
+</details>
+<details class="card notification-settings-card settings-folder">
+<summary>
+<h2>Benachrichtigungen</h2>
+<span class="badge" id="notificationBadge">Nicht eingerichtet</span>
+</summary>
+<div class="settings-folder-content">
+
 <div class="notification-state-box">
 <p class="helper" id="notificationStatus">Benachrichtigungen sind noch nicht aktiviert.</p>
 <p class="helper" id="pushStatus">Push bei geschlossener App ist noch nicht eingerichtet.</p>
 </div>
 <div class="form-grid two">
-<label><span>Standard-Erinnerung</span>
+<label>
+<span>Standard-Erinnerung</span>
 <select id="defaultReminderSelect">
 <option value="15">15 Minuten vorher</option>
 <option selected="" value="60">1 Stunde vorher</option>
@@ -382,7 +402,10 @@
 <option value="1440">1 Tag vorher</option>
 </select>
 </label>
-<label class="toggle-label"><span>Nur eigene Termine</span><input checked="" id="ownNotificationsOnly" type="checkbox"/></label>
+<label class="toggle-label">
+<span>Nur eigene Termine</span>
+<input checked="" id="ownNotificationsOnly" type="checkbox">
+</label>
 </div>
 <p class="helper">Die Einstellungen werden automatisch gespeichert. Geschlossene-App-Pushs werden aktuell serverseitig 1 Stunde vor dem Training gesendet.</p>
 <div class="dialog-actions">
@@ -390,7 +413,40 @@
 <button class="ghost-btn" id="disablePushBtn" type="button">🔕 Push deaktivieren</button>
 <button class="ghost-btn" id="testNotifyBtn" type="button">Test senden</button>
 </div>
-</section>
+</div>
+</details>
+<details class="card settings-folder">
+<summary>
+<h2>Passwort &amp; Anmeldung</h2>
+</summary>
+<div class="settings-folder-content">
+
+<p class="helper">Ändere dein Passwort. Wenn du es vergessen hast, kannst du auf dem Anmeldebildschirm einen Link zum Zurücksetzen anfordern.</p>
+<button class="primary-btn" id="changePasswordBtn" type="button">Passwort ändern</button>
+</div>
+</details>
+<details class="card settings-folder" data-user-content="">
+<summary>
+<h2 id="tutorialSettingsTitle">So funktioniert’s</h2>
+</summary>
+<div class="settings-folder-content">
+
+<p class="helper" id="tutorialSettingsText">Gruppe, Trainings und Nachweise – die wichtigsten Schritte kurz erklärt.</p>
+<button class="ghost-btn" id="openTutorialBtn" type="button">Tutorial öffnen</button>
+</div>
+</details>
+<details class="card install-card settings-folder" id="installCard" data-user-content="">
+<summary>
+<h2 id="installTitle">FitTogether installieren</h2>
+</summary>
+<div class="settings-folder-content">
+
+<p class="helper" id="installDescription">Dein Training direkt vom Homescreen öffnen – mit eigenem Icon und ohne Browserleiste.</p>
+<button class="primary-btn full hidden" id="installAppBtn" type="button">App installieren</button>
+<p class="helper" id="installHelp" aria-live="polite">
+</p>
+</div>
+</details>
 </section>
 </main>
 </div>
@@ -429,7 +485,7 @@
 </div>
 </form>
 </dialog>
-<script src="app.js?v=0.24.0" type="module"></script>
+<script src="app.js?v=0.25.0" type="module"></script>
 <dialog class="status-dialog" id="seriesActionDialog">
 <form class="dialog-card" method="dialog">
 <p class="eyebrow" id="seriesActionEyebrow">Wiederholung</p>
