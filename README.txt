@@ -1,4 +1,4 @@
-FitTogether V0.23.0
+FitTogether V0.24.0
 
 Änderungen:
 - Englisch für Achievements, Kalenderstatus, Datumsangaben, Kameratexte,
@@ -160,3 +160,11 @@ V0.23.0 – kompaktes Handy-Menü
 - Neue Datei mobile-nav.js ebenfalls hochladen.
 - Handy-Check: alle Bereiche öffnen, Hintergrund antippen, Menü weit unten
   auf einer Seite öffnen, Sprache wechseln und Gerät drehen.
+
+V0.24.0 – persönliche Akzentfarben
+- Einstellungen > Deine Farben: fünf Farbvarianten und eigener Farbwähler.
+- Farben für Hauptbuttons, Menübutton, aktive Menüauswahl und Erfolgsbalken.
+- Auf diesem Gerät gespeichert; keine Änderung der Gruppen-/Termindaten.
+- Helle eigene Farben werden für lesbare weiße Buttonschrift abgedunkelt.
+- Overview: „Who’s staying on track?“ ersetzt die unnatürliche Übersetzung.
+- Neue Datei theme.js ebenfalls hochladen. Menü bleibt vorerst unverändert.
