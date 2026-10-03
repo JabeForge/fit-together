@@ -6,6 +6,8 @@ const {JSDOM}=require('jsdom');
 function setup({installed=false,ios=false}={}){
  const dom=new JSDOM(fs.readFileSync('index.html','utf8'),{url:'https://example.test/fit-together/',runScripts:'outside-only'});
  const w=dom.window,calls=[];
+ w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
+ w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
  w.matchMedia=()=>({matches:installed,addEventListener(){}});
  Object.defineProperty(w,'isSecureContext',{value:true});
  if(ios)Object.defineProperty(w.navigator,'userAgent',{value:'iPhone'});
@@ -53,7 +55,7 @@ test('manifest uses stable identity, standalone display and correctly sized laun
  const manifest=JSON.parse(fs.readFileSync('manifest.webmanifest','utf8'));
  assert.equal(manifest.id,'./');assert.equal(manifest.scope,'./');assert.equal(manifest.display,'standalone');
  for(const icon of manifest.icons){
-  const buffer=fs.readFileSync(icon.src);const width=buffer.readUInt32BE(16),height=buffer.readUInt32BE(20);
+  const buffer=fs.readFileSync(icon.src.split('?')[0]);const width=buffer.readUInt32BE(16),height=buffer.readUInt32BE(20);
   assert.equal(icon.sizes,`${width}x${height}`);
  }
  assert.ok(manifest.icons.some(i=>i.purpose==='maskable'));
@@ -77,4 +79,17 @@ test('worker provides offline navigation, avoids user data caching and keeps not
  assert.equal(opened,scope+'index.html');
  handlers.notificationclick({notification:{data:{url:'https://elsewhere.test/'},close(){}},waitUntil:p=>pending=p});await pending;
  assert.equal(opened,scope+'index.html');
+});
+
+test('opening the link shows installation before login; installed app skips it',async()=>{
+ const x=setup(),y=setup({installed:true});try{
+  const landing=x.doc.querySelector('#installLandingDialog');assert.equal(landing.open,true);
+  assert.equal(y.doc.querySelector('#installLandingDialog').open,false);
+  let prompts=0,dismissals=0;const event=new x.w.Event('beforeinstallprompt',{cancelable:true});
+  event.prompt=async()=>{prompts++;};event.userChoice=Promise.resolve({outcome:'dismissed'});
+  x.w.dispatchEvent(event);assert.equal(x.doc.querySelector('#installLandingBtn').classList.contains('hidden'),false);
+  x.doc.querySelector('#installLandingBtn').click();await new Promise(r=>setImmediate(r));assert.equal(prompts,1);
+  x.w.addEventListener('fittogether:install-dismissed',()=>dismissals++);
+  x.doc.querySelector('#installContinueBtn').click();assert.equal(landing.open,false);assert.equal(dismissals,1);
+ }finally{x.close();y.close();}
 });

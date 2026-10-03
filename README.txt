@@ -1,4 +1,4 @@
-FitTogether V0.20.0
+FitTogether V0.20.1
 
 Änderungen:
 - Englisch für Achievements, Kalenderstatus, Datumsangaben, Kameratexte,
@@ -38,7 +38,7 @@ Installation / Prüfung:
 
 Für dieses Update ist keine SQL-Migration erforderlich.
 
-Neu in V0.20.0 – Installation:
+Neu in V0.20.1 – Installation:
 - Originales FitTogether-Icon (Hantel + Verbindung), Launcher-Icons inklusive
   maskierbarem Icon sowie iPhone-Touch-Icon.
 - Manifest mit stabiler App-ID, Scope und Start ohne Browserleiste.
@@ -61,7 +61,7 @@ GitHub-Repository hochladen; die Verzeichnisstruktur beibehalten.
 Keine SQL-Migration und keine neue Supabase-Konfiguration nötig.
 
 Prüfung nach dem Hochladen:
-1. App neu laden; Versionsanzeige V0.20.0 prüfen.
+1. App neu laden; Versionsanzeige V0.20.1 prüfen.
 2. Einstellungen > FitTogether installieren öffnen und installieren.
 3. Browser schließen, vom Homescreen starten: eigenes Icon, keine URL-Leiste.
 4. Englisch/Deutsch im Installationsbereich prüfen.
@@ -71,3 +71,21 @@ Prüfung nach dem Hochladen:
    prüfen, dass das Push-Abonnement aktiv geblieben ist.
 Die echte Geräteinstallation und Push-Zustellung müssen nach Deployment
 auf dem Handy geprüft werden; die lokalen Tests simulieren Browserereignisse.
+
+Neu in V0.20.1:
+- Installationsaufforderung direkt beim Öffnen des Links, auch vor dem Login.
+  Der Browserdialog wird durch den Installationsbutton gestartet, sobald
+  der Browser die Installation anbietet. Sonst stehen die manuellen Schritte
+  direkt in der Aufforderung. Im Browser fortfahren bleibt möglich.
+- In der installierten App erscheint diese Aufforderung nicht.
+- Neues schlichtes FT-Monogramm statt Hantel/Kette.
+- Erinnerungseinführung: beide Buttons reagieren; Später schließt den Dialog,
+  Aktivieren fordert die Freigabe an und startet die bestehende Push-Anbindung.
+  Abgelehnte Berechtigungen liefern eine verständliche Rückmeldung.
+- Installationsdialog und Erinnerungseinführung überlagern sich nicht.
+- Nach erfolgreichem Login wird die Einführung ebenfalls geprüft.
+
+Nach Upload prüfen: Link in Browser öffnen, Installationsaufforderung prüfen;
+installierte App öffnen, Später testen und über Einstellungen Push aktivieren.
+Falls das alte Launcher-Icon bleibt, die Homescreen-App entfernen und neu
+installieren. Die OS-Icon-Aktualisierung ist browserabhängig.

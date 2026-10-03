@@ -1,4 +1,4 @@
-const APP_VERSION = "0.20.0";
+const APP_VERSION = "0.20.1";
 const I18N={
  de:{home:'Übersicht',display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise',groups:'Gruppe',achievements:'Erfolge'},
  en:{home:'Overview',display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof',groups:'Group',achievements:'Achievements'}
@@ -154,6 +154,15 @@ function bindActions(){
   $('#slidePlayBtn').addEventListener('click',toggleSlideshow);
   $('#photoReminderNowBtn').addEventListener('click',()=>{showTab('photos');$('#photoChooseBtn').scrollIntoView({behavior:'smooth',block:'center'});$('#photoChooseBtn').focus({preventScroll:true});});
   $('#photoReminderLaterBtn').addEventListener('click',snoozePhotoReminder);
+  $('#notificationOnboardingLaterBtn')?.addEventListener('click',()=>{
+    $('#notificationOnboardingDialog')?.close();
+  });
+  $('#notificationOnboardingEnableBtn')?.addEventListener('click',()=>{
+    $('#notificationOnboardingDialog')?.close();
+    // Call before any asynchronous work: the permission prompt needs a click.
+    enableClosedAppPush();
+  });
+  window.addEventListener('fittogether:install-dismissed',()=>maybeOfferNotificationOnboarding());
   $('#notifyBtn').addEventListener('click',enableClosedAppPush);
   $('#settingsNotifyBtn')?.addEventListener('click',enableClosedAppPush);
   $('#disablePushBtn')?.addEventListener('click',disableClosedAppPush);
@@ -286,6 +295,7 @@ async function applySession(session){
   await loadGroups();
   if(pendingInvite) await joinPendingInvite();
   if(activeGroup) await loadActiveGroupData(); else renderAll();
+  if(!passwordRecovery)maybeOfferNotificationOnboarding();
 }
 async function loadOnlineProfile(){
   const {data,error}=await supabase.from('profiles').select('id,name,avatar_url,created_at').eq('id',currentUser.id).single();
@@ -1376,7 +1386,12 @@ async function ensurePushSubscription(showSuccess=true){
 async function enableClosedAppPush(){
   try{
     const permission=Notification.permission==='granted'?'granted':await Notification.requestPermission();
-    if(permission!=='granted'){updatePushStatus();return;}
+    if(permission!=='granted'){
+      updateNotificationStatus();updatePushStatus();
+      showAlert(appLanguage==='en'?'Reminders were not enabled. You can try again in Settings; if blocked, allow notifications in your browser settings.':'Erinnerungen wurden nicht aktiviert. Du kannst es in den Einstellungen erneut versuchen. Bei einer Blockierung erlaube Benachrichtigungen in den Browser-Einstellungen.');
+      return;
+    }
+    updateNotificationStatus();
     await ensurePushSubscription(true);
   }catch(err){
     showAlert(`${appLanguage==='en'?'Push setup failed':'Push-Einrichtung fehlgeschlagen'}: ${err.message||err}`);
@@ -1384,7 +1399,7 @@ async function enableClosedAppPush(){
 }
 
 async function maybeOfferNotificationOnboarding(){
-  if(!currentUser || !('Notification' in window))return;
+  if(!currentUser || !('Notification' in window)||document.querySelector('dialog[open]'))return;
 
   // Permission was already granted (for example via the old bell button):
   // silently finish the real Push subscription and save it to Supabase.

@@ -179,3 +179,37 @@ test('leader badge centers text and annual stats have separate label and value l
   assert.ok(grid.firstElementChild.querySelector('span'));assert.ok(grid.firstElementChild.querySelector('strong'));
  }finally{x.close();}
 });
+
+test('reminder onboarding Later closes the dialog without requesting notification permission',async()=>{
+ const x=setup();try{
+  let requested=0;x.w.Notification={permission:'default',requestPermission:async()=>{requested++;return'denied';}};
+  x.run("currentUser={id:'u'};bindActions()");await x.run('maybeOfferNotificationOnboarding()');
+  const dialog=x.doc.querySelector('#notificationOnboardingDialog');assert.equal(dialog.open,true);
+  x.doc.querySelector('#notificationOnboardingLaterBtn').click();
+  assert.equal(dialog.open,false);assert.equal(requested,0);
+ }finally{x.close();}
+});
+test('reminder onboarding Enable closes first, requests permission from click and sets up push',async()=>{
+ const x=setup();try{
+  const calls=[];x.w.Notification={permission:'default',requestPermission:async()=>{
+   calls.push(['permission',x.doc.querySelector('#notificationOnboardingDialog').open]);x.w.Notification.permission='granted';return'granted';
+  }};
+  x.w.recordPush=()=>calls.push(['subscription']);
+  x.run("currentUser={id:'u'};bindActions();ensurePushSubscription=async()=>recordPush()");
+  await x.run('maybeOfferNotificationOnboarding()');x.doc.querySelector('#notificationOnboardingEnableBtn').click();
+  assert.deepEqual(calls,[['permission',false]]);
+  await new Promise(r=>setImmediate(r));assert.deepEqual(calls,[['permission',false],['subscription']]);
+ }finally{x.close();}
+});
+test('onboarding does not overlap installation and denied permissions produce feedback',async()=>{
+ const x=setup();try{
+  let feedback='';x.w.alert=text=>feedback=text;x.w.Notification={permission:'default',requestPermission:async()=>'denied'};
+  x.run("currentUser={id:'u'};bindActions();setLanguage('en')");x.doc.querySelector('#installLandingDialog').showModal();
+  await x.run('maybeOfferNotificationOnboarding()');assert.equal(x.doc.querySelector('#notificationOnboardingDialog').open,false);
+  assert.equal(x.w.localStorage.getItem('fitTogether_notificationOnboarding_u'),null);
+  x.doc.querySelector('#installLandingDialog').close();await x.run('maybeOfferNotificationOnboarding()');
+  assert.equal(x.doc.querySelector('#notificationOnboardingDialog').open,true);
+  x.doc.querySelector('#notificationOnboardingEnableBtn').click();await new Promise(r=>setImmediate(r));
+  assert.equal(x.doc.querySelector('#notificationOnboardingDialog').open,false);assert.match(feedback,/Reminders were not enabled/);
+ }finally{x.close();}
+});

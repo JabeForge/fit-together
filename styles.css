@@ -280,3 +280,9 @@ body.auth-open .app-shell{filter:blur(3px);pointer-events:none;user-select:none}
 .install-heading h2{margin:0}
 .install-card .helper{line-height:1.6}
 @media(display-mode:standalone){body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}}
+
+.install-landing-card{text-align:center;width:min(420px,90vw);padding:28px}
+.install-landing-icon{border-radius:22px;margin-bottom:20px}
+.install-landing-card h2{font-size:27px;line-height:1.2;margin:12px 0}
+.install-landing-card .helper{line-height:1.6}
+#installLandingDialog{max-height:90dvh;overflow:auto;padding:0;border-radius:20px}
