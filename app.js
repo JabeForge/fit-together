@@ -1,4 +1,4 @@
-const APP_VERSION = "0.20.1";
+const APP_VERSION = "0.20.2";
 const I18N={
  de:{home:'Übersicht',display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise',groups:'Gruppe',achievements:'Erfolge'},
  en:{home:'Overview',display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof',groups:'Group',achievements:'Achievements'}
@@ -89,7 +89,10 @@ async function removeLegacyCache(){
   } catch(err){ console.warn('Cache-Bereinigung:',err); }
 }
 
+function isDownloadOnlyBrowser(){return window.fitTogetherIsStandalone&&!window.fitTogetherIsStandalone();}
 async function init(){
+  // A recovery link may show its password form, never the browser app.
+  if(isDownloadOnlyBrowser()&&!passwordRecovery&&!new URLSearchParams(location.search).has('code'))return;
   $('#eventDate').value=todayISO();
   $('#weightDate').value=todayISO();$('#weightDate').max=todayISO();loadWeightScaleSettings();$('#weightDate').max=todayISO();
   $('#photoDate').value=todayISO();
@@ -162,7 +165,6 @@ function bindActions(){
     // Call before any asynchronous work: the permission prompt needs a click.
     enableClosedAppPush();
   });
-  window.addEventListener('fittogether:install-dismissed',()=>maybeOfferNotificationOnboarding());
   $('#notifyBtn').addEventListener('click',enableClosedAppPush);
   $('#settingsNotifyBtn')?.addEventListener('click',enableClosedAppPush);
   $('#disablePushBtn')?.addEventListener('click',disableClosedAppPush);
@@ -194,7 +196,13 @@ function bindAuth(){
   $('#changePasswordBtn').addEventListener('click',()=>openPasswordDialog(false));
   $('#passwordForm').addEventListener('submit',savePassword);
   $('#passwordCancelBtn').addEventListener('click',()=>$('#passwordDialog').close());
-  $('#passwordDialog').addEventListener('close',()=>{$('#passwordForm').reset();$('#savePasswordBtn').disabled=false;});
+  $('#passwordDialog').addEventListener('close',()=>{
+    $('#passwordForm').reset();$('#savePasswordBtn').disabled=false;
+    if(window.fitTogetherRecoveryActive){
+      window.fitTogetherRecoveryActive=false;
+      window.dispatchEvent(new Event('fittogether:recovery-finished'));
+    }
+  });
   $('#passwordDialog').addEventListener('cancel',e=>{if(passwordBusy)e.preventDefault();});
   $('#showLoginBtn').addEventListener('click',()=>showAuthMode('login'));
   $('#showRegisterBtn').addEventListener('click',()=>showAuthMode('register'));
@@ -284,6 +292,14 @@ async function signIn(){
 }
 async function applySession(session){
   currentUser=session?.user||null;
+  if(isDownloadOnlyBrowser()){
+    if(passwordRecovery&&currentUser){
+      window.fitTogetherRecoveryActive=true;
+      $('#installLandingDialog')?.close();
+      openPasswordDialog(true);
+    }
+    return;
+  }
   if(!currentUser){
     passwordRecovery=false;$('#passwordDialog')?.close();
     currentProfile=null; groups=[]; activeGroup=null; groupMembers=[]; events=[]; weights=[]; occurrenceStatuses=[]; progressPhotos=[]; trainingProofs=[];

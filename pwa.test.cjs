@@ -25,7 +25,9 @@ test('prompt is only triggered by a click, consumed once, and acceptance waits f
   await new Promise(r=>setImmediate(r));assert.equal(prompts,1);
   assert.ok(btn.classList.contains('hidden'));assert.doesNotMatch(x.doc.querySelector('#installHelp').textContent,/^Installed/);
   x.w.dispatchEvent(new x.w.Event('appinstalled'));
-  assert.match(x.doc.querySelector('#installHelp').textContent,/^Installed/);
+  assert.match(x.doc.querySelector('#installLandingHelp').textContent,/Installation complete/);
+  assert.equal(x.doc.querySelector('#installLandingDialog').open,true);
+  assert.equal(x.doc.body.classList.contains('install-only'),true);
  }finally{x.close();}
 });
 test('manual iPhone help, standalone detection and live language changes work',()=>{
@@ -85,11 +87,13 @@ test('opening the link shows installation before login; installed app skips it',
  const x=setup(),y=setup({installed:true});try{
   const landing=x.doc.querySelector('#installLandingDialog');assert.equal(landing.open,true);
   assert.equal(y.doc.querySelector('#installLandingDialog').open,false);
-  let prompts=0,dismissals=0;const event=new x.w.Event('beforeinstallprompt',{cancelable:true});
+  let prompts=0;const event=new x.w.Event('beforeinstallprompt',{cancelable:true});
   event.prompt=async()=>{prompts++;};event.userChoice=Promise.resolve({outcome:'dismissed'});
   x.w.dispatchEvent(event);assert.equal(x.doc.querySelector('#installLandingBtn').classList.contains('hidden'),false);
   x.doc.querySelector('#installLandingBtn').click();await new Promise(r=>setImmediate(r));assert.equal(prompts,1);
-  x.w.addEventListener('fittogether:install-dismissed',()=>dismissals++);
-  x.doc.querySelector('#installContinueBtn').click();assert.equal(landing.open,false);assert.equal(dismissals,1);
+  assert.equal(x.doc.querySelector('#installContinueBtn'),null);
+  const cancel=new x.w.Event('cancel',{cancelable:true});landing.dispatchEvent(cancel);assert.equal(cancel.defaultPrevented,true);
+  landing.close();assert.equal(landing.open,true);
+  assert.equal(y.doc.body.classList.contains('install-only'),false);
  }finally{x.close();y.close();}
 });

@@ -213,3 +213,28 @@ test('onboarding does not overlap installation and denied permissions produce fe
   assert.equal(x.doc.querySelector('#notificationOnboardingDialog').open,false);assert.match(feedback,/Reminders were not enabled/);
  }finally{x.close();}
 });
+
+test('browser download view never starts login, reminders or group loading',async()=>{
+ const x=setup();try{
+  x.w.fitTogetherIsStandalone=()=>false;
+  let sessionReads=0;x.auth.getSession=async()=>{sessionReads++;return{data:{session:null}};};
+  await x.run('init()');assert.equal(sessionReads,0);
+  await x.run("applySession({user:{id:'u'}})");
+  assert.equal(x.doc.querySelector('#appShell').classList.contains('hidden'),true);
+  assert.equal(x.doc.querySelector('#passwordDialog').open,false);
+ }finally{x.close();}
+});
+test('recovery link can open only its password form from the download view',async()=>{
+ const x=setup();try{
+  x.w.fitTogetherIsStandalone=()=>false;
+  x.run("bindActions();bindAuth();passwordRecovery=true");
+  x.doc.querySelector('#installLandingDialog').showModal();
+  await x.run("applySession({user:{id:'u'}})");
+  assert.equal(x.doc.querySelector('#appShell').classList.contains('hidden'),true);
+  assert.equal(x.doc.querySelector('#passwordDialog').open,true);
+  assert.equal(x.w.fitTogetherRecoveryActive,true);
+  let returned=0;x.w.addEventListener('fittogether:recovery-finished',()=>returned++);
+  x.doc.querySelector('#passwordDialog').close();assert.equal(returned,1);
+  assert.equal(x.w.fitTogetherRecoveryActive,false);
+ }finally{x.close();}
+});

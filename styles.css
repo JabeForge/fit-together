@@ -286,3 +286,8 @@ body.auth-open .app-shell{filter:blur(3px);pointer-events:none;user-select:none}
 .install-landing-card h2{font-size:27px;line-height:1.2;margin:12px 0}
 .install-landing-card .helper{line-height:1.6}
 #installLandingDialog{max-height:90dvh;overflow:auto;padding:0;border-radius:20px}
+
+/* Browser visits only show the download page. */
+body.install-only #authScreen,body.install-only #appShell{display:none!important}
+body.install-only{background:#101827}
+#installLandingDialog::backdrop{background:#101827}
