@@ -273,3 +273,10 @@ body.auth-open .app-shell{filter:blur(3px);pointer-events:none;user-select:none}
 .invite-qr-wrap{display:flex;align-items:center;gap:14px;margin-top:12px;flex-wrap:wrap}
 .invite-qr{width:132px;height:132px;border-radius:14px;background:#fff;padding:8px;object-fit:contain}
 .event-creator{font-size:.82rem;opacity:.72;margin-top:3px}
+
+/* Installed app */
+.install-heading{display:flex;align-items:center;gap:16px}
+.install-heading img{border-radius:16px;flex-shrink:0}
+.install-heading h2{margin:0}
+.install-card .helper{line-height:1.6}
+@media(display-mode:standalone){body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}}

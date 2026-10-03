@@ -7,8 +7,14 @@
 <meta content="#111827" name="theme-color"/>
 <title>FitTogether</title>
 <link href="manifest.webmanifest" rel="manifest"/>
+<link href="icon.svg" rel="icon" type="image/svg+xml"/>
+<link href="icon-180.png" rel="apple-touch-icon"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="FitTogether"/>
+<script src="pwa.js?v=0.20.0" defer></script>
 <style>.hidden{display:none!important}</style>
-<link href="styles.css?v=0.19.8" rel="stylesheet"/>
+<link href="styles.css?v=0.20.0" rel="stylesheet"/>
 <meta content="no-cache, no-store, must-revalidate" http-equiv="Cache-Control"/><meta content="no-cache" http-equiv="Pragma"/><meta content="0" http-equiv="Expires"/></head>
 <body>
 <section aria-labelledby="authTitle" aria-modal="true" class="auth-screen" id="authScreen" role="dialog">
@@ -40,7 +46,7 @@
 <header class="topbar">
 <div>
 <p class="eyebrow">Gemeinsam durchziehen</p>
-<h1>FitTogether <span class="app-version">V0.19.8</span></h1>
+<h1>FitTogether <span class="app-version">V0.20.0</span></h1>
 </div>
 <div class="top-actions">
 <select aria-label="Aktive Gruppe" class="group-select" id="activeGroupSelect"></select>
@@ -284,6 +290,12 @@
 </section>
 </section>
 <section class="panel" id="settings">
+<section class="card install-card" id="installCard" data-user-content>
+<div class="install-heading"><img src="icon-192.png" width="64" height="64" alt="FitTogether"/><div><p class="eyebrow">FIT TOGETHER</p><h2 id="installTitle">FitTogether installieren</h2></div></div>
+<p class="helper" id="installDescription">Dein Training direkt vom Homescreen öffnen – mit eigenem Icon und ohne Browserleiste.</p>
+<button class="primary-btn full hidden" id="installAppBtn" type="button">App installieren</button>
+<p class="helper" id="installHelp" aria-live="polite"></p>
+</section>
 <section class="card">
 <div class="section-heading"><div><p class="eyebrow">Account</p><h2>Passwort &amp; Anmeldung</h2></div></div>
 <p class="helper">Ändere dein Passwort. Wenn du es vergessen hast, kannst du auf dem Anmeldebildschirm einen Link zum Zurücksetzen anfordern.</p>
@@ -378,7 +390,7 @@
 </div>
 </form>
 </dialog>
-<script src="app.js?v=0.19.8" type="module"></script>
+<script src="app.js?v=0.20.0" type="module"></script>
 <dialog class="status-dialog" id="seriesActionDialog">
 <form class="dialog-card" method="dialog">
 <p class="eyebrow" id="seriesActionEyebrow">Wiederholung</p>

@@ -1,4 +1,4 @@
-const APP_VERSION = "0.19.8";
+const APP_VERSION = "0.20.0";
 const I18N={
  de:{home:'Übersicht',display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise',groups:'Gruppe',achievements:'Erfolge'},
  en:{home:'Overview',display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof',groups:'Group',achievements:'Achievements'}
@@ -20,6 +20,7 @@ function applyLocale(){
  renderAll();
  updateNotificationStatus();
  showSelectedProgressFile();
+ window.dispatchEvent(new CustomEvent('fittogether:languagechange',{detail:appLanguage}));
 }
 function setLanguage(v){appLanguage=v;localStorage.setItem('fitTogether_language',v);applyLocale();}
 function setDateFormat(v){dateFormat=v;localStorage.setItem('fitTogether_dateFormat',v);renderAll();}
@@ -79,10 +80,6 @@ if (pendingInvite) {
 
 async function removeLegacyCache(){
   try {
-    if ('serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map(r=>r.unregister()));
-    }
     if ('caches' in window) {
       const keys = await caches.keys();
       await Promise.all(keys.filter(k=>k.startsWith('fit-together-')).map(k=>caches.delete(k)));
@@ -1291,7 +1288,7 @@ function urlBase64ToUint8Array(base64String){
 }
 async function getServiceWorkerRegistration(){
   if(!('serviceWorker' in navigator))throw new Error(appLanguage==='en'?'Service workers are not supported.':'Service Worker werden nicht unterstützt.');
-  return navigator.serviceWorker.register('./sw.js?v=0.17');
+  return navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'});
 }
 async function updatePushStatus(){
   const el=$('#pushStatus'),badge=$('#notificationBadge');

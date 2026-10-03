@@ -1,4 +1,4 @@
-FitTogether V0.19.8
+FitTogether V0.20.0
 
 Änderungen:
 - Englisch für Achievements, Kalenderstatus, Datumsangaben, Kameratexte,
@@ -37,3 +37,37 @@ Installation / Prüfung:
    durch diese Tests abgedeckt.
 
 Für dieses Update ist keine SQL-Migration erforderlich.
+
+Neu in V0.20.0 – Installation:
+- Originales FitTogether-Icon (Hantel + Verbindung), Launcher-Icons inklusive
+  maskierbarem Icon sowie iPhone-Touch-Icon.
+- Manifest mit stabiler App-ID, Scope und Start ohne Browserleiste.
+- Einstellungen > FitTogether installieren: Installationsbutton, sobald der
+  Browser die Installation anbietet; sonst Anleitung für das Browsermenü.
+- iPhone: Safari > Teilen > Zum Home-Bildschirm.
+- Installationsbereich folgt Deutsch/Englisch und erkennt den Standalone-Modus.
+- Hintergrunddienst wird beim App-Start nicht mehr abgemeldet. Bestehende
+  Push-Abonnements bleiben dadurch erhalten.
+- Ohne Internet erscheint ein eigener Offline-Hinweis. Trainingsdaten und
+  Anmeldung brauchen weiterhin Internet. Es werden keine privaten Fotos,
+  API-Antworten oder Zugangsdaten im neuen Offline-Cache gespeichert.
+
+Dieses Paket ist eine installierbare Web-App (PWA), keine APK/AAB und noch
+keine Google-Play-Veröffentlichung. Der native Store-Schritt folgt separat.
+
+Bereitstellen:
+ZIP entpacken und Dateien inklusive pwa.js, offline.html und Icons in das
+GitHub-Repository hochladen; die Verzeichnisstruktur beibehalten.
+Keine SQL-Migration und keine neue Supabase-Konfiguration nötig.
+
+Prüfung nach dem Hochladen:
+1. App neu laden; Versionsanzeige V0.20.0 prüfen.
+2. Einstellungen > FitTogether installieren öffnen und installieren.
+3. Browser schließen, vom Homescreen starten: eigenes Icon, keine URL-Leiste.
+4. Englisch/Deutsch im Installationsbereich prüfen.
+5. Nach dem ersten Online-Start Flugmodus aktivieren, App erneut öffnen:
+   Offline-Hinweis erscheint; Internet einschalten und Erneut versuchen.
+6. Push-Test in den Einstellungen durchführen, App neu öffnen und erneut
+   prüfen, dass das Push-Abonnement aktiv geblieben ist.
+Die echte Geräteinstallation und Push-Zustellung müssen nach Deployment
+auf dem Handy geprüft werden; die lokalen Tests simulieren Browserereignisse.
