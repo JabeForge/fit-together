@@ -1,5 +1,5 @@
-// FitTogether V0.25.0: offline help + existing Web Push.
-const CACHE='fittogether-install-0.25.0';
+// FitTogether V0.26.0: offline help + existing Web Push.
+const CACHE='fittogether-install-0.26.0';
 const ASSETS=['./offline.html','./icon-192.png','./icon-512.png','./icon-180.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(

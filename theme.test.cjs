@@ -20,7 +20,12 @@ test('color wheel draws a hue spectrum and supports pointer dragging, brightness
   x.point('pointerup',8,140);x.point('pointermove',272,140);assert.equal(x.w.localStorage.getItem('fitTogether_accent'),'#00ffff');
   const brightness=x.doc.querySelector('#themeBrightness');brightness.value='0';brightness.dispatchEvent(new x.w.Event('input'));assert.equal(x.w.localStorage.getItem('fitTogether_accent'),'#000000');
   brightness.value='100';brightness.dispatchEvent(new x.w.Event('input'));assert.equal(x.w.localStorage.getItem('fitTogether_accent'),'#00ffff');
-  assert.notEqual(x.doc.documentElement.style.getPropertyValue('--accent-start'),'#00ffff');
+  assert.equal(x.doc.documentElement.style.getPropertyValue('--accent-start'),'#00ffff');
+  assert.equal(x.doc.documentElement.style.getPropertyValue('--accent-text'),'#000000');
+  x.point('pointerdown',145,144);assert.equal(x.w.localStorage.getItem('fitTogether_accent'),'#ffffff');
+  assert.equal(x.doc.documentElement.style.getPropertyValue('--accent-start'),'#ffffff');
+  assert.equal(x.doc.querySelector('#themeBrightness').value,'100');
+  x.point('pointerup',145,144);
   x.doc.querySelector('#themeResetBtn').click();assert.equal(x.w.localStorage.getItem('fitTogether_accent'),'default');assert.equal(x.doc.documentElement.style.getPropertyValue('--accent-end'),'#7c3aed');
  }finally{x.close();}
 });

@@ -7,24 +7,24 @@
 <meta content="#111827" name="theme-color"/>
 <title>FitTogether</title>
 <link href="manifest.webmanifest" rel="manifest"/>
-<link href="icon.svg?v=0.25.0" rel="icon" type="image/svg+xml"/>
-<link href="icon-180.png?v=0.25.0" rel="apple-touch-icon"/>
+<link href="icon.svg?v=0.26.0" rel="icon" type="image/svg+xml"/>
+<link href="icon-180.png?v=0.26.0" rel="apple-touch-icon"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="FitTogether"/>
-<script src="image-upload.js?v=0.25.0" defer></script>
-<script src="tutorial.js?v=0.25.0" defer></script>
-<script src="mobile-nav.js?v=0.25.0" defer></script>
-<script src="theme.js?v=0.25.0" defer></script>
-<script src="pwa.js?v=0.25.0" defer></script>
+<script src="image-upload.js?v=0.26.0" defer></script>
+<script src="tutorial.js?v=0.26.0" defer></script>
+<script src="mobile-nav.js?v=0.26.0" defer></script>
+<script src="theme.js?v=0.26.0" defer></script>
+<script src="pwa.js?v=0.26.0" defer></script>
 <style>.hidden{display:none!important}</style>
-<link href="styles.css?v=0.25.0" rel="stylesheet"/>
+<link href="styles.css?v=0.26.0" rel="stylesheet"/>
 <meta content="no-cache, no-store, must-revalidate" http-equiv="Cache-Control"/><meta content="no-cache" http-equiv="Pragma"/><meta content="0" http-equiv="Expires"/></head>
 <body class="install-only">
 <dialog id="installLandingDialog" aria-labelledby="installLandingTitle" data-user-content>
 <div class="dialog-card install-landing-card">
 <label class="install-language"><span id="installLanguageLabel">Sprache</span><select id="installLanguageSelect"><option value="de">Deutsch</option><option value="en">English</option></select></label>
-<img src="icon-192.png?v=0.25.0" class="install-landing-icon" width="88" height="88" alt="FitTogether"/>
+<img src="icon-192.png?v=0.26.0" class="install-landing-icon" width="88" height="88" alt="FitTogether"/>
 <p class="eyebrow">FIT TOGETHER</p>
 <h2 id="installLandingTitle">Dein Training. Eure Motivation.</h2>
 <p class="helper" id="installLandingDescription">Installiere FitTogether und starte dein Training direkt vom Homescreen.</p>
@@ -62,7 +62,7 @@
 <header class="topbar">
 <div>
 <p class="eyebrow">Gemeinsam durchziehen</p>
-<h1>FitTogether <span class="app-version">V0.25.0</span></h1>
+<h1>FitTogether <span class="app-version">V0.26.0</span></h1>
 </div>
 <div class="top-actions">
 <select aria-label="Aktive Gruppe" class="group-select" id="activeGroupSelect"></select>
@@ -130,6 +130,11 @@
 </div>
 <div aria-label="Monatskalender" class="month-grid" id="monthGrid"></div>
 <button class="calendar-fab" id="addSelectedDayBtn" type="button">+ Termin hinzufügen</button>
+</section>
+<section class="card calendar-day-details" id="calendarDayDetails" aria-labelledby="calendarDayTitle">
+<div class="section-heading"><div><p class="eyebrow" id="calendarDayLabel" data-user-content>Trainings an diesem Tag</p><h2 id="calendarDayTitle" data-user-content></h2></div></div>
+<div class="list" id="calendarDayList"></div>
+<button class="primary-btn full" id="addDayEventBtn" type="button" data-user-content>+ Termin an diesem Tag</button>
 </section>
 <section class="card" id="eventFormCard">
 <div class="section-heading"><div><p class="eyebrow">Neuer Eintrag</p><h2>Termin eintragen</h2></div></div>
@@ -485,7 +490,7 @@
 </div>
 </form>
 </dialog>
-<script src="app.js?v=0.25.0" type="module"></script>
+<script src="app.js?v=0.26.0" type="module"></script>
 <dialog class="status-dialog" id="seriesActionDialog">
 <form class="dialog-card" method="dialog">
 <p class="eyebrow" id="seriesActionEyebrow">Wiederholung</p>

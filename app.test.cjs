@@ -288,3 +288,40 @@ test('tutorial runs before reminder onboarding and finishes at the appropriate t
   await x.run('applySession(null)');assert.equal(x.doc.querySelector('#tutorialDialog').open,false);
  }finally{x.close();}
 });
+
+test('calendar day selection shows every workout in time order and opens the selected recurrence status',()=>{
+ const x=setup();try{
+  x.w.HTMLElement.prototype.scrollIntoView=function(){};
+  x.run(`appLanguage='de';timeFormat='24';currentUser={id:'u'};currentProfile={name:'Janek'};activeGroup={id:'g'};groupMembers=[{id:'u',name:'Janek'}];
+   events=[{id:'weekly',title:'Gym <together>',date:'2026-09-27',start:'18:00',end:'19:30',color:'green',penalty:2,note:'Bring <water>',created_by:'u',recurrence:'weekly',participants:[{profile_id:'u',name:'Janek',status:'completed'}]},
+    ...['08:00','09:00','10:00','11:00'].map((start,i)=>({id:'e'+i,title:'Workout '+i,date:'2026-10-04',start,color:'blue',penalty:0,created_by:'v',recurrence:'none',participants:[{profile_id:'v',name:'Estelle',status:'planned'}]}))];
+   occurrenceStatuses=[{event_id:'weekly',profile_id:'u',occurrence_date:'2026-10-04',status:'missed'}];
+   calendarCursor=new Date('2026-10-01T12:00:00');document.querySelector('#eventDate').value='2026-10-01';renderMonthCalendar();
+   openStatusDialog=(ev,date)=>{window.openedStatus=[ev.id,date]};`);
+  const day=[...x.doc.querySelectorAll('.calendar-day')].find(b=>b.querySelector('.day-number').textContent==='4');
+  assert.match(day.textContent,/\+2 mehr/);
+  day.querySelector('.calendar-event').click();
+  assert.equal(x.doc.querySelector('#eventDate').value,'2026-10-04');
+  const cards=x.doc.querySelectorAll('#calendarDayList .event-item');assert.equal(cards.length,5);
+  assert.match(cards[0].textContent,/08:00/);assert.match(cards[4].textContent,/18:00 – 19:30/);
+  assert.match(cards[4].textContent,/Janek: Verpasst/);
+  assert.equal(cards[4].querySelector('[data-user-content]').textContent,'Gym <together>');
+  assert.equal(cards[4].querySelector('.day-event-note').textContent,'Bring <water>');
+  assert.equal(cards[0].querySelector('.status-btn'),null);
+  cards[4].querySelector('.status-btn').click();assert.deepEqual(Array.from(x.w.openedStatus),['weekly','2026-10-04']);
+ }finally{x.close();}
+});
+test('day details translate, show empty days and preserve selected date when adding a workout',()=>{
+ const x=setup();try{
+  x.w.HTMLElement.prototype.scrollIntoView=function(){};
+  x.run(`currentUser={id:'u'};currentProfile={name:'Janek'};activeGroup={id:'g'};events=[];document.querySelector('#eventDate').value='2026-10-04';setLanguage('en');bindActions();showEventForm=date=>window.addedDate=date;`);
+  assert.equal(x.doc.querySelector('#calendarDayLabel').textContent,'Workouts on this day');
+  assert.match(x.doc.querySelector('#calendarDayList').textContent,/No workouts planned/);
+  x.doc.querySelector('#addDayEventBtn').click();assert.equal(x.w.addedDate,'2026-10-04');
+  x.doc.querySelector('#eventDate').value='2026-10-05';x.doc.querySelector('#eventDate').dispatchEvent(new x.w.Event('change'));
+  assert.equal(x.doc.querySelector('#calendarDayTitle').textContent,x.run("formatDate('2026-10-05')"));
+  x.run("setLanguage('de')");assert.match(x.doc.querySelector('#calendarDayList').textContent,/keine Trainings geplant/);
+  x.doc.querySelector('#todayBtn').click();assert.equal(x.doc.querySelector('#eventDate').value,x.run('todayISO()'));
+  x.run('activeGroup=null;renderCalendarDay()');assert.match(x.doc.querySelector('#calendarDayList').textContent,/Wähle eine Gruppe/);
+ }finally{x.close();}
+});

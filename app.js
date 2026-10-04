@@ -1,4 +1,4 @@
-const APP_VERSION = "0.25.0";
+const APP_VERSION = "0.26.0";
 const I18N={
  de:{home:'Übersicht',display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise',groups:'Gruppe',achievements:'Erfolge'},
  en:{home:'Overview',display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof',groups:'Group',achievements:'Achievements'}
@@ -175,8 +175,10 @@ function bindActions(){
   $('#ownNotificationsOnly')?.addEventListener('change',saveReminderSettings);
   $('#prevMonthBtn').addEventListener('click',()=>{calendarCursor.setMonth(calendarCursor.getMonth()-1);renderMonthCalendar();});
   $('#nextMonthBtn').addEventListener('click',()=>{calendarCursor.setMonth(calendarCursor.getMonth()+1);renderMonthCalendar();});
-  $('#todayBtn').addEventListener('click',()=>{calendarCursor=new Date();calendarCursor.setDate(1);renderMonthCalendar();});
+  $('#todayBtn').addEventListener('click',()=>{calendarCursor=new Date();calendarCursor.setDate(1);$('#eventDate').value=todayISO();renderMonthCalendar();});
   $('#addSelectedDayBtn').addEventListener('click',()=>showEventForm($('#eventDate').value||todayISO()));
+  $('#addDayEventBtn').addEventListener('click',()=>showEventForm($('#eventDate').value||todayISO()));
+  $('#eventDate').addEventListener('change',()=>renderMonthCalendar());
   $('#eventRepeat').addEventListener('change',toggleRepeatUntil);
   $('#saveOwnProfileBtn').addEventListener('click',saveOwnProfile);
   $('#logoutBtn').addEventListener('click',()=>supabase.auth.signOut());
@@ -1112,16 +1114,49 @@ function renderMonthCalendar(){
     if(d.getMonth()!==m)cell.classList.add('other-month');if(iso===today)cell.classList.add('today');if(iso===selected)cell.classList.add('selected');
     const dayEvents=events.filter(e=>eventOccursOn(e,iso)).sort((a,b)=>(a.start||'').localeCompare(b.start||''));
     const visibleEvents=dayEvents.slice(0,3);
-    cell.innerHTML=`<span class="day-number">${d.getDate()}</span><span class="calendar-events">${visibleEvents.map(e=>`<span class="calendar-event ${e.color} ${calendarEventStatus(e,iso)}" title="Status für ${escapeHtml(e.title)} ändern"><span class="calendar-event-time">${escapeHtml(e.start||'')}</span><span data-user-content class="calendar-event-title">${calendarStatusSymbol(e,iso)}${escapeHtml(e.title)}</span></span>`).join('')}${dayEvents.length>3?`<span class="calendar-more">+${dayEvents.length-3} mehr</span>`:''}</span>`;
-    cell.querySelectorAll('.calendar-event').forEach((chip,index)=>chip.addEventListener('click',event=>{
-      event.stopPropagation();
-      const ev=visibleEvents[index];
-      if(!ev?.participants.some(p=>p.profile_id===currentUser.id))return showAlert('Du bist bei diesem Termin nicht als Teilnehmer eingetragen.');
-      openStatusDialog(ev,iso);
-    }));
-    cell.addEventListener('click',()=>{$('#eventDate').value=iso;renderMonthCalendar();});cell.addEventListener('dblclick',()=>showEventForm(iso));grid.appendChild(cell);
+    cell.innerHTML=`<span class="day-number">${d.getDate()}</span><span class="calendar-events">${visibleEvents.map(e=>`<span class="calendar-event ${e.color} ${calendarEventStatus(e,iso)}" title="${escapeHtml(e.title)}"><span class="calendar-event-time">${escapeHtml(e.start||'')}</span><span data-user-content class="calendar-event-title">${calendarStatusSymbol(e,iso)}${escapeHtml(e.title)}</span></span>`).join('')}${dayEvents.length>3?`<span class="calendar-more">+${dayEvents.length-3} mehr</span>`:''}</span>`;
+    cell.setAttribute('aria-label',`${formatDate(iso)} · ${dayEvents.length} ${appLanguage==='en'?'events':'Termine'}`);
+    cell.setAttribute('aria-pressed',String(iso===selected));
+    cell.addEventListener('click',()=>selectCalendarDay(iso));grid.appendChild(cell);
   }
+  renderCalendarDay();
 }
+function selectCalendarDay(iso){
+  $('#eventDate').value=iso;
+  calendarCursor=new Date(`${iso.slice(0,7)}-01T12:00:00`);
+  renderMonthCalendar();
+  $('#calendarDayDetails').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function renderCalendarDay(){
+  const iso=$('#eventDate').value||todayISO(),list=$('#calendarDayList');
+  const en=appLanguage==='en';
+  $('#calendarDayTitle').textContent=formatDate(iso);
+  $('#calendarDayLabel').textContent=en?'Workouts on this day':'Trainings an diesem Tag';
+  $('#addDayEventBtn').textContent=en?'+ Add event on this day':'+ Termin an diesem Tag';
+  list.replaceChildren();
+  if(!activeGroup){
+    const empty=document.createElement('p');empty.className='empty';empty.dataset.userContent='';
+    empty.textContent=en?'Choose a group to see its workouts.':'Wähle eine Gruppe, um ihre Trainings zu sehen.';list.append(empty);return;
+  }
+  const dayEvents=events.filter(ev=>eventOccursOn(ev,iso)).sort((a,b)=>(a.start||'').localeCompare(b.start||''));
+  if(!dayEvents.length){
+    const empty=document.createElement('p');empty.className='empty';empty.dataset.userContent='';
+    empty.textContent=en?'No workouts planned for this day.':'Für diesen Tag sind keine Trainings geplant.';list.append(empty);
+  }
+  dayEvents.forEach(ev=>{
+    const node=eventNode(ev,false,iso);node.classList.add('day-event-item');
+    node.style.setProperty('--event-color',colorHex(ev.color));
+    const meta=node.querySelector('.event-meta');meta.dataset.userContent='';
+    meta.textContent=`${timeLabel(ev.start)||'–'}${ev.end?` – ${timeLabel(ev.end)}`:''} · ${euro(ev.penalty)} ${en?'penalty':'Strafe'}`;
+    node.querySelector('.event-creator').remove();
+    const button=node.querySelector('.status-btn');
+    if(!ev.participants.some(p=>p.profile_id===currentUser?.id))button.remove();
+    else button.textContent=en?'Update status':'Status ändern';
+    if(ev.note){const note=document.createElement('p');note.className='day-event-note';note.dataset.userContent='';note.textContent=ev.note;node.querySelector('.event-main').append(note);}
+    list.append(node);
+  });
+}
+
 function calendarStatusSymbol(ev,date){const c=calendarEventStatus(ev,date);return c==='done'?'✓ ':c==='missed'?'✕ ':c==='excused'?'🩹 ':'';}
 function calendarEventStatus(ev,date){
   const sts=ev.participants.map(p=>occurrenceStatus(ev,p.profile_id,date));

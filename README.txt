@@ -1,4 +1,4 @@
-FitTogether V0.25.0
+FitTogether V0.26.0
 
 Änderungen:
 - Englisch für Achievements, Kalenderstatus, Datumsangaben, Kameratexte,
@@ -180,3 +180,15 @@ V0.25.0 – übersichtliche Einstellungen und Farbkreis
 - Pfeiltasten bedienen den Kreis; Standardfarben per Button wiederherstellen.
 - Vorher gespeicherte Farben werden übernommen.
 - Handy-Check: Bereiche aufklappen, Farbe im Kreis ziehen und Helligkeit ändern.
+
+V0.26.0 – Weiß im Farbkreis
+- Die zentrale Fläche lässt sich leichter treffen und wählt reines Weiß.
+- Helle Akzentfarben bleiben hell; passende schwarze Schrift statt Abdunkeln.
+- Helligkeitsregler erlaubt weiterhin Grau bis Schwarz.
+
+V0.26.0 – Tagesansicht im Kalender
+- Ein Tipp auf einen Tag oder Trainingseintrag zeigt alle Trainings des Tages unter dem Kalender.
+- Ganze Titel, Uhrzeiten und Teilnehmerstatus; Status ändern für eigene Trainings.
+- Wiederholungen zeigen den Status des ausgewählten Tages.
+- Termin hinzufügen übernimmt das ausgewählte Datum; Heute wählt den heutigen Tag.
+- Deutsch und Englisch; bestehende Weißauswahl bleibt enthalten.

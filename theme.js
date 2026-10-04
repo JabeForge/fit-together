@@ -13,10 +13,8 @@
   let h=delta===0?0:max===r?60*(((g-b)/delta)%6):max===g?60*((b-r)/delta+2):60*((r-g)/delta+4);
   return{h:(h+360)%360,s:max===0?0:delta/max,v:max};
  }
- function readable(color){
-  let p=[1,3,5].map(i=>parseInt(color.slice(i,i+2),16));
-  const lum=()=>p.map(c=>{const v=c/255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
-  while(1.05/(lum()+.05)<4.5)p=p.map(c=>Math.floor(c*.92));return hex(p);
+ function luminance(color){
+  return [1,3,5].map(i=>{const v=parseInt(color.slice(i,i+2),16)/255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
  }
  const source=()=>Object.hasOwn(presets,choice)?presets[choice][0]:choice;
  function draw(){
@@ -35,13 +33,14 @@
   $('themeDescription').textContent=en?'Choose your accent on the color wheel. It is saved on this device.':'Wähle deine Akzentfarbe im Farbkreis. Sie wird auf diesem Gerät gespeichert.';
   $('themeWheelHelp').textContent=en?'Tap or drag in the circle. Keyboard: left/right changes hue, up/down changes saturation.':'Tippe oder ziehe im Kreis. Tastatur: links/rechts ändert den Farbton, oben/unten die Sättigung.';
   $('themeBrightnessLabel').textContent=en?'Brightness':'Helligkeit';$('themeCustomLabel').textContent=en?'Color code':'Farbcode';
-  $('themeColorHint').textContent=en?'Light accents are darkened to keep white button text readable. The preview shows the applied accent.':'Helle Akzente werden für lesbare weiße Buttonschrift abgedunkelt. Die Vorschau zeigt die verwendete Akzentfarbe.';
+  $('themeColorHint').textContent=en?'The center selects white. Text switches between light and dark to stay readable.':'Die Mitte wählt Weiß. Die Schrift wird passend hell oder dunkel, damit sie lesbar bleibt.';
   $('themeResetBtn').textContent=en?'Default colors':'Standardfarben';canvas.setAttribute('aria-label',en?'Accent color wheel':'Farbkreis für die Akzentfarbe');
   canvas.setAttribute('aria-valuenow',String(Math.round(hsv.h)%360));canvas.setAttribute('aria-valuetext',`${source()}, ${en?'saturation':'Sättigung'} ${Math.round(hsv.s*100)}%`);
  }
  function apply(){
-  const pair=Object.hasOwn(presets,choice)?presets[choice]:[readable(choice),readable(choice)];
+  const pair=Object.hasOwn(presets,choice)?presets[choice]:[choice,choice];
   root.style.setProperty('--accent-start',pair[0]);root.style.setProperty('--accent-end',pair[1]);
+  root.style.setProperty('--accent-text',luminance(pair[0])>.179?'#000000':'#ffffff');
   $('themeColorInput').value=source();$('themeBrightness').value=Math.round(hsv.v*100);$('themePreview').style.background=`linear-gradient(135deg,${pair[0]},${pair[1]})`;
   labels();draw();
  }
@@ -49,7 +48,9 @@
  function pick(event){
   const r=canvas.getBoundingClientRect();if(!r.width||!r.height)return;
   const dx=(event.clientX-r.left)*size/r.width-center,dy=(event.clientY-r.top)*size/r.height-center;
-  hsv.h=(Math.atan2(dy,dx)*180/Math.PI+360)%360;hsv.s=Math.min(1,Math.hypot(dx,dy)/radius);
+  const distance=Math.hypot(dx,dy);
+  hsv.h=(Math.atan2(dy,dx)*180/Math.PI+360)%360;hsv.s=Math.min(1,distance/radius);
+  if(distance<=10){hsv.s=0;hsv.v=1;}
   save(hex(rgb(hsv.h,hsv.s,hsv.v)),false);
  }
  canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;dragging=true;canvas.setPointerCapture?.(e.pointerId);pick(e);});
