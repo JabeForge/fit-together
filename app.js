@@ -1,4 +1,4 @@
-const APP_VERSION = "0.26.0";
+const APP_VERSION = "0.27.0";
 const I18N={
  de:{home:'Übersicht',display:'Anzeige',languageRegion:'Sprache & Format',language:'Sprache',format:'Format',dateFormat:'Datumsformat',timeFormat:'Zeitformat',weightUnit:'Gewichtseinheit',formatHint:'Sprache und Format sind unabhängig voneinander. Gewichte werden intern weiterhin in kg gespeichert.',calendar:'Kalender',stats:'Statistik',photos:'Bilder',profiles:'Profile',settings:'Einstellungen',today:'Heute',done:'Erledigt',missed:'Verpasst',excused:'Entschuldigt',planned:'Geplant',weight:'Gewicht',weightProgress:'Gewichtsverlauf',progressPhotos:'Fortschrittsbilder',trainingProofs:'Trainingsnachweise',groups:'Gruppe',achievements:'Erfolge'},
  en:{home:'Overview',display:'Display',languageRegion:'Language & format',language:'Language',format:'Format',dateFormat:'Date format',timeFormat:'Time format',weightUnit:'Weight unit',formatHint:'Language, date, time and weight unit can be configured independently. Weights are still stored internally in kilograms.',calendar:'Calendar',stats:'Statistics',photos:'Photos',profiles:'Profiles',settings:'Settings',today:'Today',done:'Done',missed:'Missed',excused:'Excused',planned:'Planned',weight:'Weight',weightProgress:'Weight progress',progressPhotos:'Progress photos',trainingProofs:'Training proof',groups:'Group',achievements:'Achievements'}
@@ -32,7 +32,7 @@ function inputWeightToKg(v){const n=Number(v);return weightUnit==='lb'?n/2.20462
 function dateLabel(iso){if(!iso)return'';const [y,m,d]=String(iso).slice(0,10).split('-');return dateFormat==='mdy'?`${m}/${d}/${y}`:`${d}.${m}.${y}`;}
 function timeLabel(hm){if(!hm)return'';if(timeFormat!=='12')return hm.slice(0,5);let [h,m]=hm.slice(0,5).split(':').map(Number);const ap=h>=12?'PM':'AM';h=h%12||12;return `${h}:${String(m).padStart(2,'0')} ${ap}`;}
 
-console.info(`FitTogether V${APP_VERSION}`);
+console.info(`FitWithFriends V${APP_VERSION}`);
 const versionEl=document.querySelector('.app-version');if(versionEl)versionEl.textContent=`V${APP_VERSION}`;
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm";
 
@@ -1501,7 +1501,7 @@ async function requestNotifications(){
   if(permission==='granted'){
     scheduleReminderChecks();
     try{ await ensurePushSubscription(false); }catch(err){ console.warn('Push subscription failed',err); }
-    new Notification('FitTogether',{body:appLanguage==='en'?'Notifications enabled.':'Benachrichtigungen aktiviert.'});
+    new Notification('FitWithFriends',{body:appLanguage==='en'?'Notifications enabled.':'Benachrichtigungen aktiviert.'});
   }
 }
 function updateNotificationStatus(){
@@ -1545,7 +1545,7 @@ function checkReminders(){
       const key=`${ev.id}|${date}|${eventMinutes}`;
       if(sentReminderKeys.has(key))continue;
       const when=timeLabel((ev.start_time||'09:00').slice(0,5));
-      new Notification(ev.title||'FitTogether',{body:appLanguage==='en'?`Workout today at ${when}.`:`Training heute um ${when}.`});
+      new Notification(ev.title||'FitWithFriends',{body:appLanguage==='en'?`Workout today at ${when}.`:`Training heute um ${when}.`});
       sentReminderKeys.add(key);localStorage.setItem('fitTogether_sentReminders',JSON.stringify([...sentReminderKeys].slice(-300)));
     }
   }
@@ -1556,7 +1556,7 @@ function scheduleReminderChecks(){
 }
 function testNotification(){
   if(!('Notification' in window)||Notification.permission!=='granted')return requestNotifications();
-  new Notification('FitTogether',{body:appLanguage==='en'?'Test notification — it works!':'Test-Benachrichtigung – funktioniert!'});
+  new Notification('FitWithFriends',{body:appLanguage==='en'?'Test notification — it works!':'Test-Benachrichtigung – funktioniert!'});
 }
 
 function checkDueReminders(){/* Push/Background-Erinnerungen folgen später. */}
@@ -1568,7 +1568,7 @@ window.addEventListener('resize',()=>drawWeightChart(weights));
 
 // V0.13.4 – unified visible UI translation layer.
 const EN_TEXT = new Map(Object.entries({
-'FitTogether Online':'FitTogether Online','Willkommen bei FitTogether':'Welcome to FitTogether','Melde dich an oder erstelle einmalig deinen Account.':'Sign in or create your account.','Anmelden':'Sign in','Registrieren':'Sign up','Anzeigename':'Display name','Passwort':'Password','Account erstellen':'Create account','Gemeinsam durchziehen':'Stick with it together','Aktive Gruppe':'Active group','● Online':'● Online','🔔 Erinnerungen':'🔔 Reminders','Abmelden':'Sign out',
+'FitWithFriends Online':'FitWithFriends Online','Willkommen bei FitWithFriends':'Welcome to FitWithFriends','Melde dich an oder erstelle einmalig deinen Account.':'Sign in or create your account.','Anmelden':'Sign in','Registrieren':'Sign up','Anzeigename':'Display name','Passwort':'Password','Account erstellen':'Create account','Gemeinsam durchziehen':'Stick with it together','Aktive Gruppe':'Active group','● Online':'● Online','🔔 Erinnerungen':'🔔 Reminders','Abmelden':'Sign out',
 'Übersicht':'Overview','Kalender':'Calendar','Fortschritt':'Progress','Bilder':'Photos','Profile':'Profiles','⚙️ Einstellungen':'⚙️ Settings','Noch keine Gruppe':'No group yet','Erstelle eine Gruppe oder tritt mit einem Einladungscode bei. Danach wird der Kalender automatisch mit allen Gruppenmitgliedern synchronisiert.':'Create a group or join one with an invite code. The calendar will then sync automatically with all group members.','Gruppe einrichten':'Set up group',
 'Strafgeld-Tauziehen':'Penalty tug of war','Wer hält besser durch?':'Who’s staying on track?','Gleichstand':'Tie','Ich':'Me','Partner':'Partner','Noch keine Strafgelder. Perfekter Start.':'No penalties yet. Perfect start.','🔥 Aktuelle Streak':'🔥 Current streak','erledigte Termine':'completed events','🏆 Beste Streak':'🏆 Best streak','am Stück':'in a row','✅ Geschafft':'✅ Completed','Trainings':'Workouts','💸 Gemeinsamer Topf':'💸 Shared pot','Jahressumme':'Year total','Als Nächstes':'Up next','Nächste Termine':'Upcoming events','+ Termin':'+ Event',
 'MO.':'MON','DI.':'TUE','MI.':'WED','DO.':'THU','FR.':'FRI','SA.':'SAT','SO.':'SUN','+ Termin hinzufügen':'+ Add event','Neuer Eintrag':'New entry','Termin eintragen':'Add event','Titel':'Title','Datum':'Date','Von':'From','Bis':'To','Teilnehmer':'Participants','Alle Gruppenmitglieder':'All group members','Nur ich':'Only me','Farbe':'Color','Lila':'Purple','Blau':'Blue','Grün':'Green','Orange':'Orange','Pink':'Pink','Strafe bei Verpassen (€)':'Penalty if missed (€)','Wiederholung':'Repeat','Keine':'None','Wöchentlich':'Weekly','Monatlich':'Monthly','Jährlich':'Yearly','Wiederholen bis (optional)':'Repeat until (optional)','Erinnerung':'Reminder','1 Stunde vorher':'1 hour before','15 Minuten vorher':'15 minutes before','Notiz':'Note','Termin speichern':'Save event','Wiederholungen werden automatisch im Kalender angezeigt. Jede einzelne Wiederholung hat ihren eigenen Status und zählt separat für Streaks und Strafgeld.':'Repeating events are shown automatically in the calendar. Each occurrence has its own status and counts separately for streaks and penalties.','Liste':'List','Alle Termine':'All events',
@@ -1613,7 +1613,7 @@ EN_TEXT.set("📷 Bild aufnehmen","📷 Take photo");
 EN_TEXT.set("🖼️ Bild auswählen","🖼️ Choose photo");
 EN_TEXT.set("Noch kein neues Bild ausgewählt.","No new photo selected.");
 EN_TEXT.set("Trainingserinnerungen aktivieren?","Enable workout reminders?");
-EN_TEXT.set("FitTogether kann dich vor deinen geplanten Trainings erinnern – auch wenn die App geschlossen ist.","FitTogether can remind you before scheduled workouts, even when the app is closed.");
+EN_TEXT.set("FitWithFriends kann dich vor deinen geplanten Trainings erinnern – auch wenn die App geschlossen ist.","FitWithFriends can remind you before scheduled workouts, even when the app is closed.");
 EN_TEXT.set("Benachrichtigungen aktivieren","Enable notifications");
 EN_TEXT.set("Später","Later");
 EN_TEXT.set("Kamera","Camera");

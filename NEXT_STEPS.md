@@ -1,4 +1,4 @@
-# FitTogether: nächste Schritte
+# FitWithFriends: nächste Schritte
 
 ## Account-Löschung
 

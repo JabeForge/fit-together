@@ -1,4 +1,4 @@
-FitTogether V0.17 – echtes Web Push
+FitWithFriends V0.17 – echtes Web Push
 
 Dieser Schritt braucht einmalig Supabase-Konfiguration, weil GitHub Pages selbst keine Nachrichten senden kann.
 

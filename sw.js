@@ -1,6 +1,6 @@
-// FitTogether V0.26.0: offline help + existing Web Push.
-const CACHE='fittogether-install-0.26.0';
-const ASSETS=['./offline.html','./icon-192.png','./icon-512.png','./icon-180.png'];
+// FitWithFriends V0.27.0: offline help + existing Web Push.
+const CACHE='fittogether-install-0.27.0';
+const ASSETS=['./offline.html','./icon-192.png','./icon-512.png','./icon-180.png','./icon-32.png','./icon-maskable-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(
   caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('fittogether-install-')&&k!==CACHE).map(k=>caches.delete(k))))
@@ -19,8 +19,8 @@ self.addEventListener('fetch',event=>{
 
 self.addEventListener('push',event=>{
   let data={};
-  try{ data=event.data?.json()||{}; }catch{ data={body:event.data?.text()||'FitTogether'}; }
-  const title=data.title||'FitTogether';
+  try{ data=event.data?.json()||{}; }catch{ data={body:event.data?.text()||'FitWithFriends'}; }
+  const title=data.title||'FitWithFriends';
   const options={
     body:data.body||'You have a training reminder.',
     icon:data.icon||'./icon-192.png',

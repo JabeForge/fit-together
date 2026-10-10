@@ -1,4 +1,4 @@
-// FitTogether V0.19.4 – reminders + server-side missed-status sync
+// FitWithFriends V0.19.4 – reminders + server-side missed-status sync
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 
@@ -125,7 +125,7 @@ Deno.serve(async(req)=>{
           await webpush.sendNotification(
             {endpoint:sub.endpoint,keys:{p256dh:sub.p256dh,auth:sub.auth}},
             JSON.stringify({
-              title:ev.title||"FitTogether",
+              title:ev.title||"FitWithFriends",
               body:`Training in 1 Stunde · ${ev.start_time.slice(0,5)}`,
               url:"./index.html",
               tag:`event-${ev.id}-${ev.event_date}`

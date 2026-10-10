@@ -1,4 +1,4 @@
-FitTogether V0.26.0
+FitWithFriends V0.27.0
 
 Änderungen:
 - Englisch für Achievements, Kalenderstatus, Datumsangaben, Kameratexte,
@@ -39,10 +39,10 @@ Installation / Prüfung:
 Für dieses Update ist keine SQL-Migration erforderlich.
 
 Neu in V0.20.2 – Installation:
-- Originales FitTogether-Icon (Hantel + Verbindung), Launcher-Icons inklusive
+- Ursprüngliches FitTogether-Icon (Hantel + Verbindung), Launcher-Icons inklusive
   maskierbarem Icon sowie iPhone-Touch-Icon.
 - Manifest mit stabiler App-ID, Scope und Start ohne Browserleiste.
-- Einstellungen > FitTogether installieren: Installationsbutton, sobald der
+- Einstellungen > FitWithFriends installieren: Installationsbutton, sobald der
   Browser die Installation anbietet; sonst Anleitung für das Browsermenü.
 - iPhone: Safari > Teilen > Zum Home-Bildschirm.
 - Installationsbereich folgt Deutsch/Englisch und erkennt den Standalone-Modus.
@@ -62,7 +62,7 @@ Keine SQL-Migration und keine neue Supabase-Konfiguration nötig.
 
 Prüfung nach dem Hochladen:
 1. App neu laden; Versionsanzeige V0.20.2 prüfen.
-2. Einstellungen > FitTogether installieren öffnen und installieren.
+2. Einstellungen > FitWithFriends installieren öffnen und installieren.
 3. Browser schließen, vom Homescreen starten: eigenes Icon, keine URL-Leiste.
 4. Englisch/Deutsch im Installationsbereich prüfen.
 5. Nach dem ersten Online-Start Flugmodus aktivieren, App erneut öffnen:
@@ -192,3 +192,10 @@ V0.26.0 – Tagesansicht im Kalender
 - Wiederholungen zeigen den Status des ausgewählten Tages.
 - Termin hinzufügen übernimmt das ausgewählte Datum; Heute wählt den heutigen Tag.
 - Deutsch und Englisch; bestehende Weißauswahl bleibt enthalten.
+
+V0.27.0 – FitWithFriends
+- Neuer Name auf Anmeldung, Installation, Einstellungen und in Benachrichtigungen.
+- Ausgewähltes Logo A mit zwei gemeinsam laufenden Freunden.
+- Neue Launcher-, Apple- und Browser-Icons sowie eigenes Maskable-Icon.
+- Bestehende App-Identität, URL und lokale Einstellungen bleiben erhalten.
+- Bereits installierte Apps übernehmen Namen/Icons je nach Browser eventuell verzögert.

@@ -1,4 +1,4 @@
--- FitTogether V0.17: einmal im Supabase SQL Editor ausführen
+-- FitWithFriends V0.17: einmal im Supabase SQL Editor ausführen
 create table if not exists public.push_subscriptions (
   id uuid primary key default gen_random_uuid(),
   profile_id uuid not null references public.profiles(id) on delete cascade,

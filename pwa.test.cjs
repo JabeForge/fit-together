@@ -34,9 +34,9 @@ test('manual iPhone help, standalone detection and live language changes work',(
  const x=setup({ios:true}),y=setup({installed:true});try{
   assert.match(x.doc.querySelector('#installHelp').textContent,/Safari.*Share.*Home Screen/);
   x.w.dispatchEvent(new x.w.CustomEvent('fittogether:languagechange',{detail:'de'}));
-  assert.equal(x.doc.querySelector('#installTitle').textContent,'FitTogether installieren');
+  assert.equal(x.doc.querySelector('#installTitle').textContent,'FitWithFriends installieren');
   assert.match(x.doc.querySelector('#installHelp').textContent,/Teilen/);
-  assert.match(y.doc.querySelector('#installTitle').textContent,/Your FitTogether app/);
+  assert.match(y.doc.querySelector('#installTitle').textContent,/Your FitWithFriends app/);
   assert.ok(y.doc.querySelector('#installAppBtn').classList.contains('hidden'));
   assert.equal(x.calls[0][0],'./sw.js');assert.equal(x.calls[0][1].updateViaCache,'none');
  }finally{x.close();y.close();}
@@ -104,11 +104,11 @@ test('download page language selector translates the whole page and saves the ap
   selector.value='de';selector.dispatchEvent(new x.w.Event('change'));
   assert.equal(x.doc.documentElement.lang,'de');
   assert.equal(x.doc.querySelector('#installLanguageLabel').textContent,'Sprache');
-  assert.equal(x.doc.querySelector('#installLandingBtn').textContent,'FitTogether installieren');
+  assert.equal(x.doc.querySelector('#installLandingBtn').textContent,'FitWithFriends installieren');
   selector.value='en';selector.dispatchEvent(new x.w.Event('change'));
   assert.equal(x.doc.documentElement.lang,'en');
   assert.equal(x.doc.querySelector('#installLanguageLabel').textContent,'Language');
-  assert.equal(x.doc.querySelector('#installLandingBtn').textContent,'Install FitTogether');
+  assert.equal(x.doc.querySelector('#installLandingBtn').textContent,'Install FitWithFriends');
   assert.match(x.doc.querySelector('#installLandingHelp').textContent,/browser menu/);
   assert.equal(x.w.localStorage.getItem('fitTogether_language'),'en');
   x.w.dispatchEvent(new x.w.Event('appinstalled'));
