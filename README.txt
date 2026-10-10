@@ -1,4 +1,4 @@
-FitWithFriends V0.27.0
+FitWithFriends V0.27.1
 
 Änderungen:
 - Englisch für Achievements, Kalenderstatus, Datumsangaben, Kameratexte,
@@ -199,3 +199,9 @@ V0.27.0 – FitWithFriends
 - Neue Launcher-, Apple- und Browser-Icons sowie eigenes Maskable-Icon.
 - Bestehende App-Identität, URL und lokale Einstellungen bleiben erhalten.
 - Bereits installierte Apps übernehmen Namen/Icons je nach Browser eventuell verzögert.
+
+V0.27.1 – automatische Updates
+- Versionsprüfung beim Start, Rückkehr in die App und alle fünf Minuten online.
+- Neue Version wird beim Öffnen automatisch geladen, wenn keine offenen Eingaben oder Dialoge betroffen sind.
+- Bei offenen Eingaben bleibt die aktuelle Sitzung erhalten; die nächste Öffnung lädt den neuen Stand.
+- Keine Neuinstallation für App-Dateien nötig. Homescreen-Name/Icon werden separat vom Browser verwaltet.

@@ -6,25 +6,27 @@
 <meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
 <meta content="#111827" name="theme-color"/>
 <title>FitWithFriends</title>
+<meta name="app-version" content="0.27.1"/>
 <link href="manifest.webmanifest" rel="manifest"/>
-<link href="icon-32.png?v=0.27.0" rel="icon" type="image/png"/>
-<link href="icon-180.png?v=0.27.0" rel="apple-touch-icon"/>
+<link href="icon-32.png?v=0.27.1" rel="icon" type="image/png"/>
+<link href="icon-180.png?v=0.27.1" rel="apple-touch-icon"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="FitWithFriends"/>
-<script src="image-upload.js?v=0.27.0" defer></script>
-<script src="tutorial.js?v=0.27.0" defer></script>
-<script src="mobile-nav.js?v=0.27.0" defer></script>
-<script src="theme.js?v=0.27.0" defer></script>
-<script src="pwa.js?v=0.27.0" defer></script>
+<script src="image-upload.js?v=0.27.1" defer></script>
+<script src="tutorial.js?v=0.27.1" defer></script>
+<script src="mobile-nav.js?v=0.27.1" defer></script>
+<script src="theme.js?v=0.27.1" defer></script>
+<script src="app-updates.js?v=0.27.1" defer></script>
+<script src="pwa.js?v=0.27.1" defer></script>
 <style>.hidden{display:none!important}</style>
-<link href="styles.css?v=0.27.0" rel="stylesheet"/>
+<link href="styles.css?v=0.27.1" rel="stylesheet"/>
 <meta content="no-cache, no-store, must-revalidate" http-equiv="Cache-Control"/><meta content="no-cache" http-equiv="Pragma"/><meta content="0" http-equiv="Expires"/></head>
 <body class="install-only">
 <dialog id="installLandingDialog" aria-labelledby="installLandingTitle" data-user-content>
 <div class="dialog-card install-landing-card">
 <label class="install-language"><span id="installLanguageLabel">Sprache</span><select id="installLanguageSelect"><option value="de">Deutsch</option><option value="en">English</option></select></label>
-<img src="icon-192.png?v=0.27.0" class="install-landing-icon" width="88" height="88" alt="FitWithFriends"/>
+<img src="icon-192.png?v=0.27.1" class="install-landing-icon" width="88" height="88" alt="FitWithFriends"/>
 <p class="eyebrow">FIT WITH FRIENDS</p>
 <h2 id="installLandingTitle">Dein Training. Eure Motivation.</h2>
 <p class="helper" id="installLandingDescription">Installiere FitWithFriends und starte dein Training direkt vom Homescreen.</p>
@@ -62,7 +64,7 @@
 <header class="topbar">
 <div>
 <p class="eyebrow">Gemeinsam durchziehen</p>
-<div class="brand-heading"><img class="brand-mark" src="icon-192.png?v=0.27.0" width="48" height="48" alt=""/><h1>FitWithFriends <span class="app-version">V0.27.0</span></h1></div>
+<div class="brand-heading"><img class="brand-mark" src="icon-192.png?v=0.27.1" width="48" height="48" alt=""/><h1>FitWithFriends <span class="app-version">V0.27.1</span></h1></div>
 </div>
 <div class="top-actions">
 <select aria-label="Aktive Gruppe" class="group-select" id="activeGroupSelect"></select>
@@ -445,6 +447,8 @@
 <h2 id="installTitle">FitWithFriends installieren</h2>
 </summary>
 <div class="settings-folder-content">
+<p id="appUpdateStatus" class="helper" role="status" hidden></p>
+
 
 <p class="helper" id="installDescription">Dein Training direkt vom Homescreen öffnen – mit eigenem Icon und ohne Browserleiste.</p>
 <button class="primary-btn full hidden" id="installAppBtn" type="button">App installieren</button>
@@ -490,7 +494,7 @@
 </div>
 </form>
 </dialog>
-<script src="app.js?v=0.27.0" type="module"></script>
+<script src="app.js?v=0.27.1" type="module"></script>
 <dialog class="status-dialog" id="seriesActionDialog">
 <form class="dialog-card" method="dialog">
 <p class="eyebrow" id="seriesActionEyebrow">Wiederholung</p>

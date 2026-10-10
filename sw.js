@@ -1,5 +1,5 @@
-// FitWithFriends V0.27.0: offline help + existing Web Push.
-const CACHE='fittogether-install-0.27.0';
+// FitWithFriends V0.27.1: offline help + existing Web Push.
+const CACHE='fittogether-install-0.27.1';
 const ASSETS=['./offline.html','./icon-192.png','./icon-512.png','./icon-180.png','./icon-32.png','./icon-maskable-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(
@@ -11,7 +11,7 @@ self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET'||url.origin!==scope.origin||!url.pathname.startsWith(scope.pathname))return;
   if(event.request.mode==='navigate'){
     // Never cache login URLs, API responses, photos or user data.
-    event.respondWith(fetch(event.request).catch(()=>caches.match(new URL('./offline.html',scope).href)));
+    event.respondWith(fetch(event.request,{cache:'no-store'}).catch(()=>caches.match(new URL('./offline.html',scope).href)));
   }else if(ASSETS.some(path=>new URL(path,scope).href===url.href)){
     event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request)));
   }

@@ -72,6 +72,7 @@
   if(!isStandalone()&&landing?.showModal)landing.showModal();
   if('serviceWorker' in navigator&&window.isSecureContext){
     navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'})
+      .then(registration=>window.FitTogetherUpdates?.start(registration))
       .catch(error=>console.warn('FitWithFriends background service:',error));
   }
 })();
